@@ -107,6 +107,16 @@ profile and overwrites the experiment's settings. To restore the default, stop a
 and launch normally with `launch/up.sh --profile tp4 --site site.env --go`. For a maintained profile, import a
 reviewed derived plan through the workflow in [docs/updating.md](docs/updating.md).
 
+**Concurrency at 512K is an estimate, not a measured limit.** The successful 24 GiB-per-GPU lab boot
+reported a shared capacity of 4,065,684 KV tokens (not four times that across TP4). Four full 524,288-token
+requests need 2,097,152 tokens; six need 3,145,728; seven need 3,670,016; eight need 4,194,304 and exceed
+that observed pool. Treat **four full-length requests as an initial validation target**, six as a possible
+later experiment, and seven as near capacity. Only sequential long requests were measured. Recheck the
+actual pool after the 512K boot and validate concurrency 1 → 2 → 4 before trying six; reserve room for
+output within each request's context budget and retain the host-memory margin above. The default
+`--max-num-seqs 16` can remain a scheduler ceiling for mixed shorter requests; it does not establish
+capacity for sixteen simultaneous full-length contexts or guarantee latency at any of these levels.
+
 ## Status (2026-09-25)
 
 | | TP4 (four Sparks) | TP2 (two Sparks) |
