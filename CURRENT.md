@@ -316,3 +316,20 @@ of the image, a notice describes the served patch only, not the lab's earlier po
   recipe's earlier name (`build/sparse-mla/README.md`).
 - The drafter, incoai/GLM-5.3-Flash-DFlash2, states CC BY-NC-ND 4.0 and is released for research and evaluation
   (`docs/limitations.md`, `NOTICE`).
+
+## Local experimental TP8 candidate
+
+Recipe `d39c68cc7258` built successfully on ARM64/SM121 as image
+`sha256:77499921186e3efe50f806a69a26ba0339985b40104406a17ddc95897d984845`.
+The image check found 44 matching source/config files and two rebuilt native
+artifacts with new hashes. This is build evidence only; eight-rank runtime and
+performance remain unqualified. The initial source plan is
+`8f9c355dc858ae7e6d465168c9c7e198ae4574bfadd07f14362ffec621598292`.
+The TP8 addition remains local and is not published. See `docs/tp8.md`.
+
+The local checks now include 193 CPU tests, 122 unchanged release files,
+five passing single-GB10 kernel families (370 dense real-weight/graph cases),
+and six successful four-rank communicator boots with the separate NCCL library.
+Actual Red Hat expert loaders were checked for all logical shard indices 0–7.
+These checks prepare external testing; they do not establish eight-rank serving
+or a speed gain. [Local evidence summary](build/tp8/local-evidence.json).

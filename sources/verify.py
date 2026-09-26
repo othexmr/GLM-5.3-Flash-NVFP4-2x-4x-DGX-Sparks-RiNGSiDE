@@ -58,8 +58,8 @@ IMAGE_ID = re.compile(r'sha256:[0-9a-f]{64}')
 PUBLIC_REFERENCE = re.compile(r'[a-z0-9][a-z0-9._/:-]*@sha256:[0-9a-f]{64}')
 MOUNT_KEYS = ('type', 'src', 'dst')
 RELEASE_BLOCKERS = [
-    'the base image that docker/Dockerfile rebuilds has not been built on a DGX Spark yet (docker/README.md)',
-    'the self-built profile images, with their rebuilt native artefacts, have not been qualified on hardware',
+    'self-built profile images require workload-specific hardware qualification of their actual artifact hashes',
+    'experimental TP8 requires real eight-rank transport, state and serving evidence',
 ]
 
 
@@ -550,6 +550,15 @@ def check(root):
     check_profiles(root, lock, inst, served, provenance)
     check_licences(root, inst)
     check_artefacts(root, lock, inst, provenance)
+    variants = root / 'launch/variants/tp8'
+    if variants.exists():
+        spec = importlib.util.spec_from_file_location('runtime_variants', root / 'sources/import_plan.py')
+        importer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(importer)
+        expected = importer.tp8_variants(root)
+        require({p.name for p in variants.iterdir()} == {s+'.json' for s in expected}, 'unexpected TP8 runtime variant')
+        for stage, doc in expected.items():
+            require(read_json(root, 'launch/variants/tp8/'+stage+'.json') == doc, 'TP8 variant differs from importer derivation')
     return RELEASE_BLOCKERS.copy()
 
 

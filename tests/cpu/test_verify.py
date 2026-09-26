@@ -57,7 +57,8 @@ class Verify(unittest.TestCase):
         self.assertEqual(self.cli()[0], 0)
         code, body = self.cli(release=True)
         self.assertEqual((code, body['status']), (2, 'RELEASE_BLOCKED'))
-        self.assertTrue(any('base image' in b for b in body['release_blockers']))
+        self.assertTrue(any('hardware qualification' in b for b in body['release_blockers']))
+        self.assertTrue(any('eight-rank' in b for b in body['release_blockers']))
         self.assertFalse(body['gpu_or_serving_checked'])
 
     # --- patches

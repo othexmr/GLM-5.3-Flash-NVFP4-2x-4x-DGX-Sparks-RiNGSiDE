@@ -13,6 +13,19 @@ def check(sysfs, topology, rank, gid_index):
     if rank not in neighbors:
         raise ValueError('rank outside topology')
     report = preflight_tp4.check(sysfs, topology, rank, gid_index)
+    domains = {}
+    for hca in topology['functions']:
+        device = Path(sysfs) / hca / 'device'
+        if not device.exists():
+            report['problems'].append(f'{hca}: PCI device identity unavailable')
+        else:
+            domains[hca] = device.resolve().name.split(':')[0]
+    if len(domains) == 4:
+        if (domains['rocep1s0f0'] != domains['rocep1s0f1']
+                or domains['roceP2p1s0f0'] != domains['roceP2p1s0f1']
+                or domains['rocep1s0f0'] == domains['roceP2p1s0f0']):
+            report['problems'].append('HCA functions do not identify two distinct PCI roots')
+    report['pci_domains'] = domains
     for link in topology['links']:
         for hca, expected in link.get('addresses', {}).get(str(rank), {}).items():
             if report['devices'].get(hca, {}).get('ipv4') != expected:

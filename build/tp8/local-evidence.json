@@ -1,0 +1,102 @@
+{
+ "schema": "tp8-local-evidence/1",
+ "status": "LOCAL_KERNEL_AND_FOUR_RANK_CHECKS_PASS_TP8_RUNTIME_UNQUALIFIED",
+ "image": "sha256:77499921186e3efe50f806a69a26ba0339985b40104406a17ddc95897d984845",
+ "recipe_source_commit": "d39c68cc7258e39fa0fe64cd1bb886ca6d5afc23",
+ "plan_sha256": "8f9c355dc858ae7e6d465168c9c7e198ae4574bfadd07f14362ffec621598292",
+ "nccl_sha256": "d14f72817f59301d5bbbc086b8f9be3f664c3e920383749a0ad0b37613d211f0",
+ "sparse_mla_sha256": "4b74ec96cfd070813219fc30c418497f8bcaa2d9e0379f8cf730e239c01e9cd6",
+ "leaves": {
+  "smla": {
+   "status": "LEAF_PASS_SERVING_UNQUALIFIED",
+   "receipt_sha256": "0b704361481364c5984054b65bb6e16beef4476fa7926b56414cd0a9f7c12beb",
+   "cases": 10,
+   "runner_sha256": "e5afa2da6d5954aea24f26af033607a44263657815e26c4bc00b30d920f6925c",
+   "max_relative_l2": 0.0023272239543956565,
+   "max_abs": 0.002523100847816151,
+   "fresh_graph_cases": 10
+  },
+  "topk": {
+   "status": "LEAF_PASS_SERVING_UNQUALIFIED",
+   "receipt_sha256": "47a8e6e910ad1f7675ef694c8b881f5203e5863662726309c1041854ac2c7929",
+   "cases": 4,
+   "runner_sha256": "e5afa2da6d5954aea24f26af033607a44263657815e26c4bc00b30d920f6925c"
+  },
+  "kda": {
+   "status": "LEAF_PASS_SERVING_UNQUALIFIED",
+   "receipt_sha256": "3645cffba299e55bcf59492373aba16504dee64a33a6a61b554d1cdf2bbab807",
+   "cases": 14,
+   "runner_sha256": "9fb509bf0a7e318e0638acb5c828ba1032fc215d6decd4a3c604d76f39972146"
+  },
+  "moe": {
+   "status": "LEAF_PASS_SERVING_UNQUALIFIED",
+   "receipt_sha256": "dd48fa92784fdccbd2b5b7789fb9dfd09f981cab0e1cbbe2dfb5cfbb4a2f1336",
+   "cases": 40,
+   "runner_sha256": "9fb509bf0a7e318e0638acb5c828ba1032fc215d6decd4a3c604d76f39972146",
+   "execution_cases": 32,
+   "logical_ranks": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "max_relative_l2": 0.02608865313231945,
+   "min_cosine": 0.9970781803131104
+  },
+  "dense": {
+   "status": "LEAF_PASS_SERVING_UNQUALIFIED",
+   "receipt_sha256": "a491f9d74a41fb824417858d865dceda1e14ed3a27a287de58f68fe6923dc58d",
+   "cases": 370,
+   "runner_sha256": "a48b7e870e80ffb9452c755085049b8fcd16d2f538639d0652bfd007c7dfcb25",
+   "max_relative_l2": 0.03895958513021469,
+   "min_cosine": 0.9992433190345764,
+   "fresh_graph_cases": 370,
+   "families": [
+    "dense_down",
+    "dense_up",
+    "head",
+    "indexer",
+    "kda_in",
+    "kda_out",
+    "mla_a",
+    "mla_out",
+    "mla_qb",
+    "shared",
+    "shared_down"
+   ],
+   "logical_ranks": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ]
+  }
+ },
+ "nccl4": {
+  "status": "FOUR_RANK_CORRECTNESS_PASS",
+  "paired_repetitions": 3,
+  "communicator_boots": 6,
+  "rank_results": 24,
+  "median_latency_ratio": 1.1027006936038197,
+  "ratio_range": [
+   0.18306039873826774,
+   6.389390600798427
+  ],
+  "performance_claim": false,
+  "actual_ring_ib_routes_checked": true
+ },
+ "eight_rank_runtime_checked": false,
+ "serving_performance_checked": false,
+ "source_cpu_tests": 193,
+ "qualification_rules": "RULES.md",
+ "failures_preserved": true,
+ "evidence_scope": "Maintainer single-GB10 leaves and four-rank transport only; cannot admit an eight-rank serving stage."
+}

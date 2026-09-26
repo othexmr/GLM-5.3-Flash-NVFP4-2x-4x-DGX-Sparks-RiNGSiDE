@@ -250,3 +250,10 @@ its own licence and notices ([NOTICE](NOTICE), [licenses/](licenses/README.md));
 recipe builds on vLLM and Humming (Jinzhen Lin; both vllm-project), b12x, the sparse-MLA plugin, NCCL, SparkRing,
 switchless-nccl, and zai-org's chat template with the thinking gate by Raymond Lucke, as carried in
 MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks; [docs/credits.md](docs/credits.md) credits them.
+
+## Experimental TP8
+
+An isolated eight-Spark baseline is available for external testing. It starts
+target-only and eager; eight-rank runtime and performance remain unqualified.
+See [TP8 setup and limits](docs/tp8.md), the [shape inventory](docs/tp8-inventory.md)
+and the [tester kit](tools/tp8-test/README.md). TP2/TP4 served bytes are unchanged.

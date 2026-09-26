@@ -138,3 +138,11 @@ against the rebuilt base, with `--allow-rebuilt`) and the profile images. Every 
 sums of `base/`, Git commits and trees, the wheel sha256, each lab stage's preimage and result hashes, the ported tree
 (`tools/verify_port.py`), the patch preimages (`tools/check_base.py`) and the served files (`tools/check_served.py`).
 `base/README.md` says what each lab stage changes.
+
+## Experimental TP8 build target
+
+Build `profile-tp8` with the same pinned `vllm-source` context. Its separate
+`nccl-tp8` and `artefacts-tp8` stages preserve the existing TP4 source/library.
+The sparse-MLA build reuses the existing eight-head dispatch in M7e. Run the
+TP8 tester kit against the exact resulting image before serving benchmarks.
+See `../docs/tp8.md`; build success alone is not TP8 qualification.

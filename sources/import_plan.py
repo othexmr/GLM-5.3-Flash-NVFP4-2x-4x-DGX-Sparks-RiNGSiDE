@@ -569,12 +569,61 @@ def commit(root, out, owned, shared):
         raise
 
 
+def tp8_variants(root):
+    """Derive sealed runtime variants from the imported files, without changing those files or the baseline.
+
+    These are candidates, never qualified receipts. The tester kit requires the preceding eight-rank gate to use one.
+    """
+    import copy
+    base = json.loads((root / 'launch/profiles/tp8/profile.json').read_text())
+    assets = json.loads((root / 'release/assets.json').read_text())
+    draft = next(x for x in assets['models'] if x['name'] == 'incoai/GLM-5.3-Flash-DFlash2')
+    result = {}
+    for stage in ('fixed-k', 'graphs'):
+        p = copy.deepcopy(base)
+        argv = p['argv_template']
+        argv[argv.index('GLM53_TP8_STAGE=target')] = 'GLM53_TP8_STAGE=' + stage
+        speculative = {'method': 'dflash', 'model': '/models/dflash2-repo/snapshots/'+draft['revision'],
+                       'num_speculative_tokens': 4, 'kv_cache_dtype': 'auto'}
+        argv += ['--speculative-config', json.dumps(speculative, separators=(',', ':')), '--use-replayssm']
+        mount = 'type=bind,src=${SWITCHLESS_DRAFTER_REPO_DIR},dst=/models/dflash2-repo,readonly'
+        argv[argv.index(p['image']['id']):argv.index(p['image']['id'])] = ['--mount', mount]
+        p['mounts']['/models/dflash2-repo'] = {'source': '${SWITCHLESS_DRAFTER_REPO_DIR}', 'readonly': True}
+        p['site_variables'] = sorted(set(p['site_variables']) | {'SWITCHLESS_DRAFTER_REPO_DIR'})
+        if stage == 'graphs':
+            argv.remove('--enforce-eager')
+            argv[argv.index('--max-num-seqs')+1] = '4'
+            # Standard vLLM graph configuration; the custom TP2/TP4 geometry and policies stay disabled.
+            argv[argv.index('--compilation-config')+1] = '{"mode":3,"cudagraph_mode":"FULL_AND_PIECEWISE"}'
+        plan = {'base_plan_sha256': base['source_plan']['sha256'], 'stage': stage, 'argv_template': argv,
+                'installed_files_sha256': sha256(json.dumps(json.loads(
+                    (root / 'sources/installed-files.json').read_text())['profiles']['tp8'], sort_keys=True).encode())}
+        p['source_plan'] = {'sha256': sha256(json.dumps(plan, sort_keys=True).encode()),
+                            'label': 'Experimental TP8 ' + stage, 'parent_plan_sha256': base['source_plan']['sha256']}
+        p['status'] = 'experimental-gpu-unqualified'
+        result[stage] = {'schema': 'tp8-runtime-variant/1', 'stage': stage,
+            'required_previous_stage': 'target' if stage == 'fixed-k' else 'fixed-k',
+            'base_profile_sha256': sha256((root / 'launch/profiles/tp8/profile.json').read_bytes()),
+            'installed_files_sha256': plan['installed_files_sha256'], 'profile': p}
+    return result
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('document', type=Path)
+    ap.add_argument('document', type=Path, nargs='?')
+    ap.add_argument('--tp8-variants', action='store_true', help='derive experimental fixed-K and graph launch candidates')
     ap.add_argument('--root', type=Path, default=Path(__file__).resolve().parents[1])
     a = ap.parse_args()
     root = a.root.resolve()
+    if a.tp8_variants:
+        if a.document: ap.error('a document and --tp8-variants are mutually exclusive')
+        for stage, doc in tp8_variants(root).items():
+            dest = root / 'launch/variants/tp8' / (stage + '.json')
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_text(json.dumps(doc, indent=1) + '\n')
+        print('TP8 runtime variants generated; eight-rank admission remains required')
+        return
+    if a.document is None: ap.error('an import document or --tp8-variants is required')
     doc = json.loads(a.document.read_text())
     if doc.get('schema') != 'switchless-import/1' or doc.get('topology') not in ('tp4', 'tp2', 'tp8'):
         raise SystemExit('unsupported import document')

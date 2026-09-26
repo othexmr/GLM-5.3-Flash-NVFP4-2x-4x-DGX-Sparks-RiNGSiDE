@@ -1,0 +1,39 @@
+name: Experimental TP8 test report
+description: Report an eight-Spark bring-up using the pinned tester kit
+title: "[TP8] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: "TP8 is experimental. Attach the kit's sanitized bundle, not raw environments, private paths or logs."
+  - type: input
+    id: commit
+    attributes:
+      label: Recipe commit and image digest
+    validations:
+      required: true
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware and cabling
+      description: Eight nodes, GPU model, RAM, cable speeds, physical ring and both PCI roots
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Last attempted stage
+      options:
+        - Transport
+        - Target only
+        - Fixed K=4
+        - Graphs and concurrency
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Result and sanitized bundle
+      description: Include failures, workload sizes, TTFT/decode wall timings and minimum sampled memory headroom
+    validations:
+      required: true

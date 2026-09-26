@@ -38,6 +38,10 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 case "$profile" in tp4|tp2|tp8) ;; *) echo "up.sh: --profile tp4, tp2 or tp8 required" >&2; exit 2 ;; esac
+if [ "$profile" = tp8 ] && [ "$go" = 1 ]; then
+  echo 'up.sh: TP8 requires tools/tp8-test/kit.py launch with a passing eight-rank transport receipt (docs/tp8.md)' >&2
+  exit 2
+fi
 [ -n "$site" ] && [ -f "$site" ] || { echo "up.sh: --site FILE required (see site.env.example)" >&2; exit 2; }
 case "$timeout" in ''|*[!0-9]*) echo "up.sh: --timeout takes seconds" >&2; exit 2 ;; esac
 

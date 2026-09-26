@@ -54,3 +54,11 @@
 - **TP2 built on a profile promoted over failed guard clauses.** Three clauses of the lab's rule failed for the
   previous TP2 profile `32dd2ab8`, which the current one extends (a decode cell 6.29 % slower, host memory 1 MiB under
   the floor, one cached-prefix difference above the gap bound); the owner promoted it anyway (`bench/results/README.md`).
+
+## Experimental TP8 scope
+
+TP8 uses the RedHatAI API alias and starts target-only, eager and text-only.
+The initial image build passed; real eight-rank transport, state, memory and
+serving qualification remain external requirements. The preceding release
+status describes the original TP2/TP4 snapshot. See `tp8.md` and
+`tp8-inventory.md`; no TP8 speed or capacity gain has been measured.
