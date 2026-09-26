@@ -243,7 +243,7 @@ class BaseInputs(unittest.TestCase):
             for patch in lock()['components'][comp]['patches']:
                 self.assertEqual(state.get(patch['target']), patch['preimage_sha256'], (comp, patch['target']))
                 checked += 1
-        self.assertEqual(checked, 54)
+        self.assertEqual(checked, 78)  # 54 release patches plus 24 independently imported TP8 patches
         # the thinking gate replaces the parser of the port
         gate = (BASE / 'thinking-gate/check_preimage.py').read_text()
         self.assertIn(tree['parser/glm53_moe.py'], gate)

@@ -68,7 +68,7 @@ def bake(profile, overlay, manifest, root):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--profile', required=True, choices=('tp4', 'tp2'))
+    ap.add_argument('--profile', required=True, choices=('tp4', 'tp2', 'tp8'))
     ap.add_argument('--overlay', required=True, type=Path)
     ap.add_argument('--manifest', required=True, type=Path)
     ap.add_argument('--root', type=Path, default=Path('/'))

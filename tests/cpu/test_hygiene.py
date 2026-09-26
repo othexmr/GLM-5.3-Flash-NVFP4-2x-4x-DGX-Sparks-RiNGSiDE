@@ -16,8 +16,8 @@ PATTERNS = {
     'secret': re.compile(rb'gh[pousr]_[A-Za-z0-9]{20,}|hf_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY|xox[baprs]-'),
     'AI attribution': re.compile(rb'(?i)co-authored-by|generated with \[?claude|prepared with claude'),
 }
-# The fabric plan is a requirement of the measured NCCL build (fabric/README.md): only its four cable subnets may appear.
-FABRIC_OK = re.compile(rb'\b10\.100\.22[4-7]\.0(?:/2[24])?\b')
+# The documented fabric reserves eight /24s; TP4 retains the first four.
+FABRIC_OK = re.compile(rb'\b10\.100\.(?:22[4-9]|23[01])\.0(?:/2[124])?\b')
 SKIP_DIRS = {'.git', '__pycache__'}
 # Words that must not appear anywhere, stored as sha256 of the lowercase word so this file does not repeat them:
 # retired commit identities and hosts, and attributions the owner withdrew. A token is checked whole, split into its
@@ -85,6 +85,10 @@ class Hygiene(unittest.TestCase):
                         continue
                     if label == 'fabric address' and FABRIC_OK.match(data, m.start()):
                         continue
+                    if (label == 'fabric address'
+                            and rel.as_posix() == 'patches/nccl-tp8/0003-configured-ring-cables.patch'
+                            and m.group(0) in (b'10.' + b'100.224.1', b'10.' + b'100.024.0')):
+                        continue  # sealed C++ parser negatives: host bits and a leading-zero octet
                     if label == 'AI attribution' and rel.as_posix() == 'tests/cpu/test_hygiene.py':
                         continue
                     if label in ('private path', 'lab host name', 'private address') and rel.as_posix() == 'tests/cpu/test_hygiene.py':

@@ -3,7 +3,7 @@
 #
 # Start a profile on its nodes with Docker Compose, in the documented order, and wait for the API.
 #
-#   launch/up.sh --profile tp4|tp2 --site site.env [--build] [--timeout SECONDS] [--go]
+#   launch/up.sh --profile tp4|tp2|tp8 --site site.env [--build] [--timeout SECONDS] [--go]
 #
 # Without --go (the default) this is a dry run: it renders the compose projects into a temporary directory and prints
 # every command it would run; nothing runs on any node. With --go it runs them:
@@ -37,7 +37,7 @@ while [ "$#" -gt 0 ]; do
     *) echo "up.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
-case "$profile" in tp4|tp2) ;; *) echo "up.sh: --profile tp4 or tp2 required" >&2; exit 2 ;; esac
+case "$profile" in tp4|tp2|tp8) ;; *) echo "up.sh: --profile tp4, tp2 or tp8 required" >&2; exit 2 ;; esac
 [ -n "$site" ] && [ -f "$site" ] || { echo "up.sh: --site FILE required (see site.env.example)" >&2; exit 2; }
 case "$timeout" in ''|*[!0-9]*) echo "up.sh: --timeout takes seconds" >&2; exit 2 ;; esac
 
@@ -134,7 +134,11 @@ fi
 start_rank() {  # rank
   local r="$1"
   say "# Rank $r on ${target[r]} (container ${container[r]})"
-  run "${SSH[@]}" "${target[r]}" "$(q test -d "${model_dir[r]}") && $(q test -d "${drafter[r]}/snapshots")"
+  if [ "${drafter[r]}" = "-" ]; then
+    run "${SSH[@]}" "${target[r]}" "$(q test -d "${model_dir[r]}")"
+  else
+    run "${SSH[@]}" "${target[r]}" "$(q test -d "${model_dir[r]}") && $(q test -d "${drafter[r]}/snapshots")"
+  fi
   run "${SSH[@]}" "${target[r]}" "$(q mkdir -p "${hf[r]}" "${jit[r]}" "${prof[r]}")"
   copy_project "$r"
   run "${SSH[@]}" "${target[r]}" "cd $(q "${remote_dir[r]}") && docker compose up -d --no-build --pull never glm53"

@@ -1908,6 +1908,570 @@
      "sha256": "1f940e75297105155cb0f253a351a4c62354054da63b39cd84628731feaf7b99"
     }
    ]
+  },
+  "tp8": {
+   "image": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
+   "files": [
+    {
+     "target": "/chat_template_mm.jinja",
+     "sha256": "7a5a0dda1331a7c40d930961cc1cb3b57c3b52625250c13372fe006ba2e9dfdb",
+     "bytes": 11276,
+     "kind": "template",
+     "licence": "MIT (zai-org/GLM-5.3-Flash chat template, revision 690b705, with Raymond Lucke's thinking gate from MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks eaf90d0, 2026-08-27, MIT period)",
+     "attribution": [
+      "glm-template",
+      "miaai-lab-chat-template"
+     ],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "launch/profiles/tp8/chat_template_mm.jinja",
+     "derived_from_sha256": "0c4099f3382d6c92700dfb99725025360966fd73032f0ecf32377c0d9e6309c5"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/_shared/kernels/dynamic.py",
+     "sha256": "9d65bb84560650928114a81128cc9a3bc4c5dd30ca6c3f357ecceca9998709fe",
+     "bytes": 499238,
+     "kind": "patch",
+     "licence": "Apache-2.0 (b12x file)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/b12x/tp8/moe-_shared-kernels-dynamic.py.patch",
+     "preimage_sha256": "2ebe82bd221aacf915b4d2cc0b50e52dc77c7b7b73aea720ad17941a85d1a060",
+     "preimage_evidence": "pinned as the image file by the lab tile-major work (runtime image 017fd0ba)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_impl.py",
+     "sha256": "5d1f2b027e2c916dca63ad3c80ac4ff44a429153e82cbaa38a0bc2bf1a9bbe68",
+     "bytes": 470544,
+     "kind": "patch",
+     "licence": "Apache-2.0 (b12x file)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/b12x/tp8/moe-fused_moe-_impl.py.patch",
+     "preimage_sha256": "6984ff84435121222490e776022365158bdee1ee1ed5bbf0a61007424fda24ee",
+     "preimage_evidence": "pinned as the image file by the lab tile-major work (runtime image 017fd0ba)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp2_cluster.py",
+     "sha256": "6ba7721244713b5f4df3050654002c186f7e761334d1915b7ff6160598faeb4e",
+     "bytes": 1643,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/b12x/moe/fused_moe/_tp2_cluster.py",
+     "lab_served_sha256": "3f23f8b44a2443212bdce9966f89b7155baa8d942b0e8254e2023dda5b083cb7",
+     "recipe_change": "the lab plan serves this file with the SPDX line of the recipe's earlier licence (sha256 3f23f8b44a2443212bdce9966f89b7155baa8d942b0e8254e2023dda5b083cb7); the recipe serves it with the line \"SPDX-License-Identifier: Apache-2.0\", the repository licence since 2026-09-26: a change of that comment line only, so its Python tokens without comments equal the lab plan's file"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_cluster_candidate.py",
+     "sha256": "1d00b1bb7fc7e90dc84dd95f0c73a615070f76d6611fc90ba85a1dd382858450",
+     "bytes": 1275,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/b12x/moe/fused_moe/_tp4_cluster_candidate.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_tile_major.py",
+     "sha256": "532c9d26fbb3ba8c0d810dacaf6266887375f699ab2cca4b4b6dd099a408a712",
+     "bytes": 9953,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/b12x/moe/fused_moe/_tp4_tile_major.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/deterministic_sparse_topk.py",
+     "sha256": "9d1e7acb060afe228470c61235c35b1238472924c712090dab49afbfcd93d2bc",
+     "bytes": 6040,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/deterministic_sparse_topk.py",
+     "replaces_image_sha256": "268a4923adbbfe82549f2bf2a65caa0041c03f4afeb53f2d41ae7b43cd09e095"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_replay_boundary.py",
+     "sha256": "87d2d19adfe5455082ef4a5fa956a4e18d1d3f9f68176bbbc4b8ac81910a7813",
+     "bytes": 21369,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/glm53_replay_boundary.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/backend.py",
+     "sha256": "d88307d733afd7979ea892c266f4118dfb66a628e53a60c2950b45400df509f6",
+     "bytes": 21950,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/sparse-mla/tp8/backend.py.patch",
+     "preimage_sha256": "8bb063484493ab998278e0f19883c0263b67dc8e299f4cad86402e5685f403a0",
+     "preimage_evidence": "sha256 read inside the image by the lab mixed-batch work preflight"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/adaptive_chunk.py",
+     "sha256": "e605fa56cca09d15bb68b409d6614ed5162dff0c3e73a6ae70b6ba3dcac71015",
+     "bytes": 974,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/glm53_speedup/adaptive_chunk.py",
+     "lab_served_sha256": "d41634ef35ba3ca1275bd71d9a73ae46711cc2390c123bcf38b9f17223e06bca",
+     "recipe_change": "the lab plan serves this file with the SPDX line of the recipe's earlier licence (sha256 d41634ef35ba3ca1275bd71d9a73ae46711cc2390c123bcf38b9f17223e06bca); the recipe serves it with the line \"SPDX-License-Identifier: Apache-2.0\", the repository licence since 2026-09-26: a change of that comment line only, so its Python tokens without comments equal the lab plan's file"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/cadence.py",
+     "sha256": "e5414f2fd2f0707b1e739fbd64b96a896dfa4aae2295d2b4e4de0b50d504bff0",
+     "bytes": 9838,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/glm53_speedup/cadence.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/fair_prefill.py",
+     "sha256": "b2404a7caaf51339046ec186cb5884a76eb20530547efa0358c874cc9fac3a8c",
+     "bytes": 7383,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/glm53_speedup/fair_prefill.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/geometry.py",
+     "sha256": "dde985a2c26e606c59a2454e4df88d41aed7330fdf88b596479d28df36304371",
+     "bytes": 2589,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/glm53_speedup/geometry.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/graphs.py",
+     "sha256": "fd1f932e1763089db5d21bff20fb1687faea5f589a412d885dad1c7d7f398674",
+     "bytes": 5913,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/glm53_speedup/graphs.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/policy.py",
+     "sha256": "aa8812349d047ba1ea2021307870690ea11c3f17c0d04e8e4ad521699b74947a",
+     "bytes": 23924,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/glm53_speedup/policy.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/scheduler.py",
+     "sha256": "9fb122e7df113c1a44ca96d84df9f735103185b6f8fe20874ee8bd62a95224d2",
+     "bytes": 28822,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/glm53_speedup/scheduler.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/telemetry.py",
+     "sha256": "30cbed5467e7ed2817670feeceecdc88284c934fce08502cf13b7d9e6ef9f0ab",
+     "bytes": 2088,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/glm53_speedup/telemetry.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_tp8.py",
+     "sha256": "fd4b968a3ce5075bacfb997100d0f9f582278421147007c7ef9797b7f8199f75",
+     "bytes": 6116,
+     "kind": "src",
+     "licence": "Apache-2.0",
+     "attribution": [],
+     "evidence": "TP8 startup admission and rank-agreement contract; CPU checks only",
+     "source": "src/tp8/glm53_tp8.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_utf8_guard.py",
+     "sha256": "f28343910ea2a839edbe023a5e19ec36264b696dc7cc521dacfcfcca7378e33b",
+     "bytes": 20306,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/glm53_utf8_guard.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/config/vllm.py",
+     "sha256": "3351141f82067c9ed37b274bc954c8a6d982d0869a1cc43d799e630842c9932d",
+     "bytes": 134824,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/config-vllm.py.patch",
+     "preimage_sha256": "3b2032e46fe6839bbbf64a48d32dc6d3f97a0b6e20b40aa4a550c3096ca4ed08",
+     "preimage_evidence": "recorded as the image file (3b2032e4) by the lab RecoverSSM work; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py",
+     "sha256": "a0dbfb2b5252a12f1155632988bf1057f9aa1817dca1e7d2f861745fc83222ce",
+     "bytes": 12658,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/entrypoints-launchers-api_server-entry.py.patch",
+     "preimage_sha256": "db689f8486e5d2c9eb59d347e03a27ce837d014f8d3d7f84d55a0e382813ca84",
+     "preimage_evidence": "sha256 read inside a container of the image on two nodes before the warm-up leaf"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tilelang.py",
+     "sha256": "a02ce5e6836de40a5ead235b21d19d050c81f31bb9637d3e4669c3938dd26ebb",
+     "bytes": 23973,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/model_executor-kernels-mhc-tilelang.py.patch",
+     "preimage_sha256": "c8ce81539c779436eb2b9fbba84738f3114bf3ac0a149f2b606f7d38bd1067ce",
+     "preimage_evidence": "image manifest hash checked by an executed leaf (image source closure, 2026-09-21)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tp2_geometry.py",
+     "sha256": "4024e07446723b5d37e78dcbd5dd322d53aad3ce78b527caf82bef50e0cd47a0",
+     "bytes": 1673,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/vllm/model_executor/kernels/mhc/tp2_geometry.py",
+     "lab_served_sha256": "d0ae5254f4b45106bea0052cd225dc643734a3f943974cfc68180f39e49e2eb6",
+     "recipe_change": "the lab plan serves this file with the SPDX line of the recipe's earlier licence (sha256 d0ae5254f4b45106bea0052cd225dc643734a3f943974cfc68180f39e49e2eb6); the recipe serves it with the line \"SPDX-License-Identifier: Apache-2.0\", the repository licence since 2026-09-26: a change of that comment line only, so its Python tokens without comments equal the lab plan's file"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/attention/mla_attention.py",
+     "sha256": "a32b1b3e38b76797e8f7246382a855aa625826d0eb557af52266c1ff474d88b3",
+     "bytes": 125705,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/model_executor-layers-attention-mla_attention.py.patch",
+     "preimage_sha256": "b8c5386de3aa37461571f974f262f417dab28a708456e686f3cd02a576986faf",
+     "preimage_evidence": "recorded as the image file (b8c5386d) by the lab TP2 port; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/b12x.py",
+     "sha256": "b8e046fe5c48fc297ae07da786d68edd645baf0a80e771770a86d8a463d78e10",
+     "bytes": 36268,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/model_executor-layers-fused_moe-b12x.py.patch",
+     "preimage_sha256": "445dfa61c627b4c2baf9c3e47927b8c98c382309102f40fda85df5654d9cbc3e",
+     "preimage_evidence": "sha256 read inside the image by the lab mixed-batch work preflight (atomic-prefill adapter baked into the image)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py",
+     "sha256": "4e9c12fb110b3eb56e7b4e8d090c8d4df395235ce773f290062c87b1d0b9fe9e",
+     "bytes": 24781,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py",
+     "replaces_image_sha256": "9906dad83b70ee61c3d8f760dfb35c37f14dccad1d63cc6d6bfd0da9e2d4eb4d"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/attention.py",
+     "sha256": "87956e9198ee06076b4d9fb5a6d5fd235fe0fc9ec52bba96b7082c0e6b95f3df",
+     "bytes": 27248,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its kpool tail ring size is a port of vllm-project/vllm#58454 (mmastrac) as Morrowmake/vllm-cmp170hx 1d4b59e ported it)",
+     "attribution": [
+      "sparkring-mhc",
+      "vllm-pr-58454",
+      "morrowmake-vllm-cmp170hx"
+     ],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/models-glm5next-nvidia-attention.py.patch",
+     "preimage_sha256": "400d7063db2aa27314c79dce688060710f5ef7bdbafbddfc6698eaaaea3b3a8f",
+     "preimage_evidence": "matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda.py",
+     "sha256": "80c08afcd843e5543d8e0a25d3d1fc8534fc712c155f4c3993de567a4e89e8df",
+     "bytes": 51562,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [
+      "sparkring-mhc"
+     ],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/models-glm5next-nvidia-kda.py.patch",
+     "preimage_sha256": "6601dffb13ed76caebf4b4156cb1f0cfdaea1369e4924c6a4d433149b3e9d9d4",
+     "preimage_evidence": "matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/model.py",
+     "sha256": "f4081c991eaaac0daa3ca683531a847356cff96b205d82dc1def0088927147d8",
+     "bytes": 48696,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its DFlash2 auxiliary hidden-state capture is adapted from vLLM's DeepseekV4Model.forward in vllm/models/deepseek_v4/nvidia/model.py)",
+     "attribution": [
+      "vllm"
+     ],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/models-glm5next-nvidia-model.py.patch",
+     "preimage_sha256": "031439712aa46203846e1df03de95d7e38c42578c59c2f556d540ab09f26bf8c",
+     "preimage_evidence": "the file of the rebuilt base: the v0.29.0 port patch of docker/base, applied to the v0.29.0 source and checked by docker/tools/verify_port.py on a CPU (not built on a DGX Spark yet); the measured image 017fd0ba has 7cddb9d1 here, which differs only in the DFlash2 auxiliary hidden-state capture"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/kpool_compress.py",
+     "sha256": "f50edff2e0fd9d2807a85682383cb616867e58c5516db9df026fa661d6e371a6",
+     "bytes": 33595,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its kpool tail ring is a port of vllm-project/vllm#58454 (mmastrac) as Morrowmake/vllm-cmp170hx 1d4b59e ported it)",
+     "attribution": [
+      "vllm-pr-58454",
+      "morrowmake-vllm-cmp170hx"
+     ],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/models-glm5next-nvidia-ops-kpool_compress.py.patch",
+     "preimage_sha256": "6e19b31c50de43f7dfa9c7d9b7a3d7b856939f49bd4a3c031d2b50d28fe04f68",
+     "preimage_evidence": "recorded as the image file by the lab upstream-metadata work; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/recoverssm.py",
+     "sha256": "823f27dd99fec2197a63abda3a9d44677c72becf8656a2cdb743f2348e2a8cb7",
+     "bytes": 38755,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header; adapted from vLLM's Kimi-K3 RecoverSSM)",
+     "attribution": [
+      "vllm"
+     ],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "source": "src/tp8/vllm/models/glm5next/nvidia/ops/recoverssm.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/third_party/kda/fused_recurrent.py",
+     "sha256": "d110dd8b502bbf5b0b8e1869500014deeaae634b5d2408182bc98bf39c41660a",
+     "bytes": 23231,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/models-glm5next-nvidia-ops-third_party-kda-fused_recurrent.py.patch",
+     "preimage_sha256": "fe79ad1547aa5a255070af83029a4d1043dd2b225ce1baf9ffb3d8dd62298ef0",
+     "preimage_evidence": "exported from the image by the lab replay work; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/kv_cache_utils.py",
+     "sha256": "2a69fdf7b0738e75caa47be8344180a309e3fe68476618219eae3eceaf29aaab",
+     "bytes": 122287,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its DFlash2 drafter KV-cache group is built on vLLM's own KV-cache group mechanisms: is_eagle_group, UniformTypeKVCacheSpecs and the shared KV-cache tensors of the hybrid allocator)",
+     "attribution": [
+      "vllm"
+     ],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-core-kv_cache_utils.py.patch",
+     "preimage_sha256": "2614f957b21863ac7f028d0c104c9a4d913f41b81733f2d36ac0ec05df882712",
+     "preimage_evidence": "the file of the rebuilt base: the v0.29.0 port patch of docker/base, applied to the v0.29.0 source and checked by docker/tools/verify_port.py on a CPU (not built on a DGX Spark yet); the measured image 017fd0ba has 7ef72953 here, which differs only in the DFlash2 drafter KV-cache group"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/sched/scheduler.py",
+     "sha256": "05fba9702e9f4ddf69f25ffd6f3293eda2917c40338c813dd63a0622fe860bba",
+     "bytes": 150547,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-core-sched-scheduler.py.patch",
+     "preimage_sha256": "db8796f984d2d8a1b77e8f809d5e45b7d06904fc624490badcb0df133186952e",
+     "preimage_evidence": "baked by the image build layer 017fd0ba (installed hash paired with the image on both ranks; image source closure, 2026-09-21)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/single_type_kv_cache_manager.py",
+     "sha256": "3bd43799abc7564261f5f103d18fb852b8d26fb9ec54994e78facf550221d39c",
+     "bytes": 99884,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-core-single_type_kv_cache_manager.py.patch",
+     "preimage_sha256": "0b238ffd65d65a462dedea640928713a6e0452091c75642cf7dbb15514d56261",
+     "preimage_evidence": "sha256 read inside a container of the image on four nodes by the KDA-checkpoint staging job (2026-09-24)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/sample/ops/topk_topp_triton.py",
+     "sha256": "6d7a945290ebb64e59a43e6b6c3d64f2aa4c953cea2e47bd5232422850d6490c",
+     "bytes": 68793,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-sample-ops-topk_topp_triton.py.patch",
+     "preimage_sha256": "255619f699898ddaaac959d9bef4494294c76d730abb8e90549afac83a9bcbe9",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/async_utils.py",
+     "sha256": "019aefd848e47ca4d6d916113e5b4672b632460ed1ce6a3426b53def291e394f",
+     "bytes": 10944,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-worker-gpu-async_utils.py.patch",
+     "preimage_sha256": "36bd876f1c2cf648ed9436c66205db39df7bd4f9b0da90f507fed8b3159840c5",
+     "preimage_evidence": "installed hash recorded from the image by the lab (2026-09-13 source-control manifest); equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py",
+     "sha256": "fb93f06a693815f6f376ec8727b641a26b6dcca77b6767d114d0ef986fd642ab",
+     "bytes": 94341,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-worker-gpu-model_runner.py.patch",
+     "preimage_sha256": "f01ae09c799799c8949778588d4e5e43f8c4c2dc4fd531a0eb7a553eb5d45c5e",
+     "preimage_evidence": "read from a running container of the image (2026-09-17, no overlay on this path); equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/gumbel.py",
+     "sha256": "8793f30567609af00d8c8c8026558f00ddf90a000a0444068128edded0fd2919",
+     "bytes": 10521,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its vocabulary clamp is a port of vllm-project/vllm#50843 (alexbi29))",
+     "attribution": [
+      "vllm-pr-50843"
+     ],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-worker-gpu-sample-gumbel.py.patch",
+     "preimage_sha256": "3ec1df510bdad13e8b0a457b5b67c98affdf6e57369e56cb471246cc8f40dd34",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/sampler.py",
+     "sha256": "77e22ab8419a5fc1235c65ae5824c34c9750e93730b4f2c6b2bc3ea80e64d49c",
+     "bytes": 16573,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-worker-gpu-sample-sampler.py.patch",
+     "preimage_sha256": "408b08c4ac66de271f476460490f360ef2a9b73528a346d132a22326e1674369",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py",
+     "sha256": "d59cb83ce11a92d2ee5fa8822988abc38cde0baeb6a2d14db36c953ce1f6c693",
+     "bytes": 14069,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-worker-gpu-spec_decode-rejection_sampler.py.patch",
+     "preimage_sha256": "e20adc9b6c8a62a5be232bae15a1e361e898142966a68ea3ef244b39ffc5ce44",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py",
+     "sha256": "d1d5ba7ab39b9404bbd2a8f7b322f473f9d921f1095f766368c854b67741f8ec",
+     "bytes": 41645,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its vocabulary clamp is a port of vllm-project/vllm#50843 (alexbi29))",
+     "attribution": [
+      "vllm-pr-50843"
+     ],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-worker-gpu-spec_decode-rejection_sampler_utils.py.patch",
+     "preimage_sha256": "20ca2e5ac34e9ef93dca388bed72a00d4ff67d569ec6ec2393b21a92d74a1fae",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py",
+     "sha256": "d383b345621226ab6c0896444e5047c675f74d0e6263db68d23b4f2d7b1c571e",
+     "bytes": 64098,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "TP8 candidate derived locally from pinned TP2 source; no TP8 GPU qualification",
+     "patch": "patches/vllm/tp8/v1-worker-gpu_worker.py.patch",
+     "preimage_sha256": "b0f39124f31ead3d2d20f1c6ac8696393c0ed6fed585ba8d31a4f7673e390407",
+     "preimage_evidence": "sha256 read inside a container of the image on two nodes before the warm-up leaf"
+    },
+    {
+     "target": "/opt/glm53-speedup/runtime",
+     "kind": "config-dir",
+     "files": {
+      "override.json": {
+       "sha256": "c18d82094a2fea076ca30caaabcbaaf123e1ee4461dea11ad4a2340ac48cbe48",
+       "source": "launch/profiles/tp8/override.json"
+      }
+     },
+     "licence": "Apache-2.0 (repository licence)",
+     "attribution": []
+    },
+    {
+     "target": "/opt/switchless-nccl-tp8",
+     "kind": "binary-dir",
+     "files": {
+      "libnccl.so.2.30.7": {
+       "sha256": "1051f000e44f0b0c1f11bc1d7258f7caf9c2c5f23621897a6780d08a0485f1c8"
+      }
+     },
+     "licence": "NCCL LICENSE.txt (Apache-2.0 with BSD portions)",
+     "attribution": [
+      "nccl",
+      "sparkring-nccl",
+      "switchless-nccl"
+     ],
+     "artefact": "nccl-switchless-tp8",
+     "symlinks": {
+      "libnccl.so.2": "libnccl.so.2.30.7"
+     }
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so",
+     "kind": "binary",
+     "sha256": "221fdbaa6a25d377118093d30761322c22db7105312b396d2aecd8262e2c002b",
+     "bytes": 5825912,
+     "artefact": "sparse-mla-m7e",
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)"
+    }
+   ],
+   "artefacts": [
+    {
+     "name": "nccl-switchless-tp8",
+     "target": "/opt/switchless-nccl-tp8"
+    },
+    {
+     "name": "sparse-mla-m7e",
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so",
+     "sha256": "221fdbaa6a25d377118093d30761322c22db7105312b396d2aecd8262e2c002b"
+    }
+   ]
   }
  }
 }

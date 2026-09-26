@@ -1,0 +1,69 @@
+RiNGSiDE overlay patch, profile tp8
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/model.py
+Preimage:    sha256 031439712aa46203846e1df03de95d7e38c42578c59c2f556d540ab09f26bf8c
+             pinned recipe base image file
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    the file of the rebuilt base: the v0.29.0 port patch of docker/base, applied to the v0.29.0 source and checked by docker/tools/verify_port.py on a CPU (not built on a DGX Spark yet); the measured image 017fd0ba has 7cddb9d1 here, which differs only in the DFlash2 auxiliary hidden-state capture
+Postimage:   sha256 f4081c991eaaac0daa3ca683531a847356cff96b205d82dc1def0088927147d8 (the file the tp8 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained; its DFlash2 auxiliary hidden-state capture is adapted from vLLM's DeepseekV4Model.forward in vllm/models/deepseek_v4/nvidia/model.py)
+Attribution: vllm (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/models/glm5next/nvidia/model.py b/vllm/models/glm5next/nvidia/model.py
+index 93795ff4baf494367b241d94ab143a63d6c3df12..d02dcef4641fa427f393778556711b2d821542d2 100644
+--- a/vllm/models/glm5next/nvidia/model.py
++++ b/vllm/models/glm5next/nvidia/model.py
+@@ -1,5 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): the model classes declare SupportsReplaySSM; the DFlash2 auxiliary
++# hidden-state capture (EagleModelMixin, SupportsEagle3) adapted from vLLM's DeepseekV4Model.forward.
+ 
+ from collections.abc import Iterable
+ from typing import ClassVar, Literal
+@@ -70,6 +72,7 @@ from vllm.model_executor.models.interfaces import (
+     MixtureOfExperts,
+     SupportsEagle3,
+     SupportsPP,
++    SupportsReplaySSM,
+ )
+ from vllm.model_executor.models.utils import (
+     AutoWeightsLoader,
+@@ -594,6 +597,9 @@ class Glm5NextDecoderLayer(nn.Module):
+ class Glm5NextModel(nn.Module, EagleModelMixin):
+     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
+         super().__init__()
++        # TP8-only profile: agree on configuration before allocating the target.
++        from glm53_tp8 import configure as configure_tp8
++        configure_tp8(vllm_config)
+ 
+         config = vllm_config.model_config.hf_config
+         self.config = config
+@@ -902,7 +908,13 @@ class Glm5NextModel(nn.Module, EagleModelMixin):
+ 
+ 
+ class Glm5NextForCausalLM(
+-    nn.Module, HasInnerState, SupportsPP, SupportsEagle3, MixtureOfExperts, IsHybrid
++    nn.Module,
++    HasInnerState,
++    SupportsPP,
++    SupportsEagle3,
++    MixtureOfExperts,
++    IsHybrid,
++    SupportsReplaySSM,
+ ):
+     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
+         super().__init__()
+@@ -998,7 +1010,11 @@ class Glm5NextForCausalLM(
+     dummy_inputs=Glm4vDummyInputsBuilder,
+ )
+ class Glm5NextForConditionalGeneration(
+-    Glm4vForConditionalGeneration, HasInnerState, IsHybrid, SupportsEagle3
++    Glm4vForConditionalGeneration,
++    HasInnerState,
++    IsHybrid,
++    SupportsEagle3,
++    SupportsReplaySSM,
+ ):
+     # The text model (KDA + dense-MLA + MoE) is a hybrid mamba model. The
+     # multimodal wrapper must declare the same interfaces so vLLM treats it as

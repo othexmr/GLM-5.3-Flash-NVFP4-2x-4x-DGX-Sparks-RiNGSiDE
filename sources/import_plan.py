@@ -271,6 +271,10 @@ CANONICAL_SITE = {
     'SWITCHLESS_SOCKET_IFNAME': 'eth0',
 }
 CANONICAL_FABRIC = {
+    'tp8': {'SWITCHLESS_RANK_HOST_IPS': ','.join(f'192.0.2.{10+r}' for r in range(8)),
+            'SWITCHLESS_IB_HCA': '=rocep1s0f0,rocep1s0f1,roceP2p1s0f0,roceP2p1s0f1',
+            'SWITCHLESS_FABRIC_CIDR': '10.100.224.0/21',
+            'SWITCHLESS_CABLE_SUBNETS': ','.join(f'10.100.{224+r}.0/24' for r in range(8))},
     'tp4': {'SWITCHLESS_RANK_HOST_IPS': '192.0.2.10,192.0.2.11,192.0.2.12,192.0.2.13',
             'SWITCHLESS_IB_HCA': '=rocep1s0f0,rocep1s0f1,roceP2p1s0f0,roceP2p1s0f1',
             'SWITCHLESS_FABRIC_CIDR': '10.100.224.0/22'},
@@ -288,6 +292,8 @@ def build(doc, root, out):
     Returns (owned directories replaced as a whole, shared files replaced, summary)."""
     topo = doc['topology']
     ranks = sorted(doc['argv'], key=int)
+    if topo not in ('tp2', 'tp4', 'tp8') or ranks != [str(r) for r in range(int(topo[2:]))]:
+        raise ValueError('profile must contain its complete rank set')
 
     # 1. argv template and render check against every rank of the measured plan
     tmpl, head_args = normalise(doc)
@@ -440,7 +446,8 @@ def build(doc, root, out):
         'schema': 2,
         'topology': topo,
         'ranks': len(ranks),
-        'status': 'derived-from-measured-lab-plan' if doc['plan'].get('derived_from') else 'measured-lab-plan',
+        'status': ('experimental-gpu-unqualified' if topo == 'tp8' else
+                   'derived-from-measured-lab-plan' if doc['plan'].get('derived_from') else 'measured-lab-plan'),
         'deterministic': doc['plan'].get('deterministic'),  # false, or null when the measured plan does not assert it
         'nondeterministic_note': doc['plan'].get('nondeterministic_note'),
         'source_plan': {'sha256': doc['plan']['sha256'], 'label': doc['plan'].get('label'),
@@ -569,7 +576,7 @@ def main():
     a = ap.parse_args()
     root = a.root.resolve()
     doc = json.loads(a.document.read_text())
-    if doc.get('schema') != 'switchless-import/1' or doc.get('topology') not in ('tp4', 'tp2'):
+    if doc.get('schema') != 'switchless-import/1' or doc.get('topology') not in ('tp4', 'tp2', 'tp8'):
         raise SystemExit('unsupported import document')
     out = Path(tempfile.mkdtemp(prefix='.import-', dir=root))  # same file system: the swap is a rename
     try:

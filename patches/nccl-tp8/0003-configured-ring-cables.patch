@@ -1,0 +1,163 @@
+Switchless NCCL TP8-only delta: configured /24 cable allowlist, bounded to four or eight cables.
+Base tree: 9edccf0677e35c9b451eb2f5e037dfb9e6677a93
+Licence: NCCL LICENSE.txt; new code Apache-2.0.
+CPU contract checked; transport unqualified.
+---
+diff --git a/src/transport/net_ib/connect.cc b/src/transport/net_ib/connect.cc
+index e0fbf1007ee56d6329839c67ad26dd8d67961d7d..e9b6a6655a88e6b81dfd6789be9d03b7022d0379 100644
+--- a/src/transport/net_ib/connect.cc
++++ b/src/transport/net_ib/connect.cc
+@@ -30,7 +30,7 @@ NCCL_PARAM(IbEceEnable, "IB_ECE_ENABLE", 1);
+ extern int64_t ncclParamIbOooRq();
+ extern int64_t ncclParamSwitchlessRingOnly();
+ extern int64_t ncclParamIbMergeNics();
+-#include "tp4_listener_contract.h"
++#include "ring_listener_contract.h"
+ 
+ 
+ struct ncclIbDevExtraProps {
+@@ -744,8 +744,9 @@ ncclResult_t ncclIbListen(void* ctx, int dev, void* opaqueHandle, void** listenC
+     }
+ 
+     if (strict) {
+-      const char* error = tp4ValidateListener(candidateGids, candidateRoots, gidSlot, extended);
+-      if (error) { WARN("TP4 listener contract: %s", error); ret = ncclInvalidUsage; goto fail; }
++      const char* error = ringValidateListener(candidateGids, candidateRoots, gidSlot, extended,
++                                              getenv("NCCL_SWITCHLESS_CABLE_SUBNETS"));
++      if (error) { WARN("Ring listener contract: %s", error); ret = ncclInvalidUsage; goto fail; }
+     }
+     if (extended) {
+       const int encoded = ncclIbRoutingEncodeIpv4(handle->routingFormat, handle->listenIpv4,
+diff --git a/src/transport/net_ib/ring_listener_contract.h b/src/transport/net_ib/ring_listener_contract.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..d7f0e66f352e9ece1b4b5a90eeec2dbd684b5666
+--- /dev/null
++++ b/src/transport/net_ib/ring_listener_contract.h
+@@ -0,0 +1,83 @@
++// SPDX-License-Identifier: Apache-2.0
++// Configured four/eight-node cable allowlist; preserves the four-GID local ABI.
++#pragma once
++#include <cstdint>
++#include <cstring>
++
++struct RingCableSubnets {
++  uint32_t network[8];
++  int count;
++};
++
++// Canonical dotted-decimal /24 networks only. No whitespace, host bits, empty
++// elements, duplicate networks, overlong octets or trailing delimiters.
++static inline bool ringParseCableSubnets(const char* text, RingCableSubnets* out) {
++  if (!text || !*text || !out) return false;
++  *out = {};
++  const char* p = text;
++  while (*p) {
++    if (out->count == 8) return false;
++    uint32_t address = 0;
++    for (int octet = 0; octet < 4; ++octet) {
++      unsigned value = 0, digits = 0;
++      bool zero = *p == '0';
++      while (*p >= '0' && *p <= '9') {
++        value = value * 10 + static_cast<unsigned>(*p++ - '0');
++        if (++digits > 3 || value > 255) return false;
++      }
++      if (!digits || (zero && digits != 1)) return false;
++      address = (address << 8) | value;
++      if (octet < 3 && *p++ != '.') return false;
++    }
++    if (std::strncmp(p, "/24", 3) || (address & 255)) return false;
++    p += 3;
++    if (*p && *p != ',') return false;
++    for (int i = 0; i < out->count; ++i) if (out->network[i] == address) return false;
++    out->network[out->count++] = address;
++    if (*p == ',' && !*++p) return false;
++  }
++  return out->count == 4 || out->count == 8;
++}
++
++static inline const char* ringValidateListener(const uint8_t gids[4][16],
++                                              const char roots[4][11], int count,
++                                              bool dual, const char* cables) {
++  RingCableSubnets allowed;
++  if (!ringParseCableSubnets(cables, &allowed)) return "invalid NCCL_SWITCHLESS_CABLE_SUBNETS";
++  if (count != (dual ? 4 : 2)) return "wrong listener count";
++  uint32_t subnets[2] = {}; int perSubnet[2] = {}; int nSubnet = 0;
++  char domains[2][11] = {}; int nDomain = 0; bool pairs[2][2] = {};
++  for (int i = 0; i < count; ++i) {
++    for (int b = 0; b < 10; ++b) if (gids[i][b]) return "not IPv4 mapped";
++    if (gids[i][10] != 0xff || gids[i][11] != 0xff) return "not IPv4 mapped";
++    uint32_t network = (uint32_t(gids[i][12]) << 24) | (uint32_t(gids[i][13]) << 16)
++                     | (uint32_t(gids[i][14]) << 8);
++    bool listed = false;
++    for (int k = 0; k < allowed.count; ++k) listed |= allowed.network[k] == network;
++    if (!listed || gids[i][15] == 0 || gids[i][15] == 255) return "outside configured cable host range";
++    for (int j = 0; j < i; ++j) if (!std::memcmp(gids[i], gids[j], 16)) return "duplicate GID";
++    int subnet = 0;
++    while (subnet < nSubnet && subnets[subnet] != network) ++subnet;
++    if (subnet == nSubnet) {
++      if (nSubnet == 2) return "more than two cable subnets";
++      subnets[nSubnet++] = network;
++    }
++    ++perSubnet[subnet];
++    if (dual) {
++      if (!roots[i][0] || roots[i][10] != 0) return "invalid PCI root";
++      int domain = 0;
++      while (domain < nDomain && std::strcmp(domains[domain], roots[i])) ++domain;
++      if (domain == nDomain) {
++        if (nDomain == 2) return "more than two PCI roots";
++        std::memcpy(domains[nDomain++], roots[i], 11);
++      }
++      if (pairs[subnet][domain]) return "duplicate subnet and PCI-root pair";
++      pairs[subnet][domain] = true;
++    }
++  }
++  if (nSubnet != 2 || perSubnet[0] != (dual ? 2 : 1) || perSubnet[1] != (dual ? 2 : 1))
++    return "unbalanced cable listener publication";
++  if (dual && (nDomain != 2 || !pairs[0][0] || !pairs[0][1] || !pairs[1][0] || !pairs[1][1]))
++    return "incomplete cable and PCI-root cross product";
++  return nullptr;
++}
+diff --git a/tests/routing_handle/ring_contract.cc b/tests/routing_handle/ring_contract.cc
+new file mode 100644
+index 0000000000000000000000000000000000000000..ecd56d25deed953c4f1285443f52e61183720732
+--- /dev/null
++++ b/tests/routing_handle/ring_contract.cc
+@@ -0,0 +1,38 @@
++// SPDX-License-Identifier: Apache-2.0
++#include <cassert>
++#include <cstdio>
++#include <initializer_list>
++#include "../../src/transport/net_ib/tp4_listener_contract.h"
++#include "../../src/transport/net_ib/ring_listener_contract.h"
++
++static const char* four = "10.100.224.0/24,10.100.225.0/24,10.100.226.0/24,10.100.227.0/24";
++static const char* eight = "10.100.224.0/24,10.100.225.0/24,10.100.226.0/24,10.100.227.0/24,10.100.228.0/24,10.100.229.0/24,10.100.230.0/24,10.100.231.0/24";
++
++int main() {
++  RingCableSubnets parsed;
++  assert(ringParseCableSubnets(four, &parsed) && parsed.count == 4);
++  assert(ringParseCableSubnets(eight, &parsed) && parsed.count == 8);
++  for (const char* bad : {"", "1", "1.2.3", "1.2.3.0/24,", "10.100.224.1/24",
++       "10.100.224.0/23", "10.100.024.0/24", "256.2.3.0/24", "10.100.224.0/24,,",
++       "10.100.224.0/24,10.100.224.0/24,10.100.225.0/24,10.100.226.0/24"})
++    assert(!ringParseCableSubnets(bad, &parsed));
++  assert(!ringParseCableSubnets(nullptr, &parsed));
++  char roots[4][11] = {"pci0000:00", "pci0000:00", "pci0001:00", "pci0001:00"};
++  uint8_t gids[4][16] = {};
++  for (int a = 220; a <= 234; ++a) for (int b = 220; b <= 234; ++b) {
++    for (int i = 0; i < 4; ++i) {
++      gids[i][10] = gids[i][11] = 255;
++      gids[i][12] = 10; gids[i][13] = 100; gids[i][14] = i % 2 ? b : a; gids[i][15] = i + 1;
++    }
++    assert((tp4ValidateListener(gids, roots, 4, true) == nullptr) ==
++           (ringValidateListener(gids, roots, 4, true, four) == nullptr));
++    bool valid = a != b && a >= 224 && a <= 231 && b >= 224 && b <= 231;
++    assert((ringValidateListener(gids, roots, 4, true, eight) == nullptr) == valid);
++  }
++  gids[0][14] = gids[2][14] = 224; gids[1][14] = gids[3][14] = 231;
++  assert(!ringValidateListener(gids, roots, 4, true, eight));
++  std::memcpy(gids[3], gids[1], 16);
++  assert(ringValidateListener(gids, roots, 4, true, eight));
++  assert(ringValidateListener(gids, roots, 5, true, eight));
++  std::puts("PASS: parser negatives, 225 TP4 parity cases and 225 eight-subnet membership cases");
++}

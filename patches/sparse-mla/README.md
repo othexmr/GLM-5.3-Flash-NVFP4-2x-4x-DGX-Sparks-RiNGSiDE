@@ -15,3 +15,4 @@ lists them in a fixed order.
 |---|---|---|---|---|
 | tp2 | `tp2/backend.py.patch` | `glm53_sparse_mla/backend.py` | `8bb063484493` | image-baked lab change (atomic-prefill and NoPE backend stages) on Libertai/vllm-sparse-mla-blackwell@b1f20638 |
 | tp4 | `tp4/backend.py.patch` | `glm53_sparse_mla/backend.py` | `8bb063484493` | image-baked lab change (atomic-prefill and NoPE backend stages) on Libertai/vllm-sparse-mla-blackwell@b1f20638 |
+| tp8 | `tp8/backend.py.patch` | `glm53_sparse_mla/backend.py` | `8bb063484493` | image-baked lab change (atomic-prefill and NoPE backend stages) on Libertai/vllm-sparse-mla-blackwell@b1f20638 |

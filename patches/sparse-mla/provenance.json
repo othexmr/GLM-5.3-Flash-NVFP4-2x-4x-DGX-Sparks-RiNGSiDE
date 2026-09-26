@@ -15,6 +15,11 @@
    "path": "tp4/backend.py.patch",
    "profile": "tp4",
    "target": "glm53_sparse_mla/backend.py"
+  },
+  {
+   "path": "tp8/backend.py.patch",
+   "profile": "tp8",
+   "target": "glm53_sparse_mla/backend.py"
   }
  ]
 }

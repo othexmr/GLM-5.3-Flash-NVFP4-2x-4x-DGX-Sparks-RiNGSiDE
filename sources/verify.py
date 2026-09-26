@@ -31,16 +31,17 @@ import stat
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-PROFILES = {'tp4': 4, 'tp2': 2}
+PROFILES = {'tp4': 4, 'tp2': 2, 'tp8': 8}
 UPSTREAMS = {
     'vllm': 'https://github.com/vllm-project/vllm.git',
     'b12x': 'https://github.com/local-inference-lab/b12x.git',
     'sparse-mla': 'https://github.com/Libertai/vllm-sparse-mla-blackwell.git',
     'nccl': 'https://github.com/NVIDIA/nccl.git',
+    'nccl-tp8': 'https://github.com/NVIDIA/nccl.git',
     'rigmark': 'https://github.com/alexellis/rigmark.git',
 }
 PATCH_KIND = {'vllm': 'file-overlay', 'b12x': 'file-overlay', 'sparse-mla': 'file-overlay',
-              'nccl': 'git-series', 'rigmark': 'git-series'}
+              'nccl': 'git-series', 'nccl-tp8': 'git-series', 'rigmark': 'git-series'}
 LOCK_STATUS = {'measured-profiles-local'}
 LICENSE_SHA256 = 'c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4'   # the Apache License 2.0 text (licenses/Apache-2.0.txt)
 NOTICE_NAMES = ('vllm-project/vllm', 'local-inference-lab/b12x', 'Libertai/vllm-sparse-mla-blackwell', 'NVIDIA/nccl',
@@ -50,7 +51,7 @@ ALLOWED_PLACEHOLDERS = {'RANK', 'ROLE_ARGS', 'OVERLAY_ROOT', 'SWITCHLESS_API_POR
                         'SWITCHLESS_DRAFTER_REPO_DIR', 'SWITCHLESS_FABRIC_CIDR', 'SWITCHLESS_HF_CACHE_DIR',
                         'SWITCHLESS_IB_HCA', 'SWITCHLESS_JIT_CACHE_DIR', 'SWITCHLESS_MASTER_ADDR',
                         'SWITCHLESS_MASTER_PORT', 'SWITCHLESS_MODEL_DIR', 'SWITCHLESS_PROFILES_DIR',
-                        'SWITCHLESS_TOKENIZER_FILE',
+                        'SWITCHLESS_TOKENIZER_FILE', 'SWITCHLESS_CABLE_SUBNETS',
                         'SWITCHLESS_RANK_HOST_IP', 'SWITCHLESS_SOCKET_IFNAME'}
 PLACEHOLDER = re.compile(r'\$\{([A-Z0-9_:./-]+)\}')
 IMAGE_ID = re.compile(r'sha256:[0-9a-f]{64}')
@@ -515,6 +516,9 @@ def check_artefacts(root, lock, inst, provenance):
     nccl = lock['components']['nccl']['result_tree']
     require(trees.get('nccl') == nccl, 'nccl: source tree differs between sources.lock.json and release/provenance.json')
     require(nccl in names['nccl-switchless-dual-pf']['source'], 'nccl: release/assets.json must name the series tree')
+    tp8_tree = lock['components']['nccl-tp8']['result_tree']
+    require(trees.get('nccl-tp8') == tp8_tree and tp8_tree in names['nccl-switchless-tp8']['source'],
+            'nccl-tp8: native source tree differs between lock and provenance')
     for a in names.values():  # a measured artefact built from an earlier tree names that tree
         if 'built_from_tree' in a:
             require(hexhash(a['built_from_tree'], 40) and a['built_from_tree'] in a['source'],

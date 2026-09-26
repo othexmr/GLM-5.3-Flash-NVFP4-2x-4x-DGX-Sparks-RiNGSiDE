@@ -36,7 +36,8 @@
   {
    "name": "sparse-mla-m7e",
    "profiles": [
-    "tp2"
+    "tp2",
+    "tp8"
    ],
    "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so",
    "sha256": "221fdbaa6a25d377118093d30761322c22db7105312b396d2aecd8262e2c002b",
@@ -113,6 +114,20 @@
    "build": "build/humming/README.md",
    "published": false,
    "note": "third-party package; per-file sha256 of the served tree in sources/installed-files.json. \"targets\" maps each mounted path to the directory of a humming-kernels 0.1.15 installation that supplies it: the 0.1.15 dist-info is mounted at the image's 0.1.12 dist-info path"
+  },
+  {
+   "name": "nccl-switchless-tp8",
+   "profiles": [
+    "tp8"
+   ],
+   "target": "/opt/switchless-nccl-tp8/libnccl.so.2.30.7",
+   "sha256": "1051f000e44f0b0c1f11bc1d7258f7caf9c2c5f23621897a6780d08a0485f1c8",
+   "bytes": 61495136,
+   "source": "patches/nccl-tp8 (tree e0f474c5159bfa611792595b6544a858a54ff6fd)",
+   "built_from_tree": "e0f474c5159bfa611792595b6544a858a54ff6fd",
+   "build": "build/nccl-tp8/README.md",
+   "published": false,
+   "note": "ARM64 sm_121 compile passed; TP8 runtime and performance unqualified"
   }
  ],
  "models": [

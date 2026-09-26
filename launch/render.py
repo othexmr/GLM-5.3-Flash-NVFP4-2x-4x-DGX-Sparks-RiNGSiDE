@@ -153,7 +153,7 @@ def render(profile, site, rank):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--profile', required=True, choices=('tp4', 'tp2'))
+    ap.add_argument('--profile', required=True, choices=('tp4', 'tp2', 'tp8'))
     ap.add_argument('--site', required=True, type=Path)
     ap.add_argument('--format', default='sh', choices=('sh', 'json'))
     ap.add_argument('--rank', type=int)

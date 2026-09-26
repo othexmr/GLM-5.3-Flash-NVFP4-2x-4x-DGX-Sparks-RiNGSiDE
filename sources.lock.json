@@ -542,6 +542,237 @@
      "preimage_upstream": "identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path",
      "postimage_sha256": "d383b345621226ab6c0896444e5047c675f74d0e6263db68d23b4f2d7b1c571e",
      "postimage_blob": "6ee5ae2acfcd74b9c012527b3922bf596654856e"
+    },
+    {
+     "path": "tp8/config-vllm.py.patch",
+     "sha256": "82cf739c54e5d4dde0fff679ac94494eff03e29dd653a2fe20e8d6fe15fbe2b8",
+     "target": "vllm/config/vllm.py",
+     "profile": "tp8",
+     "preimage_sha256": "3b2032e46fe6839bbbf64a48d32dc6d3f97a0b6e20b40aa4a550c3096ca4ed08",
+     "preimage_blob": "89aa74728447c819f2f270c4503160131dee2053",
+     "preimage_upstream": "file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8",
+     "postimage_sha256": "3351141f82067c9ed37b274bc954c8a6d982d0869a1cc43d799e630842c9932d",
+     "postimage_blob": "3ef437d8fb7483f24d76e59036308a65f473f4fd"
+    },
+    {
+     "path": "tp8/entrypoints-launchers-api_server-entry.py.patch",
+     "sha256": "254181cef49991d91869742d832d0a5eda2ef3cbb6456e0f538588f165f12538",
+     "target": "vllm/entrypoints/launchers/api_server/entry.py",
+     "profile": "tp8",
+     "preimage_sha256": "db689f8486e5d2c9eb59d347e03a27ce837d014f8d3d7f84d55a0e382813ca84",
+     "preimage_blob": "37d7ca381455da42aa983a50f130b80ca485a50f",
+     "preimage_upstream": "identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path",
+     "postimage_sha256": "a0dbfb2b5252a12f1155632988bf1057f9aa1817dca1e7d2f861745fc83222ce",
+     "postimage_blob": "5eb57ebc576939856de6ea2573fd89787ccdf926"
+    },
+    {
+     "path": "tp8/model_executor-kernels-mhc-tilelang.py.patch",
+     "sha256": "30dbaa21a3a12a88116dc6e09bfe78d0578e6075a418df968405fe73ad949328",
+     "target": "vllm/model_executor/kernels/mhc/tilelang.py",
+     "profile": "tp8",
+     "preimage_sha256": "c8ce81539c779436eb2b9fbba84738f3114bf3ac0a149f2b606f7d38bd1067ce",
+     "preimage_blob": "c3c773d07f2f3409a7cdba03b82e81c5ecb5aca4",
+     "preimage_upstream": "identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path",
+     "postimage_sha256": "a02ce5e6836de40a5ead235b21d19d050c81f31bb9637d3e4669c3938dd26ebb",
+     "postimage_blob": "5ee498a68aa412047dbe3b9311cebe25d656bf42"
+    },
+    {
+     "path": "tp8/model_executor-layers-attention-mla_attention.py.patch",
+     "sha256": "43aaf56f3a565f9890980c6b13f37ef14cb685764b56bd2788a5cd7f769f92c8",
+     "target": "vllm/model_executor/layers/attention/mla_attention.py",
+     "profile": "tp8",
+     "preimage_sha256": "b8c5386de3aa37461571f974f262f417dab28a708456e686f3cd02a576986faf",
+     "preimage_blob": "18a9c144f4d2d6c9ff7724fa30c2e4cd1a109c59",
+     "preimage_upstream": "file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8",
+     "postimage_sha256": "a32b1b3e38b76797e8f7246382a855aa625826d0eb557af52266c1ff474d88b3",
+     "postimage_blob": "6db3ca61ea4a17689c529b993b8551e534e281f3"
+    },
+    {
+     "path": "tp8/model_executor-layers-fused_moe-b12x.py.patch",
+     "sha256": "84c60e9c47cd3c599a3ac64ba34cac6388ba49aac3ccf7f0302542275a45cc0f",
+     "target": "vllm/model_executor/layers/fused_moe/b12x.py",
+     "profile": "tp8",
+     "preimage_sha256": "445dfa61c627b4c2baf9c3e47927b8c98c382309102f40fda85df5654d9cbc3e",
+     "preimage_blob": "13616bb97fbaedfc7eda276d9d1e49bb9b2d4716",
+     "preimage_upstream": "image-baked lab change (atomic-prefill adapter build stage) on the GLM-5.3 backport file; differs from both upstream and the backport",
+     "postimage_sha256": "b8e046fe5c48fc297ae07da786d68edd645baf0a80e771770a86d8a463d78e10",
+     "postimage_blob": "bddd4f951d3c53494acf1c677eedcb7b90e6a189"
+    },
+    {
+     "path": "tp8/models-glm5next-nvidia-attention.py.patch",
+     "sha256": "397fd5ec316b793b29a7bea5f7771f860384ed07eddd8d9bb20089460fc88897",
+     "target": "vllm/models/glm5next/nvidia/attention.py",
+     "profile": "tp8",
+     "preimage_sha256": "400d7063db2aa27314c79dce688060710f5ef7bdbafbddfc6698eaaaea3b3a8f",
+     "preimage_blob": "0be749348494f6679fc3e856112b9c0d6272b89d",
+     "preimage_upstream": "file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8",
+     "postimage_sha256": "87956e9198ee06076b4d9fb5a6d5fd235fe0fc9ec52bba96b7082c0e6b95f3df",
+     "postimage_blob": "d0a79aa050b67889d913ab6e0b523c7e1d718841"
+    },
+    {
+     "path": "tp8/models-glm5next-nvidia-kda.py.patch",
+     "sha256": "cfb86669fc3b093a929d8bf9318c669b0cb71e905a15e64baff836d9ff40fbf4",
+     "target": "vllm/models/glm5next/nvidia/kda.py",
+     "profile": "tp8",
+     "preimage_sha256": "6601dffb13ed76caebf4b4156cb1f0cfdaea1369e4924c6a4d433149b3e9d9d4",
+     "preimage_blob": "47d72d02247466f757724181c22686c6a31e89c5",
+     "preimage_upstream": "file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8",
+     "postimage_sha256": "80c08afcd843e5543d8e0a25d3d1fc8534fc712c155f4c3993de567a4e89e8df",
+     "postimage_blob": "14ed794afa333b8baf221a7746ffa90d52834add"
+    },
+    {
+     "path": "tp8/models-glm5next-nvidia-model.py.patch",
+     "sha256": "74a810af2e7a5241622039768b3c96e2ae829930545912c8d059a0e5f09448d4",
+     "target": "vllm/models/glm5next/nvidia/model.py",
+     "profile": "tp8",
+     "preimage_sha256": "031439712aa46203846e1df03de95d7e38c42578c59c2f556d540ab09f26bf8c",
+     "preimage_blob": "93795ff4baf494367b241d94ab143a63d6c3df12",
+     "preimage_upstream": "file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8",
+     "postimage_sha256": "f4081c991eaaac0daa3ca683531a847356cff96b205d82dc1def0088927147d8",
+     "postimage_blob": "d02dcef4641fa427f393778556711b2d821542d2"
+    },
+    {
+     "path": "tp8/models-glm5next-nvidia-ops-kpool_compress.py.patch",
+     "sha256": "c9c2841107b91c22ecfd20b028ef78e9d0fae0ebf719bcbbc59b08fd0d159f0d",
+     "target": "vllm/models/glm5next/nvidia/ops/kpool_compress.py",
+     "profile": "tp8",
+     "preimage_sha256": "6e19b31c50de43f7dfa9c7d9b7a3d7b856939f49bd4a3c031d2b50d28fe04f68",
+     "preimage_blob": "35b51c6b74bbd56a70c0f350e363defd7ac2cea3",
+     "preimage_upstream": "file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8",
+     "postimage_sha256": "f50edff2e0fd9d2807a85682383cb616867e58c5516db9df026fa661d6e371a6",
+     "postimage_blob": "990494704107d93baab03ccef92451d4578ad9e5"
+    },
+    {
+     "path": "tp8/models-glm5next-nvidia-ops-third_party-kda-fused_recurrent.py.patch",
+     "sha256": "54605d965d203275d97e7cc64b852687c6c21049253453aec543c97701219942",
+     "target": "vllm/models/glm5next/nvidia/ops/third_party/kda/fused_recurrent.py",
+     "profile": "tp8",
+     "preimage_sha256": "fe79ad1547aa5a255070af83029a4d1043dd2b225ce1baf9ffb3d8dd62298ef0",
+     "preimage_blob": "d7de85984f854f6d6d20a64cd810d1b74c3d95f2",
+     "preimage_upstream": "file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8",
+     "postimage_sha256": "d110dd8b502bbf5b0b8e1869500014deeaae634b5d2408182bc98bf39c41660a",
+     "postimage_blob": "c9f3c53262483b8a668a8414b29c431e4e45d171"
+    },
+    {
+     "path": "tp8/v1-core-kv_cache_utils.py.patch",
+     "sha256": "3c758f084fbb2e3e7bf7d7e69eaa4c26e846424e69515dee765e52449596c843",
+     "target": "vllm/v1/core/kv_cache_utils.py",
+     "profile": "tp8",
+     "preimage_sha256": "2614f957b21863ac7f028d0c104c9a4d913f41b81733f2d36ac0ec05df882712",
+     "preimage_blob": "5c514822837464e5590ce8e7008bb8af526141f2",
+     "preimage_upstream": "file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8",
+     "postimage_sha256": "2a69fdf7b0738e75caa47be8344180a309e3fe68476618219eae3eceaf29aaab",
+     "postimage_blob": "8fe3e2baf480d55cd20c7cee9c9db580e49ac400"
+    },
+    {
+     "path": "tp8/v1-core-sched-scheduler.py.patch",
+     "sha256": "b54909686bf3f26247140c1924c2ebcfa0cc03db8eba5115aafce1acf4fc7036",
+     "target": "vllm/v1/core/sched/scheduler.py",
+     "profile": "tp8",
+     "preimage_sha256": "db8796f984d2d8a1b77e8f809d5e45b7d06904fc624490badcb0df133186952e",
+     "preimage_blob": "7c5f36fb35b06a119f1e85111869b30b0cdc1058",
+     "preimage_upstream": "image-baked lab change (mixed-prefill repair build layer) on the GLM-5.3 backport file; differs from both upstream and the backport",
+     "postimage_sha256": "05fba9702e9f4ddf69f25ffd6f3293eda2917c40338c813dd63a0622fe860bba",
+     "postimage_blob": "c72131b2d2f8af48901298543a916492202f6f9e"
+    },
+    {
+     "path": "tp8/v1-core-single_type_kv_cache_manager.py.patch",
+     "sha256": "6d10e3fc756d90d6024d83333deaea775179f5e052dd56bb1fbcb801eda58cb9",
+     "target": "vllm/v1/core/single_type_kv_cache_manager.py",
+     "profile": "tp8",
+     "preimage_sha256": "0b238ffd65d65a462dedea640928713a6e0452091c75642cf7dbb15514d56261",
+     "preimage_blob": "7488f016389d543e1556fd43b6192dfa68b611c1",
+     "preimage_upstream": "file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8",
+     "postimage_sha256": "3bd43799abc7564261f5f103d18fb852b8d26fb9ec54994e78facf550221d39c",
+     "postimage_blob": "6404ee042d9fe89840cefa2724a0f91b0b9d5794"
+    },
+    {
+     "path": "tp8/v1-sample-ops-topk_topp_triton.py.patch",
+     "sha256": "8dad46bb7923e978cfc8f1d00a2dc4a97dd096645e0448f5ebfd4a766ea976bf",
+     "target": "vllm/v1/sample/ops/topk_topp_triton.py",
+     "profile": "tp8",
+     "preimage_sha256": "255619f699898ddaaac959d9bef4494294c76d730abb8e90549afac83a9bcbe9",
+     "preimage_blob": "d8f8c8956d25ddd1f1f006e8efc4f7295b06bc2a",
+     "preimage_upstream": "identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path",
+     "postimage_sha256": "6d7a945290ebb64e59a43e6b6c3d64f2aa4c953cea2e47bd5232422850d6490c",
+     "postimage_blob": "2abcaaa340c6a0a79ee3ab19978d7de09fa1e5a2"
+    },
+    {
+     "path": "tp8/v1-worker-gpu-async_utils.py.patch",
+     "sha256": "f9309b3977a414a74ad9dc17aa2cf114126bae16420ae8880ad3021560b1bf56",
+     "target": "vllm/v1/worker/gpu/async_utils.py",
+     "profile": "tp8",
+     "preimage_sha256": "36bd876f1c2cf648ed9436c66205db39df7bd4f9b0da90f507fed8b3159840c5",
+     "preimage_blob": "ba0a66d2bc81899a0d0b23b3cbaf841c5eb76439",
+     "preimage_upstream": "identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path",
+     "postimage_sha256": "019aefd848e47ca4d6d916113e5b4672b632460ed1ce6a3426b53def291e394f",
+     "postimage_blob": "2d40960a5e37112e106c702ff99babe540ea120a"
+    },
+    {
+     "path": "tp8/v1-worker-gpu-model_runner.py.patch",
+     "sha256": "7a2453cb0982e03f8cc5778c570cb30f5ede533d762aea5195df5c0e192f4c9a",
+     "target": "vllm/v1/worker/gpu/model_runner.py",
+     "profile": "tp8",
+     "preimage_sha256": "f01ae09c799799c8949778588d4e5e43f8c4c2dc4fd531a0eb7a553eb5d45c5e",
+     "preimage_blob": "42c7b385d17cf0fe7d66ac5ee41eddc654250574",
+     "preimage_upstream": "file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8",
+     "postimage_sha256": "fb93f06a693815f6f376ec8727b641a26b6dcca77b6767d114d0ef986fd642ab",
+     "postimage_blob": "831d80cad00dd86f2a5660c4623bee523480feba"
+    },
+    {
+     "path": "tp8/v1-worker-gpu-sample-gumbel.py.patch",
+     "sha256": "ca57caa7f8804186b229db6f7caae4a93634e7358adebce4952470d252cf4bbe",
+     "target": "vllm/v1/worker/gpu/sample/gumbel.py",
+     "profile": "tp8",
+     "preimage_sha256": "3ec1df510bdad13e8b0a457b5b67c98affdf6e57369e56cb471246cc8f40dd34",
+     "preimage_blob": "4bf1f47280cfa69d3f66a6d8350cb4e129c37d08",
+     "preimage_upstream": "identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path",
+     "postimage_sha256": "8793f30567609af00d8c8c8026558f00ddf90a000a0444068128edded0fd2919",
+     "postimage_blob": "f7cffa50171ab752b2f1a75d9fba6dd8e6d370ee"
+    },
+    {
+     "path": "tp8/v1-worker-gpu-sample-sampler.py.patch",
+     "sha256": "5275e879f15aaddaf6422f8b08502a6f04e291c5f9ec810429f53d96d2652f59",
+     "target": "vllm/v1/worker/gpu/sample/sampler.py",
+     "profile": "tp8",
+     "preimage_sha256": "408b08c4ac66de271f476460490f360ef2a9b73528a346d132a22326e1674369",
+     "preimage_blob": "3ee2c132940e5aa7c3ddc4ea831cff2d59843114",
+     "preimage_upstream": "identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path",
+     "postimage_sha256": "77e22ab8419a5fc1235c65ae5824c34c9750e93730b4f2c6b2bc3ea80e64d49c",
+     "postimage_blob": "4c3d4b9a9c01d8221d82b12fb49f01bffbf75112"
+    },
+    {
+     "path": "tp8/v1-worker-gpu-spec_decode-rejection_sampler.py.patch",
+     "sha256": "46e382884dd22259b30c47bfc232a4849016e9f1999a6b60e025e34fca6ce83a",
+     "target": "vllm/v1/worker/gpu/spec_decode/rejection_sampler.py",
+     "profile": "tp8",
+     "preimage_sha256": "e20adc9b6c8a62a5be232bae15a1e361e898142966a68ea3ef244b39ffc5ce44",
+     "preimage_blob": "a9027e0550f8ee906451eb9cd1a7095ad3b7fe2b",
+     "preimage_upstream": "identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path",
+     "postimage_sha256": "d59cb83ce11a92d2ee5fa8822988abc38cde0baeb6a2d14db36c953ce1f6c693",
+     "postimage_blob": "7b372faa4a50e3084950a8085543e378e4318714"
+    },
+    {
+     "path": "tp8/v1-worker-gpu-spec_decode-rejection_sampler_utils.py.patch",
+     "sha256": "52567659389d48df1ba8d89e88473900f208d387bef530691be846c86b94416f",
+     "target": "vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py",
+     "profile": "tp8",
+     "preimage_sha256": "20ca2e5ac34e9ef93dca388bed72a00d4ff67d569ec6ec2393b21a92d74a1fae",
+     "preimage_blob": "29b20afea69a1f89255be3ad91fc0e7995d462c1",
+     "preimage_upstream": "identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path",
+     "postimage_sha256": "d1d5ba7ab39b9404bbd2a8f7b322f473f9d921f1095f766368c854b67741f8ec",
+     "postimage_blob": "39dd47d0f4284c6fb98e1444601e6bdd97ea2ca0"
+    },
+    {
+     "path": "tp8/v1-worker-gpu_worker.py.patch",
+     "sha256": "9a9d49d14cf75213ec0086119f6b9f2cfe7676d4f6822c4b1c382b036a1e6bfb",
+     "target": "vllm/v1/worker/gpu_worker.py",
+     "profile": "tp8",
+     "preimage_sha256": "b0f39124f31ead3d2d20f1c6ac8696393c0ed6fed585ba8d31a4f7673e390407",
+     "preimage_blob": "65ea862ed7c0a21fb7700c93a7e298e1ac1b4a83",
+     "preimage_upstream": "identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path",
+     "postimage_sha256": "d383b345621226ab6c0896444e5047c675f74d0e6263db68d23b4f2d7b1c571e",
+     "postimage_blob": "6ee5ae2acfcd74b9c012527b3922bf596654856e"
     }
    ]
   },
@@ -595,6 +826,28 @@
      "preimage_upstream": "image-baked lab change (deterministic output, atomic prefill, decode fast path) on b12x 1.3.0, whose file equals local-inference-lab/b12x@3a437ab5",
      "postimage_sha256": "d10f854f350388ba8adb87743640a1a38d04e2fd734d4a4770167ff08a867809",
      "postimage_blob": "76fd807180f2c43c44900c43550ee1bd4948622b"
+    },
+    {
+     "path": "tp8/moe-_shared-kernels-dynamic.py.patch",
+     "sha256": "e4894a8cba038a32f48f8ef9a2bcce58f78771dc9a84a6a5664f1b02868adca2",
+     "target": "b12x/moe/_shared/kernels/dynamic.py",
+     "profile": "tp8",
+     "preimage_sha256": "2ebe82bd221aacf915b4d2cc0b50e52dc77c7b7b73aea720ad17941a85d1a060",
+     "preimage_blob": "539c828e3cec97e3f724e9bd521e42e18c9d9319",
+     "preimage_upstream": "image-baked lab change (deterministic output, atomic prefill, decode fast path) on b12x 1.3.0, whose file equals local-inference-lab/b12x@3a437ab5",
+     "postimage_sha256": "9d65bb84560650928114a81128cc9a3bc4c5dd30ca6c3f357ecceca9998709fe",
+     "postimage_blob": "eb375c892d7e04be42908c0dcf999218ce0bee33"
+    },
+    {
+     "path": "tp8/moe-fused_moe-_impl.py.patch",
+     "sha256": "4e9fa322e72bbe275beed7402713dde5e860b8103141106a1be67a808d80845a",
+     "target": "b12x/moe/fused_moe/_impl.py",
+     "profile": "tp8",
+     "preimage_sha256": "6984ff84435121222490e776022365158bdee1ee1ed5bbf0a61007424fda24ee",
+     "preimage_blob": "e3da4beea379baef0a4e7b8346d13a231ceed277",
+     "preimage_upstream": "image-baked lab change (deterministic output, atomic prefill, decode fast path) on b12x 1.3.0, whose file equals local-inference-lab/b12x@3a437ab5",
+     "postimage_sha256": "5d1f2b027e2c916dca63ad3c80ac4ff44a429153e82cbaa38a0bc2bf1a9bbe68",
+     "postimage_blob": "cd7fb0684d423c712279a3538ed78977bf8f9e30"
     }
    ]
   },
@@ -621,6 +874,17 @@
      "sha256": "39260cc4e8dd8151bb98795b4f3d13e6dd8607435d198b4a294cef1cb4c90089",
      "target": "glm53_sparse_mla/backend.py",
      "profile": "tp4",
+     "preimage_sha256": "8bb063484493ab998278e0f19883c0263b67dc8e299f4cad86402e5685f403a0",
+     "preimage_blob": "77405ecbb5fb8f6e1c20f1e388a35dab3852925b",
+     "preimage_upstream": "image-baked lab change (atomic-prefill and NoPE backend stages) on Libertai/vllm-sparse-mla-blackwell@b1f20638",
+     "postimage_sha256": "d88307d733afd7979ea892c266f4118dfb66a628e53a60c2950b45400df509f6",
+     "postimage_blob": "b55612d14b3c2420270b5c94416069fe1a2f7d84"
+    },
+    {
+     "path": "tp8/backend.py.patch",
+     "sha256": "abe3698eccdb8602a039a8fd53884a16c356f42e42f72a7d6de2c6a76a04f32f",
+     "target": "glm53_sparse_mla/backend.py",
+     "profile": "tp8",
      "preimage_sha256": "8bb063484493ab998278e0f19883c0263b67dc8e299f4cad86402e5685f403a0",
      "preimage_blob": "77405ecbb5fb8f6e1c20f1e388a35dab3852925b",
      "preimage_upstream": "image-baked lab change (atomic-prefill and NoPE backend stages) on Libertai/vllm-sparse-mla-blackwell@b1f20638",
@@ -675,6 +939,31 @@
    "patch_kind": "git-series",
    "patches": [],
    "result_tree": null
+  },
+  "nccl-tp8": {
+   "upstream": "https://github.com/NVIDIA/nccl.git",
+   "base_commit": "73cf112295c33aee2b895f329f592f2a9b4b0f97",
+   "base_tree": "3e7de6f92f0190d1afe9f05642e634cbf43ae4c9",
+   "git_object_format": "sha1",
+   "patch_kind": "git-series",
+   "patches": [
+    {
+     "path": "0001-switchless-ring-setup-and-listener-hardening.patch",
+     "sha256": "79902c4f276ae5274a7340683d0f0a2f5ed831f40a511b2fab6cbd07de6dd9dd",
+     "result_tree": "560ba01b9becbc7d3daa1677f0216503fc3be631"
+    },
+    {
+     "path": "0002-dual-pf-four-gid-routing.patch",
+     "sha256": "09da80f16df3f5f52a67f69ab585ba8b39889e8b00d80524b2375556ffaaec7e",
+     "result_tree": "9edccf0677e35c9b451eb2f5e037dfb9e6677a93"
+    },
+    {
+     "path": "0003-configured-ring-cables.patch",
+     "sha256": "5151cdd74115b8884f2d81e29d57d380e4a5544a52c15fa1c21470f54b0ae583",
+     "result_tree": "e0f474c5159bfa611792595b6544a858a54ff6fd"
+    }
+   ],
+   "result_tree": "e0f474c5159bfa611792595b6544a858a54ff6fd"
   }
  }
 }

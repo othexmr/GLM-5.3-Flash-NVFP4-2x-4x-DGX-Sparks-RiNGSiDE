@@ -61,12 +61,18 @@
     "2026-09-26 02:49-02:57, the DFlash2 capture and drafter KV-cache group in the TP2 configuration: the GPU leaf on one GB10 (3,358 of 3,358 comparisons with the earlier code equal (the captured auxiliary hidden states, the final hidden states, eager and CUDA-graph replays, bit for bit); the KV-cache groups and layout equal; the served model.py and kv_cache_utils.py bytes checked inside the container; lab job 266d4c), PASS"
    ],
    "not_measured": "no TP2 window has served this plan: the results page shows lab plan 69ad74fc, measured before these changes and on the NVIDIA checkpoint; the fixes are verified by GPU leaves and CPU checks; the TP2 window of this plan follows the release"
+  },
+  "tp8": {
+   "lab_plan_sha256": "8f9c355dc858ae7e6d465168c9c7e198ae4574bfadd07f14362ffec621598292",
+   "launch_sha256": "a0721ec4aea43215a303c688e5efe129f057e3b1c75a02952fc564d18fd386f9",
+   "description": "Experimental target-only eager TP8; corrected TP2 sources, FP32 KDA state, default FP8 dense path, separate switchless NCCL, explicit 4 GiB cache; GPU_UNQUALIFIED"
   }
  },
  "source_trees": {
   "nccl": "9edccf0677e35c9b451eb2f5e037dfb9e6677a93",
   "sparse-mla-a1c": "442d83ded51b5a0226bd13fbb2e3711d45d64699",
-  "sparse-mla-m7e": "ce9976030ba1b0d87566c78b8269ad73f4e25c01"
+  "sparse-mla-m7e": "ce9976030ba1b0d87566c78b8269ad73f4e25c01",
+  "nccl-tp8": "e0f474c5159bfa611792595b6544a858a54ff6fd"
  },
  "checks": "sources/verify.py (CPU); every overlay patch was applied to its image preimage during import and reproduced the served sha256"
 }

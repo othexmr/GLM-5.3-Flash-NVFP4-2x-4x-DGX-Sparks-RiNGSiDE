@@ -260,7 +260,8 @@ def plan(profile, site, out_dir):
         rel = f'deploy/{profile["topology"]}/rank{rank}'
         rows.append(('rank', str(rank), target, str(Path(out_dir) / f'rank{rank}'), f'{remote}/{rel}',
                      v['SWITCHLESS_CONTAINER_NAME'], v['SWITCHLESS_JIT_CACHE_DIR'], v['SWITCHLESS_PROFILES_DIR'],
-                     v['SWITCHLESS_HF_CACHE_DIR'], v['SWITCHLESS_MODEL_DIR'], v['SWITCHLESS_DRAFTER_REPO_DIR'],
+                     v['SWITCHLESS_HF_CACHE_DIR'], v['SWITCHLESS_MODEL_DIR'],
+                     v['SWITCHLESS_DRAFTER_REPO_DIR'] if '/models/dflash2-repo' in profile['mounts'] else '-',
                      share[rank] if share else '-'))
     rows.append(('api_host', site.get('SWITCHLESS_API_HOST') or rank0_target.rpartition('@')[2]))
     for row in rows:
@@ -271,7 +272,7 @@ def plan(profile, site, out_dir):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--profile', required=True, choices=('tp4', 'tp2'))
+    ap.add_argument('--profile', required=True, choices=('tp4', 'tp2', 'tp8'))
     ap.add_argument('--site', required=True, type=Path)
     ap.add_argument('--out', type=Path, help='directory for rank<N>/compose.yaml and .env (default deploy/<profile>)')
     ap.add_argument('--plan', action='store_true', help='print the plan for launch/up.sh instead of writing files')

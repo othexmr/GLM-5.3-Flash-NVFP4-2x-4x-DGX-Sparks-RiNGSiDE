@@ -1,0 +1,170 @@
+{
+ "base_commit": "776054810b1603b0250b55edaafecad4881a9bf5",
+ "files": {
+  "launch/profiles/tp2/canonical-launch.json": "807c2aaf51e930daa48b682aed33eec4ea42ed10d4ea5bd43e272f1580dea8e4",
+  "launch/profiles/tp2/chat_template_mm.jinja": "7a5a0dda1331a7c40d930961cc1cb3b57c3b52625250c13372fe006ba2e9dfdb",
+  "launch/profiles/tp2/override.json": "60b3ac3b5e835d62916d8f9c54c39cf5da72a9af65801a37348f31b62a338904",
+  "launch/profiles/tp2/profile.json": "49e695a3a5bdf4dabffb300447ac1ab355c98b72742f420a6ac364ef548d864f",
+  "launch/profiles/tp4/canonical-launch.json": "588177385a58c09d5f03ee75c5a78f096ce6947cf3a480b6306355b11ef5d32b",
+  "launch/profiles/tp4/chat_template_mm.jinja": "7a5a0dda1331a7c40d930961cc1cb3b57c3b52625250c13372fe006ba2e9dfdb",
+  "launch/profiles/tp4/override.json": "de86e2deb894195cee024c1e1620e731ff25e0704fd51b918b84a5f1b9b8fc3c",
+  "launch/profiles/tp4/profile.json": "27183a886d0d659866e590a644fab9ba5a9f6a925a35141f076bde052e178295",
+  "patches/b12x/tp2/moe-_shared-kernels-dynamic.py.patch": "9e024b6f77c735c66381f9f8978c253f00347c34691db965ee6d8904b5049445",
+  "patches/b12x/tp2/moe-fused_moe-_impl.py.patch": "902493df0e883b2b0c4dffb949c25b90027cc5148e8d69276649db177e94ee70",
+  "patches/b12x/tp4/moe-_shared-kernels-dynamic.py.patch": "b6d9a7adbf8e50ac79362a678dbcd8e83c6d5cff4b54f99ded95b20d5dedc4e2",
+  "patches/b12x/tp4/moe-fused_moe-_impl.py.patch": "f88711fb840b6303743b9450a24d8898d3c1cb223b522df7f95a364efc90cb98",
+  "patches/nccl/0001-switchless-ring-setup-and-listener-hardening.patch": "79902c4f276ae5274a7340683d0f0a2f5ed831f40a511b2fab6cbd07de6dd9dd",
+  "patches/nccl/0002-dual-pf-four-gid-routing.patch": "09da80f16df3f5f52a67f69ab585ba8b39889e8b00d80524b2375556ffaaec7e",
+  "patches/nccl/README.md": "f4062f0a336eaf3aa381df6e00d46904e27b469f713de0690e35232800f0e4db",
+  "patches/nccl/provenance.json": "6f301f85fb12de1fb5a328d0e9c35b61783ead813b639b11211db32112f16e1c",
+  "patches/nccl/series": "2c365bbc5ed61e2eed87bae7033f694f5b454d8cc6c07ce6ab5543fbc5d71903",
+  "patches/sparse-mla/tp2/backend.py.patch": "f4bfd4d2bce73a4aa5a5cbe63d37499fd1783a549caaa4d2b49e9df7f4b54bac",
+  "patches/sparse-mla/tp4/backend.py.patch": "39260cc4e8dd8151bb98795b4f3d13e6dd8607435d198b4a294cef1cb4c90089",
+  "patches/vllm/tp2/config-vllm.py.patch": "2287b9a0b168b8761296f6532faeefb3bd5e00aa09331e9a09ba1ccf3c644d76",
+  "patches/vllm/tp2/entrypoints-launchers-api_server-entry.py.patch": "f8d55f2c9b536781c94b73c7520cc44b06bc3600af787c7069aa42f1a83074a8",
+  "patches/vllm/tp2/model_executor-kernels-mhc-tilelang.py.patch": "9fcd5ac5e628f8a48e19ed5271be1b8ce36b41e9ddff94f3060f43c0439608b7",
+  "patches/vllm/tp2/model_executor-layers-attention-mla_attention.py.patch": "6c495cc90b1a2dc8cba88aecb25194996ac5d3b75180d4b67c5f8f53fbea28f0",
+  "patches/vllm/tp2/model_executor-layers-fused_moe-b12x.py.patch": "3506477f7af4ca31bdf797fb74d6ad9cbabdd2325075581abe9e1d8f37117290",
+  "patches/vllm/tp2/models-glm5next-nvidia-attention.py.patch": "7469e06bd062a2ad16509b719d0d2c23ffd308099bbaf175a93addcf27ccba69",
+  "patches/vllm/tp2/models-glm5next-nvidia-kda.py.patch": "8d6e8aa4101c8779ae923ee280c5fb63c6c3999c08b4ac0b3bf08d313032ec2e",
+  "patches/vllm/tp2/models-glm5next-nvidia-model.py.patch": "f1a77684e67620309caa4871397af8dc5ed04c0faa9b15e83b22f0b324da8ddf",
+  "patches/vllm/tp2/models-glm5next-nvidia-ops-kpool_compress.py.patch": "25179e35e58b63f947e2022fd61254b521e53c3df9c40422b5c3600e2f0ad7c6",
+  "patches/vllm/tp2/models-glm5next-nvidia-ops-third_party-kda-fused_recurrent.py.patch": "8e246f79d492296ae2a15fa7f2511d369d75d14e2ff20852e8f1ac20b2d57106",
+  "patches/vllm/tp2/v1-core-kv_cache_utils.py.patch": "f006b15feff1fba8c64539622406ac9c98ff29aad37350ff6bc19edc4cee7c36",
+  "patches/vllm/tp2/v1-core-sched-scheduler.py.patch": "2ef41298eaf8444335ed5c509ed0e24ad9603ec265ad0d9ea9db773906718516",
+  "patches/vllm/tp2/v1-core-single_type_kv_cache_manager.py.patch": "95c3f5b0476e775840b66be251980b3a6e8efc6b30a8131dd35e0632b091526f",
+  "patches/vllm/tp2/v1-sample-ops-topk_topp_triton.py.patch": "317e447eeaf46cd4304c93a4d5cd3e702e394b672dfdff389beb89e081ca2d19",
+  "patches/vllm/tp2/v1-worker-gpu-async_utils.py.patch": "b0e73084f236b9523e1c304cc7b683d3c51ead77c6071e13f262bd2995449cc3",
+  "patches/vllm/tp2/v1-worker-gpu-model_runner.py.patch": "8e945536586a069559d49630d526424ffcb5bb1198d297971054e03f74d339fe",
+  "patches/vllm/tp2/v1-worker-gpu-sample-gumbel.py.patch": "e47d3d11078fac7ada7ef2ddea70a9a4d53a4baa91b24226bb6673a7b11c25fb",
+  "patches/vllm/tp2/v1-worker-gpu-sample-sampler.py.patch": "9c4275246bd6f8fc972dd680628de0809c7a22ffbbf4b89c7aa3543a4ce1666d",
+  "patches/vllm/tp2/v1-worker-gpu-spec_decode-rejection_sampler.py.patch": "dcc452aac3d394471028dd953e53d57295e106d5c51492ddb20f5432020765ef",
+  "patches/vllm/tp2/v1-worker-gpu-spec_decode-rejection_sampler_utils.py.patch": "2adbdd1e7606784cdc5f37c00726ee6545d4be1bff1765e2d2097928cd84a9ee",
+  "patches/vllm/tp2/v1-worker-gpu_worker.py.patch": "3b9a5f39a12dca3dbf57475ff909fe0594101952c8b89666e5c31aafb83540f0",
+  "patches/vllm/tp4/config-vllm.py.patch": "db9701f12fc7592cd8bc7b5660fdef5b7dcb905542bb94b33f3fe926d6a67f6c",
+  "patches/vllm/tp4/distributed-device_communicators-cuda_communicator.py.patch": "8efd6c3b938c8700c154ae7367a0cbc0da3d9c404571a79eb263d6e496c955a3",
+  "patches/vllm/tp4/entrypoints-launchers-api_server-entry.py.patch": "b82e6a30fd8bf1b38137e16ed9f005d60db0240cb7854256778fa5c9f621d0da",
+  "patches/vllm/tp4/model_executor-kernels-linear-nvfp4-b12x.py.patch": "692fb9e5cf14876e4f67800d7ac93ed489ede628e01ecd9e2a52767eac751b8e",
+  "patches/vllm/tp4/model_executor-kernels-mhc-tilelang.py.patch": "93b259ae1580f54a5cb80a90081ac38daab4a08584a3373e8a3b16416d349422",
+  "patches/vllm/tp4/model_executor-layers-attention-mla_attention.py.patch": "5d6d1d488a27460c4408827d462c5e859b40440e002c74fa134df8b0e85a8334",
+  "patches/vllm/tp4/model_executor-layers-fused_moe-b12x.py.patch": "859481466633a1fe5a96a0894dbc9b8056d48c36a2bfe4ade7cafa6c6f24310d",
+  "patches/vllm/tp4/model_executor-layers-fused_moe-runner-moe_runner.py.patch": "09fdc289266ec9c6fabd3a5b335e749c388ac5b997874efd63d58c911ae168e7",
+  "patches/vllm/tp4/model_executor-layers-fused_moe-runner-moe_runner_interface.py.patch": "ed379bb4b4af1d82c87b62732d38a4abad4e02b8d9094b1ddf265a28dbce4679",
+  "patches/vllm/tp4/model_executor-layers-linear.py.patch": "ed7ea86cf7a1c370b6ea979743c213580d64a63a8fd04b6aef8b74b00a5cc66e",
+  "patches/vllm/tp4/model_executor-layers-mla.py.patch": "741e15b247e0c1fad966bc45e44acc98d65173ae7e7c55a459acedc14fb14586",
+  "patches/vllm/tp4/model_executor-layers-sparse_attn_indexer_kpool.py.patch": "5e69b9e2557bd413929e9cbcdf1abf015767d628f890ef2023d7fd6e1cebce33",
+  "patches/vllm/tp4/models-glm5next-nvidia-attention.py.patch": "83b9c67d2e1a30cb6110b15315d20454e68bd95d6f79f19219677b744117f284",
+  "patches/vllm/tp4/models-glm5next-nvidia-kda.py.patch": "545cdf01b244f27882d568ffc7b25b153a54dafddd9c38cc81f679f352f80f95",
+  "patches/vllm/tp4/models-glm5next-nvidia-model.py.patch": "431e0c1d31e3668c52fd73c237aefed205d55a7a1b834b40313294f0b685d5c2",
+  "patches/vllm/tp4/models-glm5next-nvidia-ops-kpool_compress.py.patch": "c176b7c6892cf23823ab3f3e4e3948738a79683f00086be1a4eb87cc80e390a2",
+  "patches/vllm/tp4/v1-core-kv_cache_utils.py.patch": "02ea5cf5f26554243d78aaa30a39baf06457faf4f85cafa5fa00e4d9a9a3f07c",
+  "patches/vllm/tp4/v1-core-sched-scheduler.py.patch": "52fe4c7fd694c45942d5738c164d6a939f2f7f3610532e23d96f48da3465bccb",
+  "patches/vllm/tp4/v1-core-single_type_kv_cache_manager.py.patch": "39de12727fcc60dcc5c5a94c403de61679ec5c8b902f9a2bfef11227a98cf667",
+  "patches/vllm/tp4/v1-sample-ops-topk_topp_triton.py.patch": "59c757f1c04a4683418243a0501f8366ac66d0cb9a9ce78a7a27fd3dcaf44877",
+  "patches/vllm/tp4/v1-worker-gpu-async_utils.py.patch": "d5b841a47d2ca2597761a886b4683e7835806ac6db176efa89966c75ad69de19",
+  "patches/vllm/tp4/v1-worker-gpu-model_runner.py.patch": "09e8ee31b65e17f5e1fd5eac236d987a95b0bc57ee2602012973ae1d283a5ec1",
+  "patches/vllm/tp4/v1-worker-gpu-sample-gumbel.py.patch": "4b3fcf4653de4117c4565eef2b133dd772fe73bd7434811e30bcf0823e11f377",
+  "patches/vllm/tp4/v1-worker-gpu-sample-sampler.py.patch": "0011f7ff8dd233cc13510830b9f96ef7ba85a76fcd6fd950254544df2e7a572c",
+  "patches/vllm/tp4/v1-worker-gpu-spec_decode-rejection_sampler.py.patch": "1376d12ffdbe1fdfbc4cfc4d60f4b71d09d3617eb67d3dcb22666934afc33701",
+  "patches/vllm/tp4/v1-worker-gpu-spec_decode-rejection_sampler_utils.py.patch": "cf174e00e5f937ff7c689c2456be4de34183a01f370190fb79bcdfd1e244b9c1",
+  "patches/vllm/tp4/v1-worker-gpu_worker.py.patch": "93c6cf63bd8d500417337a03d95431307ba72fb0e3f6538fedb887a8df8d4625",
+  "src/tp2/b12x/moe/fused_moe/_tp2_cluster.py": "6ba7721244713b5f4df3050654002c186f7e761334d1915b7ff6160598faeb4e",
+  "src/tp2/b12x/moe/fused_moe/_tp4_cluster_candidate.py": "1d00b1bb7fc7e90dc84dd95f0c73a615070f76d6611fc90ba85a1dd382858450",
+  "src/tp2/b12x/moe/fused_moe/_tp4_tile_major.py": "532c9d26fbb3ba8c0d810dacaf6266887375f699ab2cca4b4b6dd099a408a712",
+  "src/tp2/deterministic_sparse_topk.py": "9d1e7acb060afe228470c61235c35b1238472924c712090dab49afbfcd93d2bc",
+  "src/tp2/glm53_replay_boundary.py": "87d2d19adfe5455082ef4a5fa956a4e18d1d3f9f68176bbbc4b8ac81910a7813",
+  "src/tp2/glm53_speedup/adaptive_chunk.py": "e605fa56cca09d15bb68b409d6614ed5162dff0c3e73a6ae70b6ba3dcac71015",
+  "src/tp2/glm53_speedup/cadence.py": "e5414f2fd2f0707b1e739fbd64b96a896dfa4aae2295d2b4e4de0b50d504bff0",
+  "src/tp2/glm53_speedup/fair_prefill.py": "b2404a7caaf51339046ec186cb5884a76eb20530547efa0358c874cc9fac3a8c",
+  "src/tp2/glm53_speedup/geometry.py": "dde985a2c26e606c59a2454e4df88d41aed7330fdf88b596479d28df36304371",
+  "src/tp2/glm53_speedup/graphs.py": "fd1f932e1763089db5d21bff20fb1687faea5f589a412d885dad1c7d7f398674",
+  "src/tp2/glm53_speedup/policy.py": "aa8812349d047ba1ea2021307870690ea11c3f17c0d04e8e4ad521699b74947a",
+  "src/tp2/glm53_speedup/scheduler.py": "9fb122e7df113c1a44ca96d84df9f735103185b6f8fe20874ee8bd62a95224d2",
+  "src/tp2/glm53_speedup/telemetry.py": "30cbed5467e7ed2817670feeceecdc88284c934fce08502cf13b7d9e6ef9f0ab",
+  "src/tp2/glm53_utf8_guard.py": "f28343910ea2a839edbe023a5e19ec36264b696dc7cc521dacfcfcca7378e33b",
+  "src/tp2/vllm/model_executor/kernels/mhc/tp2_geometry.py": "4024e07446723b5d37e78dcbd5dd322d53aad3ce78b527caf82bef50e0cd47a0",
+  "src/tp2/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py": "4e9c12fb110b3eb56e7b4e8d090c8d4df395235ce773f290062c87b1d0b9fe9e",
+  "src/tp2/vllm/models/glm5next/nvidia/ops/recoverssm.py": "823f27dd99fec2197a63abda3a9d44677c72becf8656a2cdb743f2348e2a8cb7",
+  "src/tp4/b12x/moe/fused_moe/_tp4_cluster_candidate.py": "1d00b1bb7fc7e90dc84dd95f0c73a615070f76d6611fc90ba85a1dd382858450",
+  "src/tp4/b12x/moe/fused_moe/_tp4_tile_major.py": "532c9d26fbb3ba8c0d810dacaf6266887375f699ab2cca4b4b6dd099a408a712",
+  "src/tp4/deterministic_sparse_topk.py": "17ad4ea60ff4eb4e69c4eaa566b97191e4e5916d494ed7b86f27a98264b1872f",
+  "src/tp4/glm53_greedy_verify.py": "22d6e272f60040fdff5a5f630020b5e732bb8fa9ced25167501560ba31b85a93",
+  "src/tp4/glm53_indexer_rowsplit.py": "9245ebfa28680f6a7c9512086ccacb4f8a17706aa94e3fc4a1a4edbd13a419d1",
+  "src/tp4/glm53_kda_ckpt.py": "cc92e8f6bba2721c840e0dd552dd50185cb2f9659834a5009e1d939dd8e409d2",
+  "src/tp4/glm53_kda_ckpt_plan.py": "c5850eec06e32ce2f9577643ecf30cc3211f941d2a9bf378645d6859f0940e3f",
+  "src/tp4/glm53_kda_conv.py": "58f29c4e9cedd0e1bf371d831ff4566db8735793230fcc806d29f0d4e74b1513",
+  "src/tp4/glm53_lean_allreduce/LICENSE": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6",
+  "src/tp4/glm53_lean_allreduce/__init__.py": "081602faa668cf267f35323b43163462bb034e94715a117558f018d8cf8c4e9c",
+  "src/tp4/glm53_lean_allreduce/_cute_intrinsics.py": "ff0847d986243bf92444cd4c3db9156a6fc10d8c2e1a16d54761375e6aa7a78e",
+  "src/tp4/glm53_lean_allreduce/_lean_cute.py": "d4c1fbc5335304cfcf589d519449242536b91dce67914acf7afd7e360c538073",
+  "src/tp4/glm53_lean_allreduce/_proxy.py": "eb96bd59e8472ee89fd33fe8288d8abdf4359f253a38c50f70b7bd3c711f2794",
+  "src/tp4/glm53_lean_allreduce/_roce_proxy.c": "6bcc5b94a31f2dea684424776afe8bcaa859bc37ec45264476dec2e605970f83",
+  "src/tp4/glm53_lean_allreduce/lean_tp4.py": "ae34f8883e15e621f62d69443ba87f41a58426b3fbda9c36f11095d58b9fdc67",
+  "src/tp4/glm53_lean_allreduce/protocol.py": "b6fef13014b03f95af2236bdc949eb82e401bbd3ff4c1e71fa2acae54612751a",
+  "src/tp4/glm53_prefill_rdma/__init__.py": "f73835b63553eb70015f97aacc2d0ae4b2c2627e7836d6a2f60a5130594b7cfc",
+  "src/tp4/glm53_prefill_rdma/_prb.cu": "7ffd99abacd3e746f5eef850361336125bc322251aad7203f05d06c7a47f3d65",
+  "src/tp4/glm53_prefill_rdma/protocol.py": "300c20acf9ebf5235f17ca15985fbdddab8d9745782883efe6fd7d56529eac88",
+  "src/tp4/glm53_prefill_rdma/ring.py": "ef4abf208149318901581577cc037a13e0314264190c91bb046a69074fc92ceb",
+  "src/tp4/glm53_replay_boundary.py": "87d2d19adfe5455082ef4a5fa956a4e18d1d3f9f68176bbbc4b8ac81910a7813",
+  "src/tp4/glm53_speedup/adaptive_chunk.py": "39016c7d8bfb6aeb640e73f97d6e88152a50a46c85c9723e29f891d20606befc",
+  "src/tp4/glm53_speedup/cadence.py": "e5414f2fd2f0707b1e739fbd64b96a896dfa4aae2295d2b4e4de0b50d504bff0",
+  "src/tp4/glm53_speedup/fair_prefill.py": "b2404a7caaf51339046ec186cb5884a76eb20530547efa0358c874cc9fac3a8c",
+  "src/tp4/glm53_speedup/geometry.py": "dde985a2c26e606c59a2454e4df88d41aed7330fdf88b596479d28df36304371",
+  "src/tp4/glm53_speedup/graphs.py": "fd1f932e1763089db5d21bff20fb1687faea5f589a412d885dad1c7d7f398674",
+  "src/tp4/glm53_speedup/policy.py": "aa8812349d047ba1ea2021307870690ea11c3f17c0d04e8e4ad521699b74947a",
+  "src/tp4/glm53_speedup/scheduler.py": "975c53b478372bbc8c0fab222a9040391b385f356955422fb37d9ebd41157f36",
+  "src/tp4/glm53_speedup/telemetry.py": "30cbed5467e7ed2817670feeceecdc88284c934fce08502cf13b7d9e6ef9f0ab",
+  "src/tp4/glm53_utf8_guard.py": "f28343910ea2a839edbe023a5e19ec36264b696dc7cc521dacfcfcca7378e33b",
+  "src/tp4/nvfp4_topk_rowspread/__init__.py": "71a0005eccef3e29fa2233c6bb16fdbbb5a5fee353601d892859265d3eab1332",
+  "src/tp4/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py": "9488e4fba9238d27a4d508e385e5b5aba54678d3a4c1dd3d06b4d4814340f96d",
+  "src/tp4/vllm/models/common/ops/glm53_qnorm_fp8.py": "3d0e67d58c0c92fc53466290a2b43b6c33907a2b99b5889ad9b95d8b07ea57c5",
+  "src/tp4/vllm/models/glm5next/nvidia/kda_fp8_handoff.py": "4eb92a16844f40243c37291f271e3f28eeb243378c9df8300955ee0ad33e4c3b",
+  "src/tp4/vllm/models/glm5next/nvidia/kda_state_store.py": "446044008d8d9b5f888803742d3b35f4fe8ecc143e8b6ac92e7a70abf4c87c9a",
+  "src/tp4/vllm/models/glm5next/nvidia/mhc_prefill_sharding.py": "e18648f5a5bbce78d45ae46bf4de5e348cc67c449ef484e6070ec26830f57fcb",
+  "src/tp4/vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py": "ed063fba23f18abb00f619e142e110075e868c67c3e6fd468ca38bab3d977691",
+  "src/tp4/vllm/models/glm5next/nvidia/ops/recoverssm.py": "e731edda44e3e61d461fa54330db8312485b8d13beecd6d1648697505afa5cf0"
+ },
+ "objects": {
+  "sources/installed-files.json": [
+   [
+    [
+     "profiles",
+     "tp2"
+    ],
+    "4c20b40a0d1db0b3293c738d469677f99abba8ccec2c08b2ad4d499ec4804689"
+   ],
+   [
+    [
+     "profiles",
+     "tp4"
+    ],
+    "7892810cb08fe7fa09209b09dfea57ac7da525529569ca42aefdb8eb1b0765f1"
+   ]
+  ],
+  "release/provenance.json": [
+   [
+    [
+     "profiles",
+     "tp2"
+    ],
+    "ca86610520e67c7ac148f72302223fb00e4feba8c1f0b1867bf6da76d8ff6164"
+   ],
+   [
+    [
+     "profiles",
+     "tp4"
+    ],
+    "ecd44bed91c32c45e7d0a2eb0bd6becd9a8469ca78507aa5b50d93629c6fcb40"
+   ]
+  ],
+  "sources.lock.json": [
+   [
+    [
+     "components",
+     "nccl"
+    ],
+    "c3f3844f68ae23f4c2efb30693f84b9b41e70a0bf2b13e1d0f402bb52a707d60"
+   ]
+  ]
+ }
+}

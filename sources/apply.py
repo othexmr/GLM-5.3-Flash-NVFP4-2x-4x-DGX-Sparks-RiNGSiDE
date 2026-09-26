@@ -199,7 +199,7 @@ def build(profile, image_root, out, artefacts=None, third_party=None, rank=None,
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--profile', required=True, choices=('tp4', 'tp2'))
+    ap.add_argument('--profile', required=True, choices=('tp4', 'tp2', 'tp8'))
     ap.add_argument('--image-root', required=True, type=Path)
     ap.add_argument('--out', required=True, type=Path)
     ap.add_argument('--artefacts', type=Path)

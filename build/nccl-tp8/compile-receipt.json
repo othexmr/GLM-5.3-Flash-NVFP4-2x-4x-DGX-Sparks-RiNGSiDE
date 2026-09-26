@@ -1,0 +1,10 @@
+{
+ "schema": "tp8-nccl-build/1",
+ "source_tree": "e0f474c5159bfa611792595b6544a858a54ff6fd",
+ "image": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
+ "job": "20260926-144720-tp8-nccl-21e749",
+ "state": "COMPILE_PASS_GPU_UNQUALIFIED",
+ "gpu_qualified": false,
+ "sha256": "1051f000e44f0b0c1f11bc1d7258f7caf9c2c5f23621897a6780d08a0485f1c8",
+ "bytes": 61495136
+}

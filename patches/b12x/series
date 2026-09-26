@@ -4,3 +4,5 @@ tp2/moe-_shared-kernels-dynamic.py.patch
 tp2/moe-fused_moe-_impl.py.patch
 tp4/moe-_shared-kernels-dynamic.py.patch
 tp4/moe-fused_moe-_impl.py.patch
+tp8/moe-_shared-kernels-dynamic.py.patch
+tp8/moe-fused_moe-_impl.py.patch

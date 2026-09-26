@@ -87,6 +87,11 @@ RUN --mount=type=bind,source=patches/nccl,target=/patches \
  && test "$(git write-tree)" = 9edccf0677e35c9b451eb2f5e037dfb9e6677a93
 
 # Cloned to the directory the lab's build installed from, so the dist-info's direct_url.json and RECORD agree.
+FROM src-nccl AS src-nccl-tp8
+RUN --mount=type=bind,source=patches/nccl-tp8,target=/patches \
+    cd /src/nccl && git apply --index /patches/0003-configured-ring-cables.patch \
+ && test "$(git write-tree)" = e0f474c5159bfa611792595b6544a858a54ff6fd
+
 FROM fetch AS src-humming
 RUN mkdir -p /scratch/humming-v3 && git init -q /scratch/humming-v3/source && cd /scratch/humming-v3/source \
  && git fetch -q --depth 1 https://github.com/vllm-project/humming.git a74973b5079e42ef861720b62f847ce9d33447f5 \
@@ -523,6 +528,13 @@ RUN cd /build/nccl \
  && make -j"${NCCL_JOBS}" src.build CUDA_HOME=/usr/local/cuda-13.0 NVCC_GENCODE='-gencode=arch=compute_121,code=sm_121' \
  && mkdir -p /artefacts && cp build/lib/libnccl.so.2.30.7 /artefacts/libnccl.so.2.30.7
 
+FROM base AS nccl-tp8
+ARG NCCL_JOBS=4
+COPY --from=src-nccl-tp8 /src/nccl /build/nccl
+RUN cd /build/nccl \
+ && make -j"${NCCL_JOBS}" src.build CUDA_HOME=/usr/local/cuda-13.0 NVCC_GENCODE='-gencode=arch=compute_121,code=sm_121' \
+ && mkdir -p /artefacts && cp build/lib/libnccl.so.2.30.7 /artefacts/libnccl.so.2.30.7
+
 FROM base AS sparse-mla-tp4
 COPY --from=src-sparse-mla-tp4 /src/libertai /build/sparse-mla
 RUN cd /build/sparse-mla \
@@ -638,3 +650,29 @@ RUN --mount=type=bind,from=overlay-tp2,source=/overlay,target=/overlay \
 LABEL org.opencontainers.image.title="GLM-5.3-Flash NVFP4 RiNGSiDE TP2" \
       org.opencontainers.image.source="https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE" \
       org.opencontainers.image.description="Self-built image of the TP2 profile: rebuilt base, rebuilt native artefact, overlay baked in; qualify before serving"
+
+# TP8 is an experimental target-only profile. Its separate library never replaces TP4's.
+FROM scratch AS artefacts-tp8
+COPY --from=nccl-tp8 /artefacts/ /artefacts/
+COPY --from=sparse-mla-tp2 /artefacts/ /artefacts/
+
+FROM overlay-tools AS overlay-tp8
+RUN --mount=type=bind,source=.,target=/recipe \
+    --mount=type=bind,from=artefacts-tp8,source=/artefacts,target=/artefacts \
+    python3 -B /recipe/sources/apply.py --profile tp8 --image-root / --artefacts /artefacts \
+      --rank 0 --allow-rebuilt --out /overlay
+
+FROM base AS profile-tp8
+RUN --mount=type=bind,from=overlay-tp8,source=/overlay,target=/overlay \
+    --mount=type=bind,source=sources,target=/recipe/sources \
+    --mount=type=bind,source=docker/tools,target=/recipe/docker/tools \
+    python3 -B /recipe/docker/tools/bake_overlay.py --profile tp8 --overlay /overlay \
+      --manifest /recipe/sources/installed-files.json \
+ && mkdir -p /opt/glm53-switchless/recipe/docker \
+ && cp -a /recipe/sources /opt/glm53-switchless/recipe/ \
+ && cp -a /recipe/docker/tools /opt/glm53-switchless/recipe/docker/ \
+ && python3 -B /opt/glm53-switchless/recipe/docker/tools/check_served.py --profile tp8 --rank 0 \
+      --manifest /opt/glm53-switchless/recipe/sources/installed-files.json
+LABEL org.opencontainers.image.title="GLM-5.3-Flash NVFP4 RiNGSiDE TP8 experimental" \
+      org.opencontainers.image.source="https://github.com/othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE" \
+      org.opencontainers.image.description="Experimental TP8 target-only eager baseline; eight-rank runtime and speed unqualified"

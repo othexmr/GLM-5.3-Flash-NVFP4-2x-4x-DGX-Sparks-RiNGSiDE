@@ -4,7 +4,7 @@
 # Stop a profile started by launch/up.sh: `docker compose down` in each rank's project, rank 0 (the API) first, then
 # the workers. Containers are removed; images, caches, models and the rendered projects stay.
 #
-#   launch/down.sh --profile tp4|tp2 --site site.env [--go]
+#   launch/down.sh --profile tp4|tp2|tp8 --site site.env [--go]
 #
 # Without --go (the default) it prints the commands and runs nothing. It reaches the nodes with ssh (BatchMode) and
 # never changes host settings.
@@ -20,7 +20,7 @@ while [ "$#" -gt 0 ]; do
     *) echo "down.sh: unknown argument: $1" >&2; exit 2 ;;
   esac
 done
-case "$profile" in tp4|tp2) ;; *) echo "down.sh: --profile tp4 or tp2 required" >&2; exit 2 ;; esac
+case "$profile" in tp4|tp2|tp8) ;; *) echo "down.sh: --profile tp4, tp2 or tp8 required" >&2; exit 2 ;; esac
 [ -n "$site" ] && [ -f "$site" ] || { echo "down.sh: --site FILE required (see site.env.example)" >&2; exit 2; }
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -25,6 +25,16 @@
    "path": "tp4/moe-fused_moe-_impl.py.patch",
    "profile": "tp4",
    "target": "b12x/moe/fused_moe/_impl.py"
+  },
+  {
+   "path": "tp8/moe-_shared-kernels-dynamic.py.patch",
+   "profile": "tp8",
+   "target": "b12x/moe/_shared/kernels/dynamic.py"
+  },
+  {
+   "path": "tp8/moe-fused_moe-_impl.py.patch",
+   "profile": "tp8",
+   "target": "b12x/moe/fused_moe/_impl.py"
   }
  ]
 }

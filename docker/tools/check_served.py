@@ -44,7 +44,7 @@ def check(profile, manifest, root, rank=None):
             got = digest(path)
             binary = item['kind'] in ('binary', 'binary-dir', 'third-party-dir') or f.get('artefact')
             if got in want:
-                status = 'measured'
+                status = 'pinned' if profile == 'tp8' else 'measured'
             elif got is None:
                 status = 'missing'
             elif binary:
@@ -58,7 +58,7 @@ def check(profile, manifest, root, rank=None):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--profile', required=True, choices=('tp4', 'tp2'))
+    ap.add_argument('--profile', required=True, choices=('tp4', 'tp2', 'tp8'))
     ap.add_argument('--manifest', required=True, type=Path)
     ap.add_argument('--root', type=Path, default=Path('/'))
     ap.add_argument('--rank', type=int)
