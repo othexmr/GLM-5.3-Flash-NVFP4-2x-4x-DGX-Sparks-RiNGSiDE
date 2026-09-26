@@ -6,15 +6,15 @@
  "deterministic": null,
  "nondeterministic_note": "TP8 numerics and serving performance unqualified",
  "source_plan": {
-  "sha256": "8f9c355dc858ae7e6d465168c9c7e198ae4574bfadd07f14362ffec621598292",
+  "sha256": "0dcd1caf5d53784630aa8e66a9545dc8e2949262f12888a926b0fa7c5e879472",
   "label": "TP8 target-only eager bring-up",
   "derived_from": {
    "plan_sha256": "b80911ecfd59c25fa8a711d974f1734cd990fc5e26ec3ea0d355f1d95397f29d",
    "label": "corrected TP2 release",
-   "note": "TP8 NCCL; target-only eager; optional speed paths off; explicit 4 GiB KV; text only"
+   "note": "TP8 NCCL; target-only eager; optional speed paths off; explicit 4 GiB KV; text only; RedHatAI primary API name with NVIDIA compatibility alias"
   },
   "qualification": {
-   "plan_sha256": "8f9c355dc858ae7e6d465168c9c7e198ae4574bfadd07f14362ffec621598292",
+   "plan_sha256": "0dcd1caf5d53784630aa8e66a9545dc8e2949262f12888a926b0fa7c5e879472",
    "evidence": [
     "pinned source reconstruction and importer render checks"
    ],
@@ -26,7 +26,7 @@
    ]
   },
   "render_check": "every rank of the lab plan re-rendered from this template with the lab site values: all tokens equal, mounts equal as a set (their order differs between the ranks and is not significant), overlay mount sources matched by sha256",
-  "launch_sha256": "a0721ec4aea43215a303c688e5efe129f057e3b1c75a02952fc564d18fd386f9"
+  "launch_sha256": "48ed590b3cd8c7e27976d82bbe68cad5dbe1afa77fbd8b5915292b76d2298a9d"
  },
  "image": {
   "id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
@@ -457,6 +457,7 @@
   "/models/target",
   "--served-model-name",
   "RedHatAI/GLM-5.3-Flash-NVFP4",
+  "nvidia/GLM-5.3-Flash-NVFP4",
   "--trust-remote-code",
   "--tensor-parallel-size",
   "8",

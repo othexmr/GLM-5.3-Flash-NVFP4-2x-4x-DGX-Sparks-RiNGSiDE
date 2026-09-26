@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Fault-injected kit receipts, routes, privacy, variants and streaming probes. No node access."""
+import argparse
 import copy
 import importlib.util
 import io
@@ -138,6 +139,30 @@ class Routes(unittest.TestCase):
 
 
 class Variants(unittest.TestCase):
+    def test_both_api_names_survive_every_stage_rank_and_launch_format(self):
+        site=json.loads((ROOT/'launch/profiles/tp8/canonical-launch.json').read_text())['site']
+        site['SWITCHLESS_DRAFTER_REPO_DIR']='/srv/drafter'
+        profiles={'target':kit.compose.load_profile('tp8')}
+        for stage in ('fixed-k','graphs'):
+            profiles[stage]=json.loads((ROOT/'launch/variants/tp8'/ (stage+'.json')).read_text())['profile']
+        # Pinned vLLM ModelConfig accepts str | list[str] | None; its CLI uses nargs='+'.
+        parser=argparse.ArgumentParser(add_help=False)
+        parser.add_argument('--served-model-name',nargs='+')
+        parser.add_argument('--max-model-len',type=int)
+        for stage,profile in profiles.items():
+            for rank in range(8):
+                overlay=kit.compose.render.render(profile,site,rank)
+                baked=kit.compose.baked_argv(profile,site,rank)
+                project,_=kit.compose.project(profile,site,rank,kit.compose.CONTEXT)
+                command=project['services'][kit.compose.SERVICE]['command']
+                for form,argv in (('overlay',overlay),('baked',baked),('compose',command)):
+                    with self.subTest(stage=stage,rank=rank,form=form):
+                        args,_=parser.parse_known_args(argv)
+                        self.assertEqual(args.served_model_name,
+                            ['RedHatAI/GLM-5.3-Flash-NVFP4','nvidia/GLM-5.3-Flash-NVFP4'])
+                        self.assertEqual(args.max_model_len,8192)
+                        self.assertEqual(argv.count('--served-model-name'),1)
+
     def test_launch_identity_binds_mounts_flags_and_destinations(self):
         site=json.loads((ROOT/'launch/profiles/tp8/canonical-launch.json').read_text())['site']
         profile=kit.compose.load_profile('tp8');hosts=site['SWITCHLESS_RANK_HOST_IPS'].split(',')

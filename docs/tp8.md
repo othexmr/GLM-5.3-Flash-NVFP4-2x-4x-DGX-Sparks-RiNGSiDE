@@ -10,8 +10,10 @@ target-only eager execution, one request, an 8,192-token limit, FP32 KDA state,
 and an explicit 4 GiB KV cache per rank. The target is
 `RedHatAI/GLM-5.3-Flash-NVFP4`, revision
 `18d55bfd5a2194887738da73753975c9d3842f46`, with the pinned NVIDIA tokenizer
-override recorded in `release/assets.json` and top-p 0.95. The API model name
-identifies Red Hat's quantization. The profile is text-only.
+override recorded in `release/assets.json` and top-p 0.95. The primary API model
+name is `RedHatAI/GLM-5.3-Flash-NVFP4`, identifying Red Hat's quantization.
+`nvidia/GLM-5.3-Flash-NVFP4` is also accepted for compatibility with TP2/TP4
+clients; both names select the same Red Hat weights. The profile is text-only.
 
 TP2/TP4 geometry, lean and pair all-reduce, prefill RDMA, row-split indexer,
 atomic MoE prefill, fused state commit and adaptive scheduling are disabled.
@@ -46,6 +48,9 @@ The local preflight alone does not prove peer reachability or collective routes.
 Bring-up proceeds through transport, target-only, fixed-K=4 drafting, then
 graphs and bounded concurrency. Each stage needs successful evidence from the
 previous stage on the exact image, source, target, tokenizer and topology.
+Target-only and fixed-K timings are bring-up diagnostics. Report performance
+only after the graphs stage passes; speed comparisons still require repeated,
+matched controls on the exact runtime and workload.
 Adaptive policies and optional speed paths need a new, matched TP8 control.
 Do not infer speed from the four-rank transport check or single-GPU kernels.
 
@@ -61,5 +66,5 @@ are not an additional TP divisor. Six Sparks can form three independent TP2
 replicas, or TP4 plus TP2, with suitable independent cabling, ports and caches.
 A six-node ring does not automatically supply those independent fabrics.
 
-The public release remains frozen. This feature is prepared locally; publication
-and any call for testers require the owner's approval.
+TP8 remains experimental until the eight-rank gates pass for the exact image,
+assets and topology being tested.

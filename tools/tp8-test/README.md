@@ -80,6 +80,10 @@ logs, paths, prompts/outputs, environments and headers. Inspect the resulting
 JSON before attaching it to the TP8 issue template. Retain the full local
 evidence, including failures, for diagnosis.
 
+Target-only and fixed-K timings are bring-up diagnostics. Report performance
+only after the graphs stage passes, using repeated, matched workloads and
+controls. Early-stage timings are not TP8-versus-TP4 speed comparisons.
+
 Optimization promotion additionally needs fresh same-runtime TP8 controls,
 paired repetitions, fixed quality/non-regression rules, complete operation
 timings, replay/state tests and memory. The kit never promotes a variant from a

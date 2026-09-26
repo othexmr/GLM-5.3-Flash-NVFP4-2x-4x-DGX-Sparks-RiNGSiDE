@@ -4,6 +4,14 @@
 The target/source plan and actual image/native hashes identify the tested bytes.
 It cannot be used as an eight-rank tester-kit admission receipt.
 
+The recorded image and GPU leaves belong to the initial plan `8f9c355dc858`.
+The current plan `0dcd1caf5d53` adds the NVIDIA API name as a compatibility alias
+after the RedHatAI primary name. Its served files and native build inputs are
+unchanged. This launch change passed 194 CPU tests, including all 72 combinations
+of stage, rank and launch format; it has not been tested in a running server.
+The original image/plan receipts remain unchanged. See
+[`api-alias-review.json`](api-alias-review.json) for the change's identities and scope.
+
 * ARM64/SM121 profile image built; 44 installed source/config pins matched and
   both native artifacts were rebuilt and identified.
 * 193 CPU tests passed, including topology faults, unsupported flags, stale or

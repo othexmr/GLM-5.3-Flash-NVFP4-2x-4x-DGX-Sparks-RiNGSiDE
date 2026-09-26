@@ -2,7 +2,7 @@
  "schema": "tp8-runtime-variant/1",
  "stage": "graphs",
  "required_previous_stage": "fixed-k",
- "base_profile_sha256": "b166fedfc9634d1dd5111d5b9c05db3a2d5cf27a499e0a6b10e0d20b2018b7ea",
+ "base_profile_sha256": "d21655db0c44db6e054303377477c26fb02efea4059b8e853ecce1c049b4039a",
  "installed_files_sha256": "78246abdb6f7d19dbc6131fb62799f1cee29edb343bded74ebbe3e88653bb48e",
  "profile": {
   "schema": 2,
@@ -12,9 +12,9 @@
   "deterministic": null,
   "nondeterministic_note": "TP8 numerics and serving performance unqualified",
   "source_plan": {
-   "sha256": "1d02096dffca17b473089ca171a72ad4e4455b14890d3de330f5a344c017e7f5",
+   "sha256": "6cd72426c0107acba6172b5b3b7be90fd3800c806245e602678a40880ceea26a",
    "label": "Experimental TP8 graphs",
-   "parent_plan_sha256": "8f9c355dc858ae7e6d465168c9c7e198ae4574bfadd07f14362ffec621598292"
+   "parent_plan_sha256": "0dcd1caf5d53784630aa8e66a9545dc8e2949262f12888a926b0fa7c5e879472"
   },
   "image": {
    "id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
@@ -447,6 +447,7 @@
    "/models/target",
    "--served-model-name",
    "RedHatAI/GLM-5.3-Flash-NVFP4",
+   "nvidia/GLM-5.3-Flash-NVFP4",
    "--trust-remote-code",
    "--tensor-parallel-size",
    "8",

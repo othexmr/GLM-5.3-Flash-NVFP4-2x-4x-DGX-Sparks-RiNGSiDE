@@ -1,0 +1,36 @@
+{
+ "schema": "tp8-api-alias-review/1",
+ "status": "CPU_PASS_GPU_UNQUALIFIED",
+ "date": "2026-09-26",
+ "base_recipe_commit": "97c559ec1b73ac7085062bcfb05f3ebf964577b8",
+ "previous_plan_sha256": "8f9c355dc858ae7e6d465168c9c7e198ae4574bfadd07f14362ffec621598292",
+ "plan_sha256": "0dcd1caf5d53784630aa8e66a9545dc8e2949262f12888a926b0fa7c5e879472",
+ "api_model_names": [
+  "RedHatAI/GLM-5.3-Flash-NVFP4",
+  "nvidia/GLM-5.3-Flash-NVFP4"
+ ],
+ "launch_delta": "Only the NVIDIA compatibility alias was added to each of the eight commands.",
+ "served_file_hashes_unchanged": true,
+ "native_build_inputs_unchanged": true,
+ "source_and_installed_manifests_unchanged": true,
+ "tp2_tp4_regression_files": 122,
+ "cpu_tests": 194,
+ "launch_cases": {
+  "ranks": 8,
+  "stages": 3,
+  "formats": 3,
+  "total": 72
+ },
+ "verifier": {
+  "status": "CONSISTENT",
+  "release_blockers": [
+   "self-built profile images require workload-specific hardware qualification of their actual artifact hashes",
+   "experimental TP8 requires real eight-rank transport, state and serving evidence"
+  ],
+  "gpu_or_serving_checked": false
+ },
+ "hardware_work_performed": false,
+ "eight_rank_runtime_checked": false,
+ "serving_performance_checked": false,
+ "prior_gpu_evidence_modified": false
+}

@@ -9,10 +9,13 @@ them. `../docs/build-provenance.md` records every input; `tools/` holds the buil
 |---|---|
 | `profile-tp4` | the TP4 image: base + switchless NCCL, sparse-MLA A1c, FP8 GEMM, prefill RDMA library, rowspread top-k extension, Humming 0.1.15 and the TP4 overlay at the served paths |
 | `profile-tp2` | the TP2 image: base + sparse-MLA M7e and the TP2 overlay |
+| `profile-tp8` | the experimental TP8 image: base + separate TP8 NCCL, sparse-MLA M7e and the TP8 overlay; staged tester-kit admission required |
 | `base` | the base image alone (the rebuilt counterpart of `sha256:017fd0ba...`) |
 
-**Not built yet; its first build check follows the release.** The Dockerfile was written from the lab's build records
-and checked on a CPU; its first build on a DGX Spark is also the test of the file. A self-built image is a new image:
+**The experimental TP8 profile image built successfully on a DGX Spark.** Recipe `d39c68cc7258` built the
+`profile-tp8` target with the pinned vLLM source image as its build context. Installed source/config pins and rebuilt
+native hashes were checked ([evidence](../build/tp8/README.md)). This is build evidence; self-built TP2/TP4 images
+and eight-rank TP8 serving still need their own qualification. A self-built image is a new image:
 its native code is compiled again and its Ubuntu and CUDA packages are resolved at build time, so it needs the
 qualification below before its numbers can stand next to the measured ones.
 

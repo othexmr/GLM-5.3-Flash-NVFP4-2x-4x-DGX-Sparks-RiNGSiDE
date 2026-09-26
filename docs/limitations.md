@@ -1,7 +1,9 @@
 # Limitations
 
-- **The API name is the NVIDIA checkpoint's.** The profiles serve RedHatAI/GLM-5.3-Flash-NVFP4 under the model name
+- **TP2/TP4 retain the NVIDIA API name.** These profiles serve RedHatAI/GLM-5.3-Flash-NVFP4 under the model name
   `nvidia/GLM-5.3-Flash-NVFP4`, as the lab measured them; clients select the model by that name.
+  TP8 uses `RedHatAI/GLM-5.3-Flash-NVFP4` as its primary API name and accepts the NVIDIA name as a compatibility
+  alias for the same Red Hat weights.
 - **The TP2 profile's release changes are not served yet.** Its results (`bench/results/README.md`) are those of lab
   plan `69ad74fc`, measured before them and on the NVIDIA checkpoint: the change notices, the DFlash2 capture and
   drafter KV-cache group and 5 correctness fixes, and the checkpoint switch with its KV cache margin. Each fix and the
@@ -20,8 +22,9 @@
   between nodes). Its base's `model.py` and `kv_cache_utils.py` carry the recipe's DFlash2 capture and KV-cache group
   in place of the lab's earlier versions; both profiles serve their own copies of both. A self-built image needs its
   own qualification before its numbers stand next to the measured ones.
-- **The Dockerfile has not been built yet (its first build check follows the release).** It was written from the lab's
-  build records and checked on a CPU; its first build on a DGX Spark is also its test. The one-command Compose build
+- **The TP8 image build passed; serving qualification remains open.** `profile-tp8` at recipe `d39c68cc7258` built
+  on a DGX Spark, with installed source/config pins checked and rebuilt native hashes recorded (`build/tp8/README.md`).
+  This does not qualify self-built TP2/TP4 images or eight-rank TP8 serving. The one-command Compose build
   needs a Compose release that accepts a `service:` reference in `additional_contexts` (`docker/README.md` has the
   two-command fallback).
 - **Build inputs can disappear.** The glm-release commit is fetched from a fork (ZJY0516/vllm), and the two base
@@ -57,7 +60,7 @@
 
 ## Experimental TP8 scope
 
-TP8 uses the RedHatAI API alias and starts target-only, eager and text-only.
+TP8 uses the RedHatAI primary API name with the NVIDIA compatibility alias and starts target-only, eager and text-only.
 The initial image build passed; real eight-rank transport, state, memory and
 serving qualification remain external requirements. The preceding release
 status describes the original TP2/TP4 snapshot. See `tp8.md` and

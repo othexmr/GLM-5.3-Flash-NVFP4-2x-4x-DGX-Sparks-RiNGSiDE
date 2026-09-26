@@ -1,7 +1,7 @@
 # Current state
 
-Updated 2026-09-26. Published as the RiNGSiDE release; the TP2 profile's window and the first build check of
-`docker/Dockerfile` follow as updates of this repository.
+Updated 2026-09-26. The TP2/TP4 sections record the RiNGSiDE release snapshot.
+TP8 is experimental; its build evidence and remaining qualification are scoped below.
 
 ## Profiles
 
@@ -292,15 +292,15 @@ of the image, a notice describes the served patch only, not the lab's earlier po
   of the v0.29.0 port patch; `docker/base/README.md`). It was compared with the lab's earlier code on a GPU in both
   configurations. A rebuilt base differs from the measured image `017fd0ba` in those two files, so the patches of
   `model.py` and `kv_cache_utils.py` apply to the rebuilt base and not to the measured image. The replacement in
-  `docker/base` was checked on a CPU only; its first build on a DGX Spark is open with the rest of
-  `docker/Dockerfile`.
+  `docker/base` passed CPU checks and the TP8 profile image build on a DGX Spark. Rebuilt TP2/TP4 images still
+  require qualification of their actual native artefacts and workloads.
 - The TP2 profile's release plan was not served in a TP2 window: its results are those of lab plan `69ad74fc`,
   measured before the release's changes and on the NVIDIA checkpoint; its fixes are verified by GPU leaves and CPU
   checks (above); its TP2 window (RigMark, sparkDash, the Korean check) follows the release.
 - RiNGSiDE distributes no binaries. `docker/Dockerfile` rebuilds the base image and the native artefacts from pinned
   sources and the lab's stage inputs (`docker/base`, `docs/build-provenance.md`) and bakes one image per profile;
-  `launch/compose.py`, `launch/up.sh` and `launch/down.sh` launch it with Docker Compose. The Dockerfile has not been
-  built yet: its first build on a DGX Spark and the qualification of the self-built images are open
+  `launch/compose.py`, `launch/up.sh` and `launch/down.sh` launch it with Docker Compose. The experimental TP8
+  profile image build passed on a DGX Spark; that build does not qualify self-built TP2/TP4 images or TP8 serving
   (`docker/README.md`).
 - The TP4 results are 2 runs of one boot (the release window), the TP2 results 2 runs of one boot (the final TP2 run
   of `69ad74fc`); the previous profiles' rows are kept as additional arms. The replay matrix was not run on the final
@@ -317,19 +317,10 @@ of the image, a notice describes the served patch only, not the lab's earlier po
 - The drafter, incoai/GLM-5.3-Flash-DFlash2, states CC BY-NC-ND 4.0 and is released for research and evaluation
   (`docs/limitations.md`, `NOTICE`).
 
-## Local experimental TP8 candidate
+## Experimental TP8
 
-Recipe `d39c68cc7258` built successfully on ARM64/SM121 as image
-`sha256:77499921186e3efe50f806a69a26ba0339985b40104406a17ddc95897d984845`.
-The image check found 44 matching source/config files and two rebuilt native
-artifacts with new hashes. This is build evidence only; eight-rank runtime and
-performance remain unqualified. The initial source plan is
-`8f9c355dc858ae7e6d465168c9c7e198ae4574bfadd07f14362ffec621598292`.
-The TP8 addition remains local and is not published. See `docs/tp8.md`.
-
-The local checks now include 193 CPU tests, 122 unchanged release files,
-five passing single-GB10 kernel families (370 dense real-weight/graph cases),
-and six successful four-rank communicator boots with the separate NCCL library.
-Actual Red Hat expert loaders were checked for all logical shard indices 0–7.
-These checks prepare external testing; they do not establish eight-rank serving
-or a speed gain. [Local evidence summary](build/tp8/local-evidence.json).
+TP8 is prepared for eight-Spark testing. Eight-rank runtime correctness, memory
+capacity and performance remain unqualified. Source, image-build, single-GB10
+kernel and four-rank transport checks are recorded with their exact identities
+in the [evidence summary](build/tp8/README.md). See the [TP8 guide](docs/tp8.md)
+for staged bring-up and the remaining gates.
