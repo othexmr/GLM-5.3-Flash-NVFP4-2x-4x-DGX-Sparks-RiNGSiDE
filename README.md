@@ -64,6 +64,49 @@ it on a trusted network or behind an authenticating TLS proxy. A self-built imag
 rebuilt native code; it is not the measured image until it is qualified ([docker/README.md](docker/README.md)). What
 else differs from the measured setup: [docs/limitations.md](docs/limitations.md).
 
+## TP4: trying a 512K context limit
+
+The default TP4 profile uses a 262,144-token context limit. A local long-context check on 2026-09-26 used
+release lab plan `89dfef84` with only the context limit and KV-cache budget changed (derived plan `6b38d997`).
+With `--max-model-len 1048576` and **24 GiB of KV cache per GPU**, it completed a 520,014-token cold prefill in
+116.0 seconds, a 1,030,014-token cold prefill in 358.3 seconds, and retrieved all three needles from a
+1,000,083-token prompt. These are single-run lab measurements, not a long-context quality evaluation or
+qualification of a freshly rebuilt Docker image. Earlier larger-KV configurations failed the memory-margin check.
+
+For a **512K local experiment**, use these vLLM arguments on **every rank**:
+
+| Argument | Published default | 512K setting |
+|---|---:|---:|
+| `--max-model-len` | `262144` | `524288` |
+| `--kv-cache-memory` | `34359738368` (32 GiB) | `25769803776` (24 GiB per GPU) |
+
+The 512K setting is derived from the successful 1M-limit lab configuration; it has not been separately qualified
+on the rebuilt image. The context limit includes **input plus generated tokens**. These argument changes need
+no image rebuild, but require restarting all four ranks.
+
+For a one-off test with an already built, working TP4 image:
+
+1. Stop the current TP4 service with `launch/down.sh --profile tp4 --site site.env --go`.
+2. Generate the rank projects with `python3 -B launch/compose.py --profile tp4 --site site.env`.
+3. In each generated `deploy/tp4/rank<N>/compose.yaml`, change the values following the two flags above in the
+   `glm53` service's `command` list. Keep the checked-in profile and its provenance manifests unchanged.
+4. Copy each rank's edited `compose.yaml` and accompanying `.env` to that rank's existing project directory on
+   its node. Start ranks **3, 2, 1, then 0**, running the following from each rank's project directory:
+
+   ```sh
+   docker compose up -d --no-build --pull never glm53
+   ```
+
+5. Wait for rank 0's `/health` and check `/v1/models` reports `max_model_len: 524288`. On **every node**, check
+   `MemAvailable` in `/proc/meminfo` after startup; retain at least **16 GiB (16,777,216 kB)** before a long request.
+   Stop the experiment if a rank fails or falls below that margin. Allow for the longer cold-prefill time in the
+   client's timeout and test one long request before adding concurrent requests.
+
+**Do not run `launch/up.sh` after these generated-file edits:** it regenerates the Compose files from the default
+profile and overwrites the experiment's settings. To restore the default, stop all ranks with `launch/down.sh`
+and launch normally with `launch/up.sh --profile tp4 --site site.env --go`. For a maintained profile, import a
+reviewed derived plan through the workflow in [docs/updating.md](docs/updating.md).
+
 ## Status (2026-09-25)
 
 | | TP4 (four Sparks) | TP2 (two Sparks) |
