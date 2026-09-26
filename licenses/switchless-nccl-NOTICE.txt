@@ -1,0 +1,11 @@
+Switchless NCCL for DGX Spark
+Copyright 2026 Alex Ellis, OpenFaaS Ltd
+
+This product includes software developed by NVIDIA Corporation and affiliates.
+See THIRD_PARTY_NOTICES.md and the upstream notices bundled with release assets.
+
+The two switchless-cycle patches were originally published by SparkRing.
+The hardened switchless patch, project tooling, documentation, and packaging
+contain modifications owned by Alex Ellis, OpenFaaS Ltd.
+Joseph Rose is credited for the earlier switchless skip-Tree/skip-PAT approach;
+no source from his unlicensed repository is included.

@@ -1,0 +1,59 @@
+RiNGSiDE overlay patch, profile tp2
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/model.py
+Preimage:    sha256 031439712aa46203846e1df03de95d7e38c42578c59c2f556d540ab09f26bf8c
+             image file of the rebuilt base: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c), the lab port and the recipe's DFlash2 capture (docker/base)
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    the file of the rebuilt base: the v0.29.0 port patch of docker/base, applied to the v0.29.0 source and checked by docker/tools/verify_port.py on a CPU (not built on a DGX Spark yet); the measured image 017fd0ba has 7cddb9d1 here, which differs only in the DFlash2 auxiliary hidden-state capture
+Postimage:   sha256 d7ca512317535bfa5eeba0a3a8d66c13aee5cb12c96e6a83b2cffa0859f5accd (the file the tp2 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained; its DFlash2 auxiliary hidden-state capture is adapted from vLLM's DeepseekV4Model.forward in vllm/models/deepseek_v4/nvidia/model.py)
+Attribution: vllm (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/models/glm5next/nvidia/model.py b/vllm/models/glm5next/nvidia/model.py
+index 93795ff4baf494367b241d94ab143a63d6c3df12..c88a18b4febc0887242b2086e77329d3b505eeee 100644
+--- a/vllm/models/glm5next/nvidia/model.py
++++ b/vllm/models/glm5next/nvidia/model.py
+@@ -1,5 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): the model classes declare SupportsReplaySSM; the DFlash2 auxiliary
++# hidden-state capture (EagleModelMixin, SupportsEagle3) adapted from vLLM's DeepseekV4Model.forward.
+ 
+ from collections.abc import Iterable
+ from typing import ClassVar, Literal
+@@ -70,6 +72,7 @@ from vllm.model_executor.models.interfaces import (
+     MixtureOfExperts,
+     SupportsEagle3,
+     SupportsPP,
++    SupportsReplaySSM,
+ )
+ from vllm.model_executor.models.utils import (
+     AutoWeightsLoader,
+@@ -902,7 +905,13 @@ class Glm5NextModel(nn.Module, EagleModelMixin):
+ 
+ 
+ class Glm5NextForCausalLM(
+-    nn.Module, HasInnerState, SupportsPP, SupportsEagle3, MixtureOfExperts, IsHybrid
++    nn.Module,
++    HasInnerState,
++    SupportsPP,
++    SupportsEagle3,
++    MixtureOfExperts,
++    IsHybrid,
++    SupportsReplaySSM,
+ ):
+     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
+         super().__init__()
+@@ -998,7 +1007,11 @@ class Glm5NextForCausalLM(
+     dummy_inputs=Glm4vDummyInputsBuilder,
+ )
+ class Glm5NextForConditionalGeneration(
+-    Glm4vForConditionalGeneration, HasInnerState, IsHybrid, SupportsEagle3
++    Glm4vForConditionalGeneration,
++    HasInnerState,
++    IsHybrid,
++    SupportsEagle3,
++    SupportsReplaySSM,
+ ):
+     # The text model (KDA + dense-MLA + MoE) is a hybrid mamba model. The
+     # multimodal wrapper must declare the same interfaces so vLLM treats it as

@@ -1,0 +1,26 @@
+{
+  "base_image": "sha256:092cf1efb9a0e50d2af76b0b11b8c81f589d9224d4aba21e839b1b35914a0144",
+  "defaults": {
+    "GLM53_SPEEDUP_MIXED_PREFILL": "0",
+    "GLM53_SPEEDUP_MIXED_PREFILL_FAIR": "0"
+  },
+  "fair_policy": "total contended prefill budget, original KDA boundaries, fixed K4",
+  "overlay": {
+    "glm53_speedup/__init__.py": "6a06d54bc3324389a81ea60c87e39276a51d1290f992db0c942d44e4392bc277",
+    "glm53_speedup/fair_prefill.py": "8682000a49dac5438edf074a11bd9f24829f44901dd6203fb7709a19a4df6329",
+    "glm53_speedup/graphs.py": "c2466c027897dec4687337adbaa80fed543f60212b7e50d51afae5974110d84d",
+    "glm53_speedup/policy.py": "40ee9447773d5891874a468dac875c931c3d76efa3205d2b00f0541e29c5ec28",
+    "glm53_speedup/scheduler.py": "fcd86de4a9033a5a3c92e9b88e2ff0d8b23f7e258a871040df94125da6ad19bb",
+    "vllm/outputs.py": "7c59633653f8e30800f2351d89c90489a1954f760abde8c4fae01fcca970107f",
+    "vllm/v1/core/sched/scheduler.py": "db8796f984d2d8a1b77e8f809d5e45b7d06904fc624490badcb0df133186952e",
+    "vllm/v1/worker/gpu/cudagraph_utils.py": "ef3573b7717c6785419c929aaa0381f8ac7b814f37eb1e27b46a62399be77624"
+  },
+  "qualification": "CPU_SOURCE_CHECKED_GPU_UNQUALIFIED",
+  "schema": "glm53.mixed_prefill.overlay.v1",
+  "scope": "stream metric propagation, opt-in fair scheduler, existing graph capture instrumentation",
+  "source": {
+    "vllm/outputs.py": "346d1f9204a441867efc3af7c5a99d8a70ef0f69fe607dfa8a4a2557a82ca425",
+    "vllm/v1/core/sched/scheduler.py": "96628800f1686b33781a963c29ad7d5b78a098188a17836bfc2dee7d93c61c95",
+    "vllm/v1/worker/gpu/cudagraph_utils.py": "024d0570b1808c2baa47ac0ebeb5407eeaf8dcaa847f55e844769038cc48caad"
+  }
+}

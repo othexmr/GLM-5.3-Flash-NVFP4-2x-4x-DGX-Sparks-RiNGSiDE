@@ -1,0 +1,160 @@
+RiNGSiDE overlay patch, profile tp2
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py
+Preimage:    sha256 db689f8486e5d2c9eb59d347e03a27ce837d014f8d3d7f84d55a0e382813ca84
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    sha256 read inside a container of the image on two nodes before the warm-up leaf
+Postimage:   sha256 a0dbfb2b5252a12f1155632988bf1057f9aa1817dca1e7d2f861745fc83222ce (the file the tp2 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/entrypoints/launchers/api_server/entry.py b/vllm/entrypoints/launchers/api_server/entry.py
+index 37d7ca381455da42aa983a50f130b80ca485a50f..5eb57ebc576939856de6ea2573fd89787ccdf926 100644
+--- a/vllm/entrypoints/launchers/api_server/entry.py
++++ b/vllm/entrypoints/launchers/api_server/entry.py
+@@ -1,5 +1,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in startup prefill warm-up (GLM53_STARTUP_PREFILL_WARMUP,
++# prompt lengths from GLM53_STARTUP_PREFILL_WARMUP_TOKENS) before the HTTP server listens, followed by a prefix-cache
++# reset.
+ import asyncio
+ import multiprocessing
+ import multiprocessing.forkserver as forkserver
+@@ -117,6 +120,8 @@ async def build_and_serve(
+     listen_address: str,
+     sock: socket.socket,
+     args: Namespace,
++    *,
++    glm53_startup_warmup: bool = False,
+     **uvicorn_kwargs,
+ ) -> asyncio.Task:
+     """Build FastAPI app, initialize state, and start serving.
+@@ -135,6 +140,8 @@ async def build_and_serve(
+     logger.info("Supported tasks: %s", supported_tasks)
+     app = build_app(args, supported_tasks, model_config)
+     await init_app_state(engine_client, app.state, args, supported_tasks)
++    if glm53_startup_warmup:
++        await _glm53_startup_prefill_warmup(engine_client)
+ 
+     logger.info("Starting vLLM server on %s", listen_address)
+ 
+@@ -160,6 +167,103 @@ async def build_and_serve(
+     )
+ 
+ 
++async def _glm53_startup_prefill_warmup(engine_client: EngineClient) -> None:
++    """GLM53 startup prefill warm-up (outputs/2026-09-24-startup-warmup), default off.
++
++    GLM53_STARTUP_PREFILL_WARMUP=<count> runs <count> prompts of unique random token
++    ids (GLM53_STARTUP_PREFILL_WARMUP_TOKENS, default 28672), max_tokens 4 (so the
++    first decode and spec-decode verify steps run too; even prompts greedy, odd ones
++    with the model's default sampling), through the engine after init_app_state and
++    before the HTTP socket listens (v2: the stock renderer warm-up runs first, with
++    more free host memory), then resets the prefix cache, so no warm-up block stays
++    as a cache hit. The first large prefill chunks after boot run
++    2-6x slower than steady state on unified memory (outputs/2026-09-23-tp2-first-chunk);
++    this moves that cost before /health. One stderr marker here, and one per worker
++    (every rank) through collective_rpc.
++    """
++    import random
++    import sys
++    import time
++    import uuid
++
++    from vllm.sampling_params import RequestOutputKind, SamplingParams
++
++    count = int(os.environ.get("GLM53_STARTUP_PREFILL_WARMUP", "0") or 0)
++    if count <= 0:
++        return
++    # v3 (replay-boundary, 2026-09-24): GLM53_STARTUP_PREFILL_WARMUP_TOKENS may list prompt lengths ("28672,28672,
++    # 5120,..."), used in order and cycled over the <count> prompts, so a lever's own chunk row counts run before
++    # readiness (outputs/2026-09-24-replay-boundary/warmup_shapes.py). A single value behaves exactly as v2.
++    lengths = [
++        max(1, min(int(x), engine_client.model_config.max_model_len - 1))
++        for x in os.environ.get("GLM53_STARTUP_PREFILL_WARMUP_TOKENS", "28672").split(",")
++        if x.strip()
++    ] or [28672]
++    tokens = lengths[0] if len(lengths) == 1 else ",".join(str(n) for n in lengths)
++    version = 2 if len(lengths) == 1 else 3
++    # Ordinary text ids only: GLM-5.3's special and multimodal ids start at 154820.
++    high = min(engine_client.model_config.get_vocab_size(), 150000)
++    sampled = {
++        k: v
++        for k, v in engine_client.model_config.get_diff_sampling_param().items()
++        if k in ("temperature", "top_p", "top_k", "min_p")
++    }
++    if not sampled.get("temperature"):
++        sampled["temperature"] = 1.0
++    params = [
++        SamplingParams(
++            max_tokens=4,
++            detokenize=False,
++            output_kind=RequestOutputKind.FINAL_ONLY,
++            **({"temperature": 0.0} if i % 2 == 0 else sampled),
++        )
++        for i in range(2)
++    ]
++    print(
++        f"GLM53_STARTUP_WARMUP start v={version} n={count} tokens={tokens} max_tokens=4",
++        file=sys.stderr,
++        flush=True,
++    )
++    t_all, seconds, cached, finished, reset, error = time.monotonic(), [], [], 0, None, None
++    try:
++        for i in range(count):
++            rng = random.Random(f"{time.time_ns()}-{i}-{uuid.uuid4().hex}")
++            ids = [rng.randrange(1000, high) for _ in range(lengths[i % len(lengths)])]
++            request_id = f"glm53-startup-warmup-{i}-{uuid.uuid4().hex[:8]}"
++            t0, last = time.monotonic(), None
++            async for out in engine_client.generate(
++                {"prompt_token_ids": ids}, params[i % 2], request_id
++            ):
++                last = out
++            seconds.append(round(time.monotonic() - t0, 3))
++            cached.append(getattr(last, "num_cached_tokens", None))
++            finished += int(bool(last is not None and last.finished))
++        for _ in range(40):
++            reset = await engine_client.reset_prefix_cache()
++            if reset:
++                break
++            await asyncio.sleep(0.25)
++    except Exception as exc:
++        error = repr(exc)[:300]
++    text = (
++        f"{'done' if error is None else 'failed'} v={version} n={count} tokens={tokens} "
++        f"finished={finished} s={seconds} cached={cached} reset={reset} "
++        f"total_s={time.monotonic() - t_all:.3f}"
++        + ("" if error is None else f" error={error}")
++    )
++    print(f"GLM53_STARTUP_WARMUP {text}", file=sys.stderr, flush=True)
++    try:
++        await engine_client.collective_rpc(
++            "glm53_startup_warmup_marker", args=(text,)
++        )
++    except Exception as exc:
++        print(
++            f"GLM53_STARTUP_WARMUP worker marker failed: {exc!r}"[:400],
++            file=sys.stderr,
++            flush=True,
++        )
++
++
+ async def run_server(args, **uvicorn_kwargs) -> None:
+     """Run a single-worker API server."""
+ 
+@@ -192,7 +296,13 @@ async def run_server_worker(
+         client_config=client_config,
+     ) as engine_client:
+         shutdown_task = await build_and_serve(
+-            engine_client, listen_address, sock, args, **uvicorn_kwargs
++            engine_client,
++            listen_address,
++            sock,
++            args,
++            glm53_startup_warmup=not client_config
++            or client_config.get("client_index", 0) == 0,
++            **uvicorn_kwargs,
+         )
+     # NB: Await server shutdown only after the backend context is exited
+     try:

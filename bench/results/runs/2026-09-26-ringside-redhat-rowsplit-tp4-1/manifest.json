@@ -1,0 +1,85 @@
+{
+ "schema": 1,
+ "window": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+ "lab_commit": "c779425ac3",
+ "lab_plan_sha256": "89dfef8440c6318f0d34a3d767cb2ce11a1946715085ac60cf890802b38b9b76",
+ "profile_lab_plan_sha256": "89dfef8440c6318f0d34a3d767cb2ce11a1946715085ac60cf890802b38b9b76",
+ "rigmark": {
+  "repository": "othexmr/rigmark",
+  "branch": "feat/staggered-arrival",
+  "commit": "40fabcaf6e963ac27ab347f61d54a225dbd07419",
+  "measured_revision": "6e0e24a6ff5061721b83a482d1967c6b4e07517f"
+ },
+ "included": [
+  {
+   "path": "rigmark/code-full.json",
+   "status": "redacted",
+   "sha256": "13f42edede7d10a2bcb091d3d2b58a1aabccb39bccd076eda17feb3e0287a598",
+   "bytes": 301773,
+   "window_path": "native/code-full.json",
+   "original_sha256": "68347f634b792e3ee4b4ae7093d7b3686abbb6feacb628f0df584a49aed25f9c",
+   "original_bytes": 301829,
+   "redacted": [
+    "the lab's model directory (1x) -> ${SWITCHLESS_MODEL_DIR}"
+   ]
+  },
+  {
+   "path": "rigmark/prose-concurrency.card.txt",
+   "status": "unedited",
+   "sha256": "1feb93c3cd3492cf08dc4ee877a25581de19b89ce2047f8b6e91e5d6ea92bca3",
+   "bytes": 3876,
+   "window_path": "native/prose-concurrency.card.txt"
+  },
+  {
+   "path": "rigmark/metadata.json",
+   "status": "redacted",
+   "sha256": "02538b52217d73162316adc792fe78cd277f8a0ee78703205f1143a76e362ee5",
+   "bytes": 1718,
+   "window_path": "native/metadata.json",
+   "original_sha256": "249f4544ddc7525af03ca75ca4e697d91f46912aeeec89224c8babb3092fdd80",
+   "original_bytes": 1774,
+   "redacted": [
+    "the lab's model directory (1x) -> ${SWITCHLESS_MODEL_DIR}"
+   ]
+  },
+  {
+   "path": "rigmark/prose-concurrency.rounds.json",
+   "status": "extract",
+   "sha256": "ad86493e0e4ccb4bfc43149fbe05d113502e63bb5a1ff02febecaef53f9cfafc",
+   "bytes": 67106,
+   "window_path": "native/prose-concurrency.json",
+   "original_sha256": "9482dab6efa43d8f581a6f312e734cbdd854cf6514582e59f75942d4dd115362",
+   "original_bytes": 2872618,
+   "redacted": [
+    "the lab's model directory (1x) -> ${SWITCHLESS_MODEL_DIR}"
+   ]
+  }
+ ],
+ "omitted": [
+  {
+   "window_path": "native/prose-concurrency.json",
+   "sha256": "9482dab6efa43d8f581a6f312e734cbdd854cf6514582e59f75942d4dd115362",
+   "bytes": 2872618,
+   "why": "too large for this repository; rigmark/prose-concurrency.rounds.json keeps every summary statistic and the per-round metrics"
+  },
+  {
+   "window_path": "native/code-full-command.json",
+   "sha256": "9e367e14f47ea0e452a00374dcde1ded76d01c5509b55660cb6c642554eb359d",
+   "bytes": 925,
+   "why": "names the lab host and paths; the command is shown above with placeholders"
+  },
+  {
+   "window_path": "native/prose-concurrency-command.json",
+   "sha256": "7825c06d2d63b5714cfe2284c835f0fc074534bca9c871c4a8458c1f74a57a22",
+   "bytes": 1225,
+   "why": "names the lab host and paths; the command is shown above with placeholders"
+  }
+ ],
+ "not_in_window": [
+  {
+   "path": "rigmark/code-full.card.txt",
+   "window_path": "native/code-full.card.txt",
+   "why": "RigMark did not render it (its log: \"could not render terminal report: invalid receipt: prefill.262136.cold.runs[1].decode_tokens_per_second does not match tokens/time; prefill.262136.cold.runs[2].decode_tokens_per_second does not match tokens/time; prefill.262136.warm_replay.runs[2].decode_tokens_per_second does not match tokens/time\")"
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+# Single-file overlay patches against files of the base image, one directory per profile.
+# Each patch is independent; sources/apply.py applies them and checks pre- and postimage sha256.
+tp2/moe-_shared-kernels-dynamic.py.patch
+tp2/moe-fused_moe-_impl.py.patch
+tp4/moe-_shared-kernels-dynamic.py.patch
+tp4/moe-fused_moe-_impl.py.patch

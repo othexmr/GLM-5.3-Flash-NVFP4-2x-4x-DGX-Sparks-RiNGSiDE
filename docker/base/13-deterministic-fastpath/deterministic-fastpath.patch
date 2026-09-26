@@ -1,0 +1,46 @@
+--- a/b12x/moe/fused_moe/_impl.py
++++ b/b12x/moe/fused_moe/_impl.py
+@@ -1283,7 +1283,7 @@
+     """Whether a dynamic launch takes the GLM-5.3 decode route/pack fast path.
+ 
+     Structural predicate shared by kernel selection and the launch: NVFP4 silu,
+-    grouped (not direct) non-deterministic routing on the materialized queue,
++    grouped (not direct) routing on the materialized queue,
+     M16 tile, 128-aligned intermediate (no swap_ab), and a routed-row count
+     inside the decode band.  Prefill launches fail the row bound and keep the
+     original kernel.
+@@ -1296,7 +1296,6 @@
+         and activation == "silu"
+         and not w4a8_repacked
+         and not direct_routing
+-        and not deterministic_output
+         and 0 < int(routed_rows) <= _GLM53_DECODE_FASTPATH_MAX_ROWS
+         and int(selected_tile_m) == 16
+         and int(n) % 128 == 0
+--- a/b12x/moe/_shared/kernels/dynamic.py
++++ b/b12x/moe/_shared/kernels/dynamic.py
+@@ -1125,9 +1125,9 @@
+         """
+         if self.quant_recipe != "nvfp4" or self.is_w4a8 or self.is_w6a8:
+             raise ValueError("decode fast path requires the nvfp4 recipe")
+-        if self.direct_routing or self.deterministic_output or self.swap_ab:
++        if self.direct_routing or self.swap_ab:
+             raise ValueError(
+-                "decode fast path requires grouped, non-deterministic, "
++                "decode fast path requires grouped, "
+                 "non-swapped NVFP4 routing"
+             )
+         if self.materialize_intermediate or self.w4a8_m1_materialized:
+@@ -4053,8 +4053,11 @@
+                 while fp_p < total_pairs:
+                     fp_row = _ld_shared_i32(fp_pair_row_addr + fp_p * Int32(4))
+                     if fp_row >= Int32(0):
++                        fp_output_row = fp_p // num_topk
++                        if cutlass.const_expr(self.deterministic_output):
++                            fp_output_row = fp_p
+                         st_global_i32(
+-                            get_ptr_as_int64(token_map, fp_row), fp_p // num_topk
++                            get_ptr_as_int64(token_map, fp_row), fp_output_row
+                         )
+                         st_global_f32(
+                             get_ptr_as_int64(token_weights, fp_row),

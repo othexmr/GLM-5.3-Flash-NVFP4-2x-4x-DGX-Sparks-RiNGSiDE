@@ -1,0 +1,144 @@
+{
+ "schema": 2,
+ "image": {
+  "id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
+  "tag": "local/glm53-v029:ported-20260910",
+  "public_reference": null,
+  "status": "local image, not published; docker/Dockerfile rebuilds it (docs/image.md, docs/build-provenance.md)"
+ },
+ "artefacts": [
+  {
+   "name": "nccl-switchless-dual-pf",
+   "profiles": [
+    "tp4"
+   ],
+   "target": "/opt/switchless-nccl/libnccl.so.2.30.7",
+   "sha256": "5d5c65502cd3d1336dd73b9dd3f1d584fc1289c79fd595f9605b8a6ac3caab7f",
+   "bytes": 61427896,
+   "source": "patches/nccl (NVIDIA/nccl 73cf1122 + 2 patches, tree 9edccf0677e35c9b451eb2f5e037dfb9e6677a93); the measured library was built from tree 16e997d8cbb8c67afffceb974e1513b4f47c5a2f, which differs from it only in the change-notice comments of src/transport/net_ib/connect.cc",
+   "built_from_tree": "16e997d8cbb8c67afffceb974e1513b4f47c5a2f",
+   "build": "build/nccl/README.md",
+   "published": false
+  },
+  {
+   "name": "sparse-mla-a1c",
+   "profiles": [
+    "tp4"
+   ],
+   "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so",
+   "sha256": "1f940e75297105155cb0f253a351a4c62354054da63b39cd84628731feaf7b99",
+   "bytes": 9050840,
+   "source": "patches/sparse-mla/build/tp4-so-a1c.patch on Libertai/vllm-sparse-mla-blackwell b1f20638 (tree 442d83ded51b5a0226bd13fbb2e3711d45d64699); the measured extension was built from tree acb5d5d07f8e47f69bea11bf071868e46190c0e8, which differs from it only in the change-notice comments of csrc/sparse_mla.cu, setup.py and glm53_sparse_mla/backend.py and in one reworded comment line of setup.py",
+   "built_from_tree": "acb5d5d07f8e47f69bea11bf071868e46190c0e8",
+   "build": "build/sparse-mla/README.md",
+   "published": false
+  },
+  {
+   "name": "sparse-mla-m7e",
+   "profiles": [
+    "tp2"
+   ],
+   "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so",
+   "sha256": "221fdbaa6a25d377118093d30761322c22db7105312b396d2aecd8262e2c002b",
+   "bytes": 5825912,
+   "source": "patches/sparse-mla/build/tp2-so-m7e.patch on Libertai/vllm-sparse-mla-blackwell b1f20638 (tree ce9976030ba1b0d87566c78b8269ad73f4e25c01); the measured extension was built from tree 50c50d5b50428ef5e48ef44246a8f4f38b6196a2, which differs from it only in the change-notice comments of csrc/sparse_mla.cu, setup.py and glm53_sparse_mla/backend.py and in one reworded comment line of setup.py",
+   "built_from_tree": "50c50d5b50428ef5e48ef44246a8f4f38b6196a2",
+   "build": "build/sparse-mla/README.md",
+   "published": false
+  },
+  {
+   "name": "glm53-fp8-gemm",
+   "profiles": [
+    "tp4"
+   ],
+   "target": "/opt/glm53_fp8_gemm/glm53_fp8_gemm.so",
+   "sha256": "db120c32a467aa53be745ede8b20b08ff2a473db2d74382416da7c97aab31de0",
+   "bytes": 1002696,
+   "source": "build/glm53_fp8_gemm",
+   "build": "build/glm53_fp8_gemm/README.md",
+   "published": false
+  },
+  {
+   "name": "glm53-prefill-rdma-libprb",
+   "profiles": [
+    "tp4"
+   ],
+   "target": "/usr/local/lib/python3.12/dist-packages/glm53_prefill_rdma/libprb-7ffd99abacd3e746.so",
+   "per_rank_sha256": {
+    "0": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+    "1": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+    "2": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+    "3": "9b54e41bf46f09939f10a60d40194d6fd2d7398f092a090ba9a6686fd4a18e57"
+   },
+   "source": "src/tp4/glm53_prefill_rdma/_prb.cu (sha256 7ffd99abacd3e746...; the measured per-host builds are of the earlier _prb.cu (sha256 7a0bd2d1227e142c...), which differs from this one only in the comment on line 2, and are served under this source's name; not rebuilt)",
+   "build": "build/prefill_rdma/README.md",
+   "published": false,
+   "note": "built on each node; the measured nodes served two different builds of the same source"
+  },
+  {
+   "name": "nvfp4-topk-rowspread",
+   "profiles": [
+    "tp4"
+   ],
+   "target": "/usr/local/lib/python3.12/dist-packages/nvfp4_topk_rowspread/_kernel.so",
+   "sha256": "3fefebaa5eee7599fce0e53d3a42f5f0eaa3b0428610f9c8239a79ba89342ad4",
+   "bytes": 5285424,
+   "source": "build/topk_rowspread (the rowspread persistent_topk.cuh and its operator binding) with the persistent top-k sources of the base image's stage 15 (docker/base/15-topk-repair/src: vLLM 4500c80c with the hunks of vllm-project/vllm pull request 55314); the measured library was built from persistent_topk.cuh 2f7f4fe28840a70d and bindings.cu fca0bd595e1862d9, which differ from the recipe's copies only in the change-notice comment at the top of persistent_topk.cuh",
+   "build": "build/topk_rowspread/README.md",
+   "published": false,
+   "note": "the loader, src/tp4/nvfp4_topk_rowspread/__init__.py, refuses a binary whose sha256 its build receipt (nvfp4-topk-rowspread-receipt) does not name, so a rebuild writes both"
+  },
+  {
+   "name": "nvfp4-topk-rowspread-receipt",
+   "profiles": [
+    "tp4"
+   ],
+   "target": "/usr/local/lib/python3.12/dist-packages/nvfp4_topk_rowspread/build-receipt.json",
+   "sha256": "b500393f49d0cb20ea743fe0d32b79de488ebc661e19188952826f36e3134fc8",
+   "bytes": 1776,
+   "source": "written by the build of nvfp4-topk-rowspread (build/topk_rowspread/build.py): the input sha256, toolchain, flags and the binary's sha256; the measured receipt is build/topk_rowspread/measured-build-receipt.json",
+   "build": "build/topk_rowspread/README.md",
+   "published": false
+  },
+  {
+   "name": "humming-kernels-0.1.15",
+   "profiles": [
+    "tp4"
+   ],
+   "targets": {
+    "/usr/local/lib/python3.12/dist-packages/humming": "humming",
+    "/usr/local/lib/python3.12/dist-packages/humming_kernels-0.1.12.dist-info": "humming_kernels-0.1.15.dist-info"
+   },
+   "source": "https://github.com/vllm-project/humming/tree/a74973b5079e42ef861720b62f847ce9d33447f5",
+   "build": "build/humming/README.md",
+   "published": false,
+   "note": "third-party package; per-file sha256 of the served tree in sources/installed-files.json. \"targets\" maps each mounted path to the directory of a humming-kernels 0.1.15 installation that supplies it: the 0.1.15 dist-info is mounted at the image's 0.1.12 dist-info path"
+  }
+ ],
+ "models": [
+  {
+   "name": "RedHatAI/GLM-5.3-Flash-NVFP4",
+   "host": "huggingface.co",
+   "revision": "18d55bfd5a2194887738da73753975c9d3842f46",
+   "index_sha256": "015faae91e8189c7553f1d48ec3d0694b8c02b282d7f58af2d7b4064a81ce4c0",
+   "licence": "MIT",
+   "mount": "/models/target"
+  },
+  {
+   "name": "nvidia/GLM-5.3-Flash-NVFP4",
+   "file": "tokenizer.json",
+   "host": "huggingface.co",
+   "revision": "423acf37583782c51c142d145aef733d72943d93",
+   "sha256": "19e773648cb4e65de8660ea6365e10acca112d42a854923df93db4a6f333a82d",
+   "licence": "MIT",
+   "mount": "/models/target/tokenizer.json"
+  },
+  {
+   "name": "incoai/GLM-5.3-Flash-DFlash2",
+   "host": "huggingface.co",
+   "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe",
+   "mount": "/models/dflash2-repo (a Hugging Face cache repository directory; the plan reads snapshots/<revision>)"
+  }
+ ],
+ "note": "Nothing here is published: RiNGSiDE distributes source and patches only. Binaries are identified by the sha256 of the measured bytes; docker/Dockerfile rebuilds them from the recorded sources, and a rebuild gets its own identity."
+}

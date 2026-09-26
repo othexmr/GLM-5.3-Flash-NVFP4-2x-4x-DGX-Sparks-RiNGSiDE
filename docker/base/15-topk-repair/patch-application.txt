@@ -1,0 +1,6 @@
+Skipped patch 'csrc/libtorch_stable/cooperative_topk.cuh'.
+Skipped patch 'tests/kernels/test_top_k_per_row.py'.
+Checking patch csrc/libtorch_stable/persistent_topk.cuh...
+Checking patch csrc/libtorch_stable/topk_histogram_4096.cuh...
+Applied patch csrc/libtorch_stable/persistent_topk.cuh cleanly.
+Applied patch csrc/libtorch_stable/topk_histogram_4096.cuh cleanly.

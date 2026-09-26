@@ -1,0 +1,213 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py
+Preimage:    sha256 f01ae09c799799c8949778588d4e5e43f8c4c2dc4fd531a0eb7a553eb5d45c5e
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    read from a running container of the image (2026-09-17, no overlay on this path); equals the v0.29.0 port source tree
+Postimage:   sha256 f06a71f797c06bdfe45484d76350d5dd664dab9de781675a6486a49ccd536cf1 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Attribution: sparkring-kda-ckpt (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/worker/gpu/model_runner.py b/vllm/v1/worker/gpu/model_runner.py
+index 42c7b385d17cf0fe7d66ac5ee41eddc654250574..2e6497b0a7507165119c2af362df6572b7f822c2 100644
+--- a/vllm/v1/worker/gpu/model_runner.py
++++ b/vllm/v1/worker/gpu/model_runner.py
+@@ -1,5 +1,13 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 lab (kda-checkpoints, 2026-09-24): KDA checkpoints saved inside a prefill chunk,
++# after FujitsuPolycom/sparkring runtime/images/sparkring-r35/patches/vllm-sparkring.patch @ 90d510a5
++# (Apache-2.0; see outputs/2026-09-24-kda-prefill-checkpoints/NOTICE). Inert unless GLM53_KDA_CKPT=1.
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): the step's KDA checkpoint plans handed to the KDA metadata builder
++# (GLM53_KDA_CKPT), per-step batch, forward and drafter timing hooks for the glm53_speedup telemetry, and greedy DFlash2
++# verification from per-rank argmax pairs instead of gathered logits (GLM53_GREEDY_ARGMAX_VERIFY).
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): step-start flush of the fused commit's absent requests.
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): kpool tail group left out of the generic slot mapping.
+ """
+ NOTE: Coding style guide for this file:
+ This model runner is shared by all models: text and multimodal, generative
+@@ -26,6 +34,7 @@ from typing import Any, NamedTuple
+ 
+ import numpy as np
+ import torch
++from glm53_speedup.telemetry import record_batch as _cost_record_batch
+ import torch.nn as nn
+ 
+ import vllm.envs as envs
+@@ -141,6 +150,12 @@ from vllm.v1.worker.gpu.sample.batch_shard import (
+ from vllm.v1.worker.gpu.sample.output import SamplerOutput
+ from vllm.v1.worker.gpu.sample.prompt_logprob import PromptLogprobsWorker
+ from vllm.v1.worker.gpu.sample.sampler import Sampler
++# GLM53_GREEDY_ARGMAX_VERIFY (decode-kernels lane, 2026-09-24, default off): greedy DFlash2 verification from
++# per-rank (value, index) pairs instead of all-gathered full logits, for batches glm53_greedy_verify.eligible() accepts.
++import os as _g53gv_os
++_GREEDY_VERIFY = None
++if _g53gv_os.environ.get("GLM53_GREEDY_ARGMAX_VERIFY", "").strip() == "1":
++    import glm53_greedy_verify as _GREEDY_VERIFY
+ from vllm.v1.worker.gpu.shutdown import free_before_shutdown
+ from vllm.v1.worker.gpu.spec_decode import init_speculator
+ from vllm.v1.worker.gpu.spec_decode.adaptive_verification import (
+@@ -169,6 +184,27 @@ from vllm.v1.worker.workspace import use_workspace_lane
+ 
+ logger = init_logger(__name__)
+ 
++# RecoverSSM fused commit (GLM53_RECOVERSSM_FUSED_COMMIT=1), ordering fix 2026-09-25 (outputs/2026-09-25-fused-commit-fix):
++# the deferred KDA state commits of the last step's requests that this step does not schedule (finished, preempted,
++# aborted, skipped) are applied before any GPU work of this step, because the scheduler may already have handed their
++# blocks to other requests (ops/recoverssm.py, flush_absent_requests).
++import os as _glm53_fc_os
++
++_GLM53_FUSED_COMMIT = _glm53_fc_os.environ.get("GLM53_RECOVERSSM_FUSED_COMMIT", "0").strip() == "1"
++
++
++def _glm53_fused_flush_absent(runner: Any, scheduler_output: SchedulerOutput) -> None:
++    rows = getattr(runner, "_glm53_fused_rows", None)
++    runner._glm53_fused_rows = None
++    if rows:
++        from vllm.models.glm5next.nvidia.ops import recoverssm as _glm53_rs
++
++        _glm53_rs.flush_absent_requests(
++            rows,
++            scheduler_output.num_scheduled_tokens,
++            {new_req.req_id for new_req in scheduler_output.scheduled_new_reqs},
++        )
++
+ 
+ class GPUModelRunner(LoRAModelRunnerMixin):
+     def __init__(self, vllm_config: VllmConfig, device: torch.device):
+@@ -551,6 +587,11 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+                 getattr(self.model_config.hf_config, "max_source_positions", 0),
+             )
+ 
++        # The GLM-5.3 kpool tail (KpoolTailSpec) is one circular block per request, as a CircularBufferSpec group is.
++        # KpoolTailMetadataBuilder writes every actual token's tail slot itself (compute_kpool_tail_slot_mapping), and
++        # the generic mapping would read block_table[req, pos // ring] far past the group's 32-column block table.
++        from vllm.v1.kv_cache_interface import KpoolTailSpec
++
+         block_sizes = []
+         max_num_blocks_per_group = []
+         slot_mapping_enabled = []
+@@ -560,7 +601,9 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+             layer_spec = (
+                 spec.first_spec if isinstance(spec, UniformTypeKVCacheSpecs) else spec
+             )
+-            slot_mapping_enabled.append(not isinstance(layer_spec, CircularBufferSpec))
++            slot_mapping_enabled.append(
++                not isinstance(layer_spec, (CircularBufferSpec, KpoolTailSpec))
++            )
+             # Let each cache type account for CP. Attention KV is DCP-sharded,
+             # while Mamba/GDN recurrent state is replicated across DCP ranks.
+             max_num_blocks = spec.max_num_blocks_per_req(
+@@ -1419,6 +1462,9 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+             logits = logits[:, : self.vocab_size]
+         else:
+             sample_hidden_states = hidden_states[input_batch.logits_indices]
++            if _GREEDY_VERIFY is not None and _GREEDY_VERIFY.eligible(self, input_batch, grammar_output):
++                sampler_output = _GREEDY_VERIFY.verify(self, sample_hidden_states, input_batch)
++                return sampler_output, sampler_output.num_sampled, sampler_output.num_rejected
+             logits = self.model.compute_logits(sample_hidden_states)
+ 
+         if grammar_output is not None:
+@@ -1525,6 +1571,8 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+         context_len: int = 0,
+     ) -> ModelRunnerOutput | IntermediateTensors | None:
+         if not dummy_run:
++            if _GLM53_FUSED_COMMIT:
++                _glm53_fused_flush_absent(self, scheduler_output)
+             # Update the request states.
+             self.update_pp_decode_requests()
+             self.finish_requests(scheduler_output)
+@@ -1655,18 +1703,39 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+                     [g for g in groups if not isinstance(g.kv_cache_spec, MambaSpec)]
+                     for groups in attn_groups
+                 ]
+-            attn_metadata = self.model_state.prepare_attn(
+-                input_batch,
+-                batch_desc.cg_mode,
+-                block_tables,
+-                slot_mappings,
+-                attn_groups,
+-                self.kv_cache_config,
+-                # FULL replay reads capture-time metadata buffers. Re-stage them
+-                # from the zeroed dummy block tables instead of retaining state
+-                # indices from the previous real batch.
+-                for_capture=dummy_run and batch_desc.cg_mode == CUDAGraphMode.FULL,
++            glm53_ckpt_plans = (
++                None if dummy_run else getattr(scheduler_output, "glm53_kda_ckpt_plans", None)
+             )
++            if glm53_ckpt_plans:
++                # kda-checkpoints: this step's KDA state exports, by batch row, for the KDA metadata builder.
++                import glm53_kda_ckpt_plan as _glm53_ckpt
++
++                if batch_desc.cg_mode == CUDAGraphMode.FULL:
++                    raise RuntimeError("KDA checkpoint exports cannot run in a FULL CUDA graph step")
++                _glm53_ckpt.set_step(
++                    _glm53_ckpt.rows_for_batch(
++                        glm53_ckpt_plans,
++                        input_batch.req_ids,
++                        input_batch.num_computed_tokens_np,
++                        input_batch.num_scheduled_tokens,
++                    )
++                )
++            try:
++                attn_metadata = self.model_state.prepare_attn(
++                    input_batch,
++                    batch_desc.cg_mode,
++                    block_tables,
++                    slot_mappings,
++                    attn_groups,
++                    self.kv_cache_config,
++                    # FULL replay reads capture-time metadata buffers. Re-stage them
++                    # from the zeroed dummy block tables instead of retaining state
++                    # indices from the previous real batch.
++                    for_capture=dummy_run and batch_desc.cg_mode == CUDAGraphMode.FULL,
++                )
++            finally:
++                if glm53_ckpt_plans:
++                    _glm53_ckpt.clear_step()
+ 
+         input_ids = input_batch.input_ids
+         inputs_embeds = None
+@@ -1729,6 +1798,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+         # Update the EPLB meta.
+         self.eplb.prepare_forward(self.model_config, input_batch.num_tokens)
+ 
++        _cost_record_batch(input_batch, batch_desc)
+         self.step_timing.record_batch(
+             input_batch, batch_desc.cg_mode == CUDAGraphMode.FULL
+         )
+@@ -1830,6 +1900,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+         aux_hidden_states = self.execute_model_state.aux_hidden_states
+         dp_sync = self.execute_model_state.dp_sync
+         finished_req_ids = self.execute_model_state.finished_req_ids
++        self.step_timing.forward_end()
+         ec_connector_output = self.execute_model_state.ec_connector_output
+         routed_experts = self.execute_model_state.routed_experts
+         self.execute_model_state = None
+@@ -1926,6 +1997,9 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+             num_rejected,
+             input_batch.query_start_loc,
+         )
++        if _GLM53_FUSED_COMMIT:
++            # The batch order of the rows whose KDA state commits were just deferred (see _glm53_fused_flush_absent).
++            self._glm53_fused_rows = input_batch.req_ids
+ 
+         if self.speculator is not None:
+             assert self.sampler is not None
+@@ -1938,6 +2012,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+                 pre_hc_hidden_states = self.model.get_mtp_target_hidden_states()
+                 spec_hidden_states = pre_hc_hidden_states[: hidden_states.shape[0]]  # type: ignore[union-attr]
+             with use_workspace_lane(self._draft_workspace_lane):
++                self.step_timing.drafter_start()
+                 draft_tokens = self.speculator.propose(
+                     input_batch,
+                     attn_metadata,
+@@ -1953,6 +2028,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+                     dp_sync=dp_sync,
+                     mm_inputs=mm_inputs,
+                 )
++            self.step_timing.drafter_end()
+             self.req_states.draft_tokens[input_batch.idx_mapping] = draft_tokens
+             if self.adaptive_verification is not None:
+                 self.adaptive_verification.record_confidences(

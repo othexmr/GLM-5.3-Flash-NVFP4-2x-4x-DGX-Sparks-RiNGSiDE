@@ -1,0 +1,1255 @@
+{
+ "cached_prefix_check": {
+  "candidate": {
+   "cells": {
+    "32768": {
+     "comparisons": {
+      "extend_vs_fresh": {
+       "classification": "near-tie",
+       "equal": false,
+       "first_difference_token": 10,
+       "near_tie": true,
+       "reference_top2_logprob_gap": 0.125
+      },
+      "replay_vs_cold": {
+       "classification": "difference outside near-ties",
+       "equal": false,
+       "first_difference_token": 15,
+       "near_tie": false,
+       "reference_top2_logprob_gap": 0.875
+      }
+     },
+     "expected_replay_hit_tokens": 27648,
+     "hits_ok": true,
+     "requests": {
+      "cold": {
+       "cached_tokens": 0,
+       "prompt_tokens": 32768,
+       "seconds": 13.415
+      },
+      "extend": {
+       "cached_tokens": 27648,
+       "prompt_tokens": 34304,
+       "seconds": 4.068
+      },
+      "fresh": {
+       "cached_tokens": 0,
+       "prompt_tokens": 34304,
+       "seconds": 15.243
+      },
+      "replay": {
+       "cached_tokens": 27648,
+       "prompt_tokens": 32768,
+       "seconds": 2.941
+      }
+     }
+    },
+    "65536": {
+     "comparisons": {
+      "extend_vs_fresh": {
+       "classification": "near-tie",
+       "equal": false,
+       "first_difference_token": 0,
+       "near_tie": true,
+       "reference_top2_logprob_gap": 0.25
+      },
+      "replay_vs_cold": {
+       "classification": "equal",
+       "equal": true,
+       "first_difference_token": null,
+       "near_tie": false,
+       "reference_top2_logprob_gap": null
+      }
+     },
+     "expected_replay_hit_tokens": 59904,
+     "hits_ok": true,
+     "requests": {
+      "cold": {
+       "cached_tokens": 0,
+       "prompt_tokens": 65536,
+       "seconds": 26.574
+      },
+      "extend": {
+       "cached_tokens": 59904,
+       "prompt_tokens": 67072,
+       "seconds": 6.184
+      },
+      "fresh": {
+       "cached_tokens": 0,
+       "prompt_tokens": 67072,
+       "seconds": 29.118
+      },
+      "replay": {
+       "cached_tokens": 59904,
+       "prompt_tokens": 65536,
+       "seconds": 3.09
+      }
+     }
+    },
+    "8192": {
+     "comparisons": {
+      "extend_vs_fresh": {
+       "classification": "near-tie",
+       "equal": false,
+       "first_difference_token": 2,
+       "near_tie": true,
+       "reference_top2_logprob_gap": 0.0
+      },
+      "replay_vs_cold": {
+       "classification": "difference outside near-ties",
+       "equal": false,
+       "first_difference_token": 5,
+       "near_tie": false,
+       "reference_top2_logprob_gap": 2.125
+      }
+     },
+     "expected_replay_hit_tokens": 4608,
+     "hits_ok": true,
+     "requests": {
+      "cold": {
+       "cached_tokens": 0,
+       "prompt_tokens": 8192,
+       "seconds": 5.97
+      },
+      "extend": {
+       "cached_tokens": 4608,
+       "prompt_tokens": 9728,
+       "seconds": 3.12
+      },
+      "fresh": {
+       "cached_tokens": 0,
+       "prompt_tokens": 9728,
+       "seconds": 5.153
+      },
+      "replay": {
+       "cached_tokens": 4608,
+       "prompt_tokens": 8192,
+       "seconds": 2.65
+      }
+     }
+    }
+   },
+   "differences": [
+    {
+     "classification": "difference outside near-ties",
+     "comparison": "replay_vs_cold",
+     "depth": 8192,
+     "first_difference_token": 5,
+     "gap": 2.125
+    },
+    {
+     "classification": "near-tie",
+     "comparison": "extend_vs_fresh",
+     "depth": 8192,
+     "first_difference_token": 2,
+     "gap": 0.0
+    },
+    {
+     "classification": "difference outside near-ties",
+     "comparison": "replay_vs_cold",
+     "depth": 32768,
+     "first_difference_token": 15,
+     "gap": 0.875
+    },
+    {
+     "classification": "near-tie",
+     "comparison": "extend_vs_fresh",
+     "depth": 32768,
+     "first_difference_token": 10,
+     "gap": 0.125
+    },
+    {
+     "classification": "near-tie",
+     "comparison": "extend_vs_fresh",
+     "depth": 65536,
+     "first_difference_token": 0,
+     "gap": 0.25
+    }
+   ],
+   "extension_tokens": 1536,
+   "finished": "2026-09-24T15:59:56+07:00",
+   "generated_tokens_compared": 16,
+   "max_gap_outside_near_ties": 2.125,
+   "started": "2026-09-24T15:57:57+07:00",
+   "summary": {
+    "hits_ok": true,
+    "mismatches": 2,
+    "near_ties": 3
+   }
+  },
+  "near_tie_rule": "a difference counts as a near-tie when the top-2 logprob gap of the reference request (the cold request for a replay, the fresh cold prefill for an extension) at the first differing token is below 0.5; any other difference is a mismatch (\"difference outside near-ties\"). Token positions are 0-based indices into the 16 generated tokens.",
+  "predicted_replay_hits": {
+   "candidate": [
+    4608,
+    27648,
+    59904
+   ],
+   "reference": [
+    0,
+    27648,
+    55296
+   ]
+  },
+  "reference": {
+   "cells": {
+    "32768": {
+     "comparisons": {
+      "extend_vs_fresh": {
+       "classification": "near-tie",
+       "equal": false,
+       "first_difference_token": 0,
+       "near_tie": true,
+       "reference_top2_logprob_gap": 0.25
+      },
+      "replay_vs_cold": {
+       "classification": "difference outside near-ties",
+       "equal": false,
+       "first_difference_token": 14,
+       "near_tie": false,
+       "reference_top2_logprob_gap": 0.625
+      }
+     },
+     "expected_replay_hit_tokens": 27648,
+     "hits_ok": true,
+     "requests": {
+      "cold": {
+       "cached_tokens": 0,
+       "prompt_tokens": 32768,
+       "seconds": 14.316
+      },
+      "extend": {
+       "cached_tokens": 27648,
+       "prompt_tokens": 34304,
+       "seconds": 4.179
+      },
+      "fresh": {
+       "cached_tokens": 0,
+       "prompt_tokens": 34304,
+       "seconds": 14.486
+      },
+      "replay": {
+       "cached_tokens": 27648,
+       "prompt_tokens": 32768,
+       "seconds": 2.898
+      }
+     }
+    },
+    "65536": {
+     "comparisons": {
+      "extend_vs_fresh": {
+       "classification": "near-tie",
+       "equal": false,
+       "first_difference_token": 0,
+       "near_tie": true,
+       "reference_top2_logprob_gap": 0.375
+      },
+      "replay_vs_cold": {
+       "classification": "equal",
+       "equal": true,
+       "first_difference_token": null,
+       "near_tie": false,
+       "reference_top2_logprob_gap": null
+      }
+     },
+     "expected_replay_hit_tokens": 55296,
+     "hits_ok": true,
+     "requests": {
+      "cold": {
+       "cached_tokens": 0,
+       "prompt_tokens": 65536,
+       "seconds": 27.909
+      },
+      "extend": {
+       "cached_tokens": 55296,
+       "prompt_tokens": 67072,
+       "seconds": 5.978
+      },
+      "fresh": {
+       "cached_tokens": 0,
+       "prompt_tokens": 67072,
+       "seconds": 27.12
+      },
+      "replay": {
+       "cached_tokens": 55296,
+       "prompt_tokens": 65536,
+       "seconds": 5.821
+      }
+     }
+    },
+    "8192": {
+     "comparisons": {
+      "extend_vs_fresh": {
+       "classification": "difference outside near-ties",
+       "equal": false,
+       "first_difference_token": 7,
+       "near_tie": false,
+       "reference_top2_logprob_gap": 0.5
+      },
+      "replay_vs_cold": {
+       "classification": "near-tie",
+       "equal": false,
+       "first_difference_token": 3,
+       "near_tie": true,
+       "reference_top2_logprob_gap": 0.375
+      }
+     },
+     "expected_replay_hit_tokens": 0,
+     "hits_ok": true,
+     "requests": {
+      "cold": {
+       "cached_tokens": 0,
+       "prompt_tokens": 8192,
+       "seconds": 7.637
+      },
+      "extend": {
+       "cached_tokens": 0,
+       "prompt_tokens": 9728,
+       "seconds": 5.142
+      },
+      "fresh": {
+       "cached_tokens": 0,
+       "prompt_tokens": 9728,
+       "seconds": 5.418
+      },
+      "replay": {
+       "cached_tokens": 0,
+       "prompt_tokens": 8192,
+       "seconds": 4.339
+      }
+     }
+    }
+   },
+   "differences": [
+    {
+     "classification": "near-tie",
+     "comparison": "replay_vs_cold",
+     "depth": 8192,
+     "first_difference_token": 3,
+     "gap": 0.375
+    },
+    {
+     "classification": "difference outside near-ties",
+     "comparison": "extend_vs_fresh",
+     "depth": 8192,
+     "first_difference_token": 7,
+     "gap": 0.5
+    },
+    {
+     "classification": "difference outside near-ties",
+     "comparison": "replay_vs_cold",
+     "depth": 32768,
+     "first_difference_token": 14,
+     "gap": 0.625
+    },
+    {
+     "classification": "near-tie",
+     "comparison": "extend_vs_fresh",
+     "depth": 32768,
+     "first_difference_token": 0,
+     "gap": 0.25
+    },
+    {
+     "classification": "near-tie",
+     "comparison": "extend_vs_fresh",
+     "depth": 65536,
+     "first_difference_token": 0,
+     "gap": 0.375
+    }
+   ],
+   "extension_tokens": 1536,
+   "finished": "2026-09-24T14:55:52+07:00",
+   "generated_tokens_compared": 16,
+   "max_gap_outside_near_ties": 0.625,
+   "started": "2026-09-24T14:53:45+07:00",
+   "summary": {
+    "hits_ok": true,
+    "mismatches": 2,
+    "near_ties": 3
+   }
+  }
+ },
+ "dates": {
+  "candidate": {
+   "campaign_started": "2026-09-24T15:30:57+07:00",
+   "code_full": [
+    "2026-09-24T15:31:53+07:00",
+    "2026-09-24T15:35:16+07:00"
+   ],
+   "launch_to_ready_s": 275.8,
+   "prose_concurrency": [
+    "2026-09-24T15:35:16+07:00",
+    "2026-09-24T15:57:57+07:00"
+   ],
+   "window_finished": "2026-09-24T16:29:16+07:00"
+  },
+  "date": "2026-09-24",
+  "promoted": "2026-09-24 16:3x",
+  "reference": {
+   "campaign_started": "2026-09-24T14:26:25+07:00",
+   "code_full": [
+    "2026-09-24T14:27:20+07:00",
+    "2026-09-24T14:30:40+07:00"
+   ],
+   "launch_to_ready_s": 259.4,
+   "prose_concurrency": [
+    "2026-09-24T14:30:40+07:00",
+    "2026-09-24T14:53:45+07:00"
+   ],
+   "window_finished": "2026-09-24T15:25:41+07:00"
+  },
+  "rule_amended": "2026-09-24T13:40:00+07:00",
+  "rule_fixed": "2026-09-24T13:09:00+07:00",
+  "timezone": "UTC+7"
+ },
+ "headline_changes": {
+  "cold_ttft": {
+   "candidate_s": {
+    "32768": 13.11,
+    "65536": 25.926,
+    "8192": 4.079
+   },
+   "change_pct": {
+    "32768": 0.17,
+    "65536": -2.34,
+    "8192": -0.85
+   },
+   "reference_s": {
+    "32768": 13.088,
+    "65536": 26.548,
+    "8192": 4.114
+   }
+  },
+  "decode_step_time": {
+   "bands": {
+    "C1-C4": {
+     "max": 0.24,
+     "mean": -0.72,
+     "median": -0.64,
+     "min": -2.31,
+     "n": 14
+    },
+    "C5-C8": {
+     "max": 6.29,
+     "mean": 0.11,
+     "median": 0.05,
+     "min": -5.17,
+     "n": 5
+    },
+    "C9-C16": null
+   },
+   "cells": [
+    {
+     "cand_ms": 54.65,
+     "cell": "1/k2",
+     "change_pct": -0.62,
+     "k": 2,
+     "n_steps": [
+      2728,
+      3331
+     ],
+     "ref_ms": 54.99,
+     "streams": 1
+    },
+    {
+     "cand_ms": 61.15,
+     "cell": "1/k3",
+     "change_pct": 0.23,
+     "k": 3,
+     "n_steps": [
+      6525,
+      8062
+     ],
+     "ref_ms": 61.01,
+     "streams": 1
+    },
+    {
+     "cand_ms": 67.46,
+     "cell": "1/k4",
+     "change_pct": -0.15,
+     "k": 4,
+     "n_steps": [
+      3073,
+      3036
+     ],
+     "ref_ms": 67.56,
+     "streams": 1
+    },
+    {
+     "cand_ms": 66.03,
+     "cell": "1/k5",
+     "change_pct": -1.7,
+     "k": 5,
+     "n_steps": [
+      244,
+      209
+     ],
+     "ref_ms": 67.17,
+     "streams": 1
+    },
+    {
+     "cand_ms": 69.42,
+     "cell": "1/k6",
+     "change_pct": -0.97,
+     "k": 6,
+     "n_steps": [
+      182,
+      179
+     ],
+     "ref_ms": 70.1,
+     "streams": 1
+    },
+    {
+     "cand_ms": 74.33,
+     "cell": "1/k7",
+     "change_pct": -0.65,
+     "k": 7,
+     "n_steps": [
+      432,
+      470
+     ],
+     "ref_ms": 74.82,
+     "streams": 1
+    },
+    {
+     "cand_ms": 78.17,
+     "cell": "2/k2",
+     "change_pct": -2.31,
+     "k": 2,
+     "n_steps": [
+      75,
+      80
+     ],
+     "ref_ms": 80.02,
+     "streams": 2
+    },
+    {
+     "cand_ms": 94.19,
+     "cell": "2/k3",
+     "change_pct": -0.78,
+     "k": 3,
+     "n_steps": [
+      1181,
+      1450
+     ],
+     "ref_ms": 94.93,
+     "streams": 2
+    },
+    {
+     "cand_ms": 107.01,
+     "cell": "2/k4",
+     "change_pct": 0.1,
+     "k": 4,
+     "n_steps": [
+      1090,
+      1200
+     ],
+     "ref_ms": 106.9,
+     "streams": 2
+    },
+    {
+     "cand_ms": 101.23,
+     "cell": "3/k2",
+     "change_pct": -0.36,
+     "k": 2,
+     "n_steps": [
+      129,
+      73
+     ],
+     "ref_ms": 101.6,
+     "streams": 3
+    },
+    {
+     "cand_ms": 117.28,
+     "cell": "3/k3",
+     "change_pct": -1.5,
+     "k": 3,
+     "n_steps": [
+      1889,
+      1394
+     ],
+     "ref_ms": 119.06,
+     "streams": 3
+    },
+    {
+     "cand_ms": 133.21,
+     "cell": "3/k4",
+     "change_pct": -1.12,
+     "k": 4,
+     "n_steps": [
+      765,
+      581
+     ],
+     "ref_ms": 134.72,
+     "streams": 3
+    },
+    {
+     "cand_ms": 139.71,
+     "cell": "4/k3",
+     "change_pct": -0.51,
+     "k": 3,
+     "n_steps": [
+      195,
+      214
+     ],
+     "ref_ms": 140.43,
+     "streams": 4
+    },
+    {
+     "cand_ms": 157.22,
+     "cell": "4/k4",
+     "change_pct": 0.24,
+     "k": 4,
+     "n_steps": [
+      885,
+      1041
+     ],
+     "ref_ms": 156.85,
+     "streams": 4
+    },
+    {
+     "cand_ms": 135.15,
+     "cell": "5/k2",
+     "change_pct": 0.54,
+     "k": 2,
+     "n_steps": [
+      75,
+      30
+     ],
+     "ref_ms": 134.43,
+     "streams": 5
+    },
+    {
+     "cand_ms": 151.94,
+     "cell": "5/k3",
+     "change_pct": -1.16,
+     "k": 3,
+     "n_steps": [
+      1282,
+      1223
+     ],
+     "ref_ms": 153.72,
+     "streams": 5
+    },
+    {
+     "cand_ms": 186.55,
+     "cell": "5/k4",
+     "change_pct": 6.29,
+     "k": 4,
+     "n_steps": [
+      435,
+      625
+     ],
+     "ref_ms": 175.51,
+     "streams": 5
+    },
+    {
+     "cand_ms": 173.52,
+     "cell": "6/k3",
+     "change_pct": -5.17,
+     "k": 3,
+     "n_steps": [
+      223,
+      163
+     ],
+     "ref_ms": 182.98,
+     "streams": 6
+    },
+    {
+     "cand_ms": 207.12,
+     "cell": "6/k4",
+     "change_pct": 0.05,
+     "k": 4,
+     "n_steps": [
+      2584,
+      2661
+     ],
+     "ref_ms": 207.01,
+     "streams": 6
+    }
+   ],
+   "summary": {
+    "max": 6.29,
+    "mean": -0.5,
+    "median": -0.62,
+    "min": -5.17,
+    "n": 19
+   }
+  },
+  "incumbent_freeze_s": {
+   "levels": {
+    "L2": {
+     "candidate": {
+      "maximum": 2.571,
+      "median": 2.57,
+      "minimum": 2.147,
+      "p90": 2.571
+     },
+     "reference": {
+      "maximum": 3.485,
+      "median": 3.443,
+      "minimum": 3.432,
+      "p90": 3.485
+     }
+    },
+    "L4": {
+     "candidate": {
+      "maximum": 2.448,
+      "median": 2.265,
+      "minimum": 2.207,
+      "p90": 2.448
+     },
+     "reference": {
+      "maximum": 4.0,
+      "median": 3.439,
+      "minimum": 3.439,
+      "p90": 4.0
+     }
+    },
+    "L6": {
+     "candidate": {
+      "maximum": 2.249,
+      "median": 2.246,
+      "minimum": 2.241,
+      "p90": 2.249
+     },
+     "reference": {
+      "maximum": 3.531,
+      "median": 3.477,
+      "minimum": 3.458,
+      "p90": 3.531
+     }
+    }
+   },
+   "metric": "decode-first incumbents: largest gap between SSE events that ends between the newcomer's arrival and its first output; distribution over 3 rounds"
+  },
+  "information_not_gated": {
+   "note": "single rounds; not part of the rule",
+   "prose_aggregate_tok_s": {
+    "1": {
+     "candidate": 32.295,
+     "change_pct": -5.96,
+     "reference": 34.34
+    },
+    "2": {
+     "candidate": 39.618,
+     "change_pct": -6.24,
+     "reference": 42.253
+    },
+    "3": {
+     "candidate": 46.718,
+     "change_pct": 3.82,
+     "reference": 44.999
+    },
+    "4": {
+     "candidate": 53.339,
+     "change_pct": -4.51,
+     "reference": 55.86
+    },
+    "5": {
+     "candidate": 62.863,
+     "change_pct": -3.72,
+     "reference": 65.295
+    },
+    "6": {
+     "candidate": 65.632,
+     "change_pct": -2.38,
+     "reference": 67.231
+    }
+   },
+   "short_code_aggregate_tok_s": {
+    "1": {
+     "candidate": 41.835,
+     "change_pct": 1.37,
+     "reference": 41.271
+    },
+    "2": {
+     "candidate": 49.444,
+     "change_pct": -5.42,
+     "reference": 52.275
+    },
+    "3": {
+     "candidate": 67.164,
+     "change_pct": 1.34,
+     "reference": 66.273
+    },
+    "4": {
+     "candidate": 76.327,
+     "change_pct": -1.22,
+     "reference": 77.27
+    },
+    "5": {
+     "candidate": 82.881,
+     "change_pct": -2.58,
+     "reference": 85.075
+    },
+    "6": {
+     "candidate": 85.694,
+     "change_pct": -9.97,
+     "reference": 95.181
+    }
+   },
+   "single_stream_decode_tok_s": {
+    "code": {
+     "candidate": 54.814,
+     "change_pct": -2.07,
+     "reference": 55.97
+    },
+    "prose": {
+     "candidate": 33.611,
+     "change_pct": -0.64,
+     "reference": 33.827
+    },
+    "structured": {
+     "candidate": 76.972,
+     "change_pct": 9.13,
+     "reference": 70.533
+    }
+   }
+  },
+  "speculative_acceptance": {
+   "candidate": 0.4489,
+   "change": -0.0019,
+   "reference": 0.4508
+  },
+  "staggered": {
+   "candidate_s": {
+    "L2 decode-first newcomer": 14.987,
+    "L2 prefill-first long": 13.975,
+    "L2 prefill-first newcomer": 4.647,
+    "L4 decode-first newcomer": 14.991,
+    "L4 prefill-first long": 14.38,
+    "L4 prefill-first newcomer": 4.736,
+    "L6 decode-first newcomer": 15.261,
+    "L6 prefill-first long": 14.665,
+    "L6 prefill-first newcomer": 5.487
+   },
+   "cells_change_pct": {
+    "L2 decode-first newcomer": -4.2,
+    "L2 prefill-first long": -1.62,
+    "L2 prefill-first newcomer": -2.64,
+    "L4 decode-first newcomer": -10.89,
+    "L4 prefill-first long": 1.55,
+    "L4 prefill-first newcomer": 0.45,
+    "L6 decode-first newcomer": -8.15,
+    "L6 prefill-first long": -5.25,
+    "L6 prefill-first newcomer": 14.53
+   },
+   "geo_pct": -2.03,
+   "reference_s": {
+    "L2 decode-first newcomer": 15.644,
+    "L2 prefill-first long": 14.205,
+    "L2 prefill-first newcomer": 4.773,
+    "L4 decode-first newcomer": 16.823,
+    "L4 prefill-first long": 14.161,
+    "L4 prefill-first newcomer": 4.715,
+    "L6 decode-first newcomer": 16.616,
+    "L6 prefill-first long": 15.478,
+    "L6 prefill-first newcomer": 4.791
+   }
+  },
+  "sweep_slo_attainment": {
+   "0.05": {
+    "candidate": 0.8333,
+    "reference": 0.3333
+   },
+   "0.1": {
+    "candidate": 0.5,
+    "reference": 0.0714
+   },
+   "0.15": {
+    "candidate": 0.3333,
+    "reference": 0.0556
+   }
+  },
+  "warm_replay_ttft": {
+   "candidate_s": {
+    "32768": 2.33,
+    "65536": 2.573,
+    "8192": 1.66
+   },
+   "change_pct": {
+    "32768": -3.68,
+    "65536": -43.25,
+    "8192": -55.35
+   },
+   "reference_s": {
+    "32768": 2.419,
+    "65536": 4.534,
+    "8192": 3.718
+   }
+  }
+ },
+ "lab_plans": {
+  "candidate": {
+   "lab_plan": "32dd2ab8",
+   "lab_plan_sha256": "32dd2ab80f1a9384c0dab21b21e4329ff9438e9257c38eb298cd1b917a45f05f"
+  },
+  "reference": {
+   "lab_plan": "f1771e0a",
+   "lab_plan_sha256": "f1771e0a75879524cb856490d9886874747f5a8fe83d4c1c2cf42cc396cfe64c"
+  }
+ },
+ "lab_receipts": {
+  "candidate": "2026-09-24-tp2ws-cand-1",
+  "reference": "2026-09-24-tp2ws-ref-1"
+ },
+ "measurement_kind": "measured (single samples; staggered cells are medians of 3 rounds)",
+ "negative_findings": [
+  "Clause 1 failed: the worst decode cell, 5/k4, is +6.29 % (steps 435/625); median -0.62 %.",
+  "Clause 6 failed: the lowest MemAvailable on the rank 0 host was 306 MiB against a 307 MiB floor (reference 365 MiB).",
+  "Clause 7' failed: the 8K replay first differs from cold at token 5 with a top-2 gap of 2.125 (> 2.0); differences outside near-ties 2 against the reference's 2.",
+  "Under the 13:09 rule the candidate also fails clause 4 (SLO attainment >= 0.9 at 0.05 and 0.1 req/s: 0.83 and 0.50) and clause 7 (no mismatch outside near-ties).",
+  "Information, not gated: the short-code aggregate at 6 streams moved -9.97 % (95.181 -> 85.694 tok/s), at 2 streams -5.42 %; single rounds.",
+  "No swept rate meets the latency target in either window (target 0.9).",
+  "Staggered cells that got slower (median of 3 rounds): L4 prefill-first long +1.55 %, L4 prefill-first newcomer +0.45 %, L6 prefill-first newcomer +14.53 %; the L6 prefill-first newcomer rounds were 5.49 / 4.77 / 6.97 s."
+ ],
+ "promotion": {
+  "decision": "promoted by the lab owner over three failed guard clauses of the amended rule",
+  "failed_clauses": [
+   "1",
+   "6",
+   "7'"
+  ],
+  "open_follow_up": "check that the cached 4,608-token state gives the same next tokens as a fresh prefill; check the rank 0 host memory headroom"
+ },
+ "record": "tp2-weakspots-promotion",
+ "rule": {
+  "clauses": [
+   {
+    "clause": "1",
+    "measured": {
+     "cells": 19,
+     "max_cell": "5/k4",
+     "max_cell_pct": 6.29,
+     "max_cell_steps": [
+      435,
+      625
+     ],
+     "median_pct": -0.62,
+     "min_cell_pct": -5.17
+    },
+    "name": "decode guard",
+    "passed": false,
+    "rule": "fixed-(streams, K) decode step-time median change within +-1.0 %, and no cell above +3.0 % (cells with at least 30 steps in both windows)",
+    "thresholds": {
+     "cell_max_pct": 3.0,
+     "median_abs_max_pct": 1.0
+    }
+   },
+   {
+    "clause": "2'",
+    "measured": {
+     "change_pct": {
+      "32768": -3.68,
+      "65536": -43.25,
+      "8192": -55.35
+     }
+    },
+    "name": "warm replay",
+    "passed": true,
+    "rule": "warm-replay TTFT change: 8,192 <= -25 % (timing sanity bound); 32,768 and 65,536 each <= +2.0 %",
+    "thresholds": {
+     "32768_max_pct": 2.0,
+     "65536_max_pct": 2.0,
+     "8192_max_pct": -25.0
+    }
+   },
+   {
+    "clause": "3",
+    "measured": {
+     "change_pct": {
+      "32768": 0.17,
+      "65536": -2.34,
+      "8192": -0.85
+     }
+    },
+    "name": "cold TTFT",
+    "passed": true,
+    "rule": "no cold TTFT cell (8,192 / 32,768 / 65,536) above +3.0 %",
+    "thresholds": {
+     "cell_max_pct": 3.0
+    }
+   },
+   {
+    "clause": "4'",
+    "measured": {
+     "0.05": {
+      "candidate": 0.8333,
+      "reference": 0.3333,
+      "valid_candidate": true,
+      "valid_reference": true
+     },
+     "0.1": {
+      "candidate": 0.5,
+      "reference": 0.0714,
+      "valid_candidate": true,
+      "valid_reference": true
+     }
+    },
+    "name": "load test",
+    "passed": true,
+    "rule": "replay-sweep SLO attainment of the candidate >= the fresh reference at 0.05 and 0.1 req/s, valid measurements in both windows (the absolute >= 0.9 of the 13:09 rule is information)",
+    "thresholds": {
+     "comparison": "candidate >= reference",
+     "rates_per_s": [
+      0.05,
+      0.1
+     ]
+    }
+   },
+   {
+    "clause": "5",
+    "measured": {
+     "cells_change_pct": {
+      "L2 decode-first newcomer": -4.2,
+      "L2 prefill-first long": -1.62,
+      "L2 prefill-first newcomer": -2.64,
+      "L4 decode-first newcomer": -10.89,
+      "L4 prefill-first long": 1.55,
+      "L4 prefill-first newcomer": 0.45,
+      "L6 decode-first newcomer": -8.15,
+      "L6 prefill-first long": -5.25,
+      "L6 prefill-first newcomer": 14.53
+     },
+     "geo_pct": -2.03,
+     "valid_rounds": {
+      "cand": {
+       "L2": [
+        3,
+        3
+       ],
+       "L4": [
+        3,
+        3
+       ],
+       "L6": [
+        3,
+        3
+       ]
+      },
+      "ref": {
+       "L2": [
+        3,
+        3
+       ],
+       "L4": [
+        3,
+        3
+       ],
+       "L6": [
+        3,
+        3
+       ]
+      }
+     }
+    },
+    "name": "staggered arrivals",
+    "passed": true,
+    "rule": "geometric mean change over 9 cells (L2/L4/L6 x decode-first newcomer TTFT, prefill-first newcomer median TTFT, prefill-first long TTFT; each the median of 3 rounds) <= +1.0 %, and 3 valid rounds per cell in both windows",
+    "thresholds": {
+     "geo_max_pct": 1.0,
+     "valid_rounds": 3
+    }
+   },
+   {
+    "clause": "6",
+    "detail": "The candidate's lowest sample, 306 MiB on the rank 0 host, is the first sample of its campaign (2026-09-24T15:30:57+07:00); later samples on that host stayed at or above 327 MiB.",
+    "measured": {
+     "candidate": {
+      "rank 0 host": {
+       "at": "2026-09-24T15:30:57+07:00",
+       "lowest_three_mib": [
+        306,
+        327,
+        334
+       ],
+       "median_mib": 508,
+       "min_mib": 306,
+       "samples": 111
+      },
+      "rank 1 host": {
+       "at": "2026-09-24T15:56:32+07:00",
+       "lowest_three_mib": [
+        395,
+        439,
+        450
+       ],
+       "median_mib": 666,
+       "min_mib": 395,
+       "samples": 111
+      }
+     },
+     "failure_markers": {
+      "candidate": true,
+      "reference": true
+     },
+     "reference": {
+      "rank 0 host": {
+       "at": "2026-09-24T14:33:43+07:00",
+       "lowest_three_mib": [
+        365,
+        431,
+        431
+       ],
+       "median_mib": 611,
+       "min_mib": 365,
+       "samples": 113
+      },
+      "rank 1 host": {
+       "at": "2026-09-24T14:57:13+07:00",
+       "lowest_three_mib": [
+        516,
+        517,
+        558
+       ],
+       "median_mib": 731,
+       "min_mib": 516,
+       "samples": 113
+      }
+     }
+    },
+    "name": "host memory",
+    "passed": false,
+    "rule": "candidate MemAvailable minimum >= 307 MiB (0.3 GiB) on both hosts during the campaign (sampled every 30 s), and no CUDA error / out of memory / EngineDeadError marker in either window",
+    "thresholds": {
+     "min_mib": 307
+    }
+   },
+   {
+    "clause": "7'",
+    "detail": "Fails on one difference: the 8K replay, newly served from a 4,608-token cached prefix, first differs from the cold output at token 5 with a top-2 gap of 2.125.",
+    "measured": {
+     "acceptance": {
+      "candidate": 0.4489,
+      "reference": 0.4508
+     },
+     "candidate_differences": [
+      {
+       "classification": "difference outside near-ties",
+       "comparison": "replay_vs_cold",
+       "depth": 8192,
+       "first_difference_token": 5,
+       "gap": 2.125
+      },
+      {
+       "classification": "near-tie",
+       "comparison": "extend_vs_fresh",
+       "depth": 8192,
+       "first_difference_token": 2,
+       "gap": 0.0
+      },
+      {
+       "classification": "difference outside near-ties",
+       "comparison": "replay_vs_cold",
+       "depth": 32768,
+       "first_difference_token": 15,
+       "gap": 0.875
+      },
+      {
+       "classification": "near-tie",
+       "comparison": "extend_vs_fresh",
+       "depth": 32768,
+       "first_difference_token": 10,
+       "gap": 0.125
+      },
+      {
+       "classification": "near-tie",
+       "comparison": "extend_vs_fresh",
+       "depth": 65536,
+       "first_difference_token": 0,
+       "gap": 0.25
+      }
+     ],
+     "completed_answers": true,
+     "gaps_above_2": [
+      {
+       "classification": "difference outside near-ties",
+       "comparison": "replay_vs_cold",
+       "depth": 8192,
+       "first_difference_token": 5,
+       "gap": 2.125
+      }
+     ],
+     "hits_ok": {
+      "candidate": true,
+      "reference": true
+     },
+     "markers_ok": {
+      "candidate": true,
+      "reference": true
+     },
+     "mismatches": {
+      "candidate": 2,
+      "reference": 2
+     }
+    },
+    "name": "correctness and engagement",
+    "passed": false,
+    "rule": "cached-prefix check: the candidate's differences outside near-ties <= the reference's; no candidate first-difference top-2 gap above 2.0 (a difference without a recorded gap counts as above 2.0); predicted replay hits in both windows; engagement markers present in the candidate and absent in the reference; completed-answer checks pass; acceptance >= reference - 0.0083",
+    "thresholds": {
+     "acceptance_floor_delta": 0.0083,
+     "max_gap": 2.0
+    }
+   }
+  ],
+  "name": "serving rule of 2026-09-24 13:09 as amended at 13:40 (clauses 2', 4', 7'), both fixed before any serving data",
+  "rule_1309": {
+   "checks": [
+    {
+     "clause": "1",
+     "passed": false,
+     "text": "1 decode guard: step median within +-1.0 %, no cell > +3.0 %"
+    },
+    {
+     "clause": "2",
+     "passed": true,
+     "text": "2 replay: 8K <= -50 %, 32K and 64K each <= +2.0 %"
+    },
+    {
+     "clause": "3",
+     "passed": true,
+     "text": "3 cold TTFT: no cell > +3.0 %"
+    },
+    {
+     "clause": "4",
+     "passed": false,
+     "text": "4 load test: candidate SLO attainment >= 0.9 at 0.05 and 0.1 req/s (valid)"
+    },
+    {
+     "clause": "5",
+     "passed": true,
+     "text": "5 staggered 3 rounds L2/L4/L6: geo-mean <= +1.0 %, 3 valid rounds per cell in both windows"
+    },
+    {
+     "clause": "6",
+     "passed": false,
+     "text": "6 memory: candidate MemAvailable min >= 307 MiB on both hosts; no failure marker in either window"
+    },
+    {
+     "clause": "7",
+     "passed": false,
+     "text": "7 correctness and engagement: cache check (mismatches 0, predicted hits), markers, answers, acceptance"
+    }
+   ],
+   "rule_met": false
+  },
+  "rule_met": false
+ },
+ "schema": "switchless-evidence/1",
+ "sources": [
+  "outputs/2026-09-21-base-plan.json",
+  "outputs/2026-09-23-scoring/window-steps-tp2ws-cand-1.json",
+  "outputs/2026-09-23-scoring/window-steps-tp2ws-ref-1.json",
+  "outputs/2026-09-24-tp2-weakspots/README.md",
+  "outputs/2026-09-24-tp2-weakspots/compare-steps-1.json",
+  "outputs/2026-09-24-tp2-weakspots/score-1.json",
+  "outputs/2026-09-24-tp2-weakspots/score_tp2ws.py",
+  "outputs/2026-09-24-tp2ws-cand-1/memavailable.jsonl",
+  "outputs/2026-09-24-tp2ws-cand-1/replay/report.json",
+  "outputs/2026-09-24-tp2ws-cand-1/tp2ws-cache/kda-ckpt-cache-check/report.json",
+  "outputs/2026-09-24-tp2ws-ref-1/memavailable.jsonl",
+  "outputs/2026-09-24-tp2ws-ref-1/replay/report.json",
+  "outputs/2026-09-24-tp2ws-ref-1/tp2ws-cache/kda-ckpt-cache-check/report.json"
+ ],
+ "what": "The TP2 profile (lab plan 32dd2ab8 = the previous TP2 profile f1771e0a plus prefix-cache retention 4,608, the prefix-cache contract receipt and the MoE mixed-step split) measured against a fresh back-to-back window of the previous TP2 profile on the same node pair, and the rule it was judged by. Promoted by the lab owner over three failed guard clauses."
+}

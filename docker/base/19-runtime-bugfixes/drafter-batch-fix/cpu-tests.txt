@@ -1,0 +1,16 @@
+test_install_idempotence_and_complete_prevalidation (__main__.InstallTests.test_install_idempotence_and_complete_prevalidation) ... ok
+test_manifest_matches_all_sources (__main__.InstallTests.test_manifest_matches_all_sources) ... ok
+test_full_attention_and_non_sm12_unchanged (__main__.JITIdentityTests.test_full_attention_and_non_sm12_unchanged) ... ok
+test_sm12_sliding_cannot_reuse_old_jit_identity (__main__.JITIdentityTests.test_sm12_sliding_cannot_reuse_old_jit_identity) ... ok
+test_exact_workspace_bound_and_undersized_rejection (__main__.XQAPolicyTests.test_exact_workspace_bound_and_undersized_rejection) ... ok
+test_guard_runs_before_gpu_launch (__main__.XQAPolicyTests.test_guard_runs_before_gpu_launch) ... ok
+test_invalid_geometry_rejected (__main__.XQAPolicyTests.test_invalid_geometry_rejected) ... ok
+test_retained_launch_policy_exhibits_the_regression (__main__.XQAPolicyTests.test_retained_launch_policy_exhibits_the_regression) ... ok
+test_split_count_is_stable_for_live_batch_and_graph_widths (__main__.XQAPolicyTests.test_split_count_is_stable_for_live_batch_and_graph_widths) ... ok
+test_window_and_hardware_bounds (__main__.XQAPolicyTests.test_window_and_hardware_bounds) ... ok
+test_workspace_index_overflow_rejected (__main__.XQAPolicyTests.test_workspace_index_overflow_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 2.911s
+
+OK

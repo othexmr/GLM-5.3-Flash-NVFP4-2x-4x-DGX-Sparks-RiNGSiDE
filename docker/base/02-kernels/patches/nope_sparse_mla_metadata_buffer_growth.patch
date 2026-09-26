@@ -1,0 +1,20 @@
+diff --git a/glm53_sparse_mla/backend.py b/glm53_sparse_mla/backend.py
+index cdba907..dc76512 100644
+--- a/glm53_sparse_mla/backend.py
++++ b/glm53_sparse_mla/backend.py
+@@ -245,6 +245,15 @@ class Glm53SparseMLAMetadataBuilder(
+         req_id_per_token = np.repeat(
+             np.arange(seg_lengths.shape[0], dtype=np.int32), seg_lengths
+         )
++        # A distributed worker can receive a larger padded prefill batch than
++        # the rank-local scheduler estimate used when this builder was
++        # constructed. Grow once on the first such request instead of failing
++        # the pair while copying the request ids. The discarded cold warm-up
++        # pays this allocation; steady-state requests reuse the larger buffer.
++        if req_id_per_token.shape[0] > self.req_id_per_token_buffer.shape[0]:
++            self.req_id_per_token_buffer = torch.empty(
++                (req_id_per_token.shape[0],), dtype=torch.int32, device=self.device
++            )
+         self.req_id_per_token_buffer.fill_(0)
+         self.req_id_per_token_buffer[: req_id_per_token.shape[0]].copy_(
+             torch.from_numpy(req_id_per_token), non_blocking=True

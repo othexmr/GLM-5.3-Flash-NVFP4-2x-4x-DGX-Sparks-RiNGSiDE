@@ -1,0 +1,163 @@
+--- a/flashinfer/data/csrc/xqa/mha.cu
++++ b/flashinfer/data/csrc/xqa/mha.cu
+@@ -14,6 +14,8 @@
+  * See the License for the specific language governing permissions and
+  * limitations under the License.
+  */
++
++#include <stdexcept>
+ 
+ #include "cuda_hint.cuh"
+ #include "defines.h"
+@@ -3098,6 +3100,67 @@
+ 
+ static uint32_t const hostSmemSize = configureKernel();
+ 
++#if XQA_BATCH_INVARIANT_SLIDING && SLIDING_WINDOW
++// A request must keep the same partial-softmax partition when other requests
++// join the batch or graph padding / page-table capacity changes. Retain bounded
++// split-K parallelism, sized by the configured window and hardware only.
++static uint32_t batchInvariantSlidingSplitCount(uint32_t multiProcessorCount,
++                                                uint32_t nbKHeads,
++                                                uint32_t slidingWinSize) {
++  if (nbKHeads == 0 || slidingWinSize == 0) {
++    throw std::runtime_error("batch-invariant XQA requires KV heads and a positive window");
++  }
++  if (!allowMultiBlockMode) {
++    return 1;
++  }
++  uint32_t const windowTiles = slidingWinSize / ctaTile.x +
++                               uint32_t(slidingWinSize % ctaTile.x != 0);
++  return std::min<uint32_t>(std::max<uint32_t>(1U, multiProcessorCount / nbKHeads),
++                            windowTiles);
++}
++
++// Fixed per-request splitting grows scratch with the batch, unlike the old
++// occupancy heuristic. Check the exact kernel layout before launching; never
++// shrink the split count to fit scratch because that would change the math.
++void validateBatchInvariantSlidingWorkspace(uint32_t multiProcessorCount, uint32_t nbKHeads,
++                                            uint32_t slidingWinSize, uint32_t batchSize,
++                                            uint32_t qSeqLen, uint64_t semaphoreBytes,
++                                            uint64_t scratchBytes) {
++  uint32_t const splits =
++      batchInvariantSlidingSplitCount(multiProcessorCount, nbKHeads, slidingWinSize);
++  if (batchSize == 0 || qSeqLen == 0) {
++    throw std::runtime_error("batch-invariant XQA requires a nonempty batch and query width");
++  }
++  if (splits == 1) {
++    return;
++  }
++  uint64_t nbSeq = uint64_t(batchSize) * nbKHeads;
++#if SPEC_DEC
++  uint64_t const headTokens = uint64_t(qSeqLen) * headGrpSize;
++  uint64_t const tokenBlocks = headTokens / rowsPerBlock + (headTokens % rowsPerBlock != 0);
++  if (tokenBlocks > 0xffffffffULL / nbSeq) {
++    throw std::runtime_error("batch-invariant XQA workspace index overflow");
++  }
++  nbSeq *= tokenBlocks;
++#endif
++  if (nbSeq > 0xffffffffULL / splits) {
++    throw std::runtime_error("batch-invariant XQA workspace index overflow");
++  }
++  uint32_t const nbSubSeq = uint32_t(nbSeq * splits);
++  using ScratchBuf = Array2D<LdGrain, nbValidRows, SharedMem::XSmemBuffer::cols>;
++  using PartialTile = Vec<ScratchBuf, gemm1WarpsPerGrp * nbHeadSplits>;
++  Segmenter<uint64_t> layout;
++  layout.newSeg<SMemWarpRowMax>(nbSubSeq, sizeof(SMemWarpRowMax));
++  layout.newSeg<SMemWarpRowMax>(nbSubSeq, sizeof(SMemWarpRowMax));
++  layout.newSeg<PartialTile>(nbSubSeq, sizeof(PartialTile));
++  uint64_t const requiredScratch = layout.getEndOffset();
++  if (requiredScratch > 0xffffffffULL || scratchBytes < requiredScratch ||
++      semaphoreBytes < nbSeq * sizeof(uint32_t)) {
++    throw std::runtime_error("batch-invariant XQA workspace is too small for fixed sliding splits");
++  }
++}
++#endif
++
+ void launchMHAFlashInfer(uint32_t multiProcessorCount, uint32_t nbKHeads, uint32_t slidingWinSize,
+                          float qScale, float const* qScalePtr, OutputHead* output,
+ #if LOW_PREC_OUTPUT
+@@ -3121,11 +3184,15 @@
+ #endif
+                          cudaStream_t stream) {
+   uint32_t const nbSubSeqPerSeq = [&]() -> uint32_t {
++#if XQA_BATCH_INVARIANT_SLIDING && SLIDING_WINDOW
++    return batchInvariantSlidingSplitCount(multiProcessorCount, nbKHeads, slidingWinSize);
++#else
+     if (!allowMultiBlockMode) {
+       return 1;
+     }
+     return std::min<uint32_t>(std::max<uint32_t>(1U, multiProcessorCount / (batchSize * nbKHeads)),
+                               divUp(maxSeqLen, ctaTile.x));
++#endif
+   }();
+ #if SPEC_DEC
+   const uint32_t nbTokenBlocksPerGrp = divUp(qSeqLen * headGrpSize, rowsPerBlock);
+--- a/flashinfer/data/csrc/xqa/mha.h
++++ b/flashinfer/data/csrc/xqa/mha.h
+@@ -108,6 +108,13 @@
+                                             // but we have to match trt-llm API.
+ };
+ 
++#if XQA_BATCH_INVARIANT_SLIDING && SLIDING_WINDOW
++void validateBatchInvariantSlidingWorkspace(uint32_t multiProcessorCount, uint32_t nbKHeads,
++                                            uint32_t slidingWinSize, uint32_t batchSize,
++                                            uint32_t qSeqLen, uint64_t semaphoreBytes,
++                                            uint64_t scratchBytes);
++#endif
++
+ void launchMHA(
+     cudaDeviceProp const& prop, uint32_t const nbKHeads,
+ #if SLIDING_WINDOW
+--- a/flashinfer/data/csrc/xqa/xqa_wrapper.cu
++++ b/flashinfer/data/csrc/xqa/xqa_wrapper.cu
+@@ -126,6 +126,13 @@
+   }
+ #endif
+ 
++#if XQA_BATCH_INVARIANT_SLIDING && SLIDING_WINDOW
++  validateBatchInvariantSlidingWorkspace(
++      multiProcessorCount, nbKHeads, slidingWinSize, batchSize, qSeqLen,
++      uint64_t(semaphores.numel()) * get_element_size(semaphores),
++      uint64_t(scratch.numel()) * get_element_size(scratch));
++#endif
++
+   launchMHAFlashInfer(multiProcessorCount, nbKHeads, slidingWinSize, qScale, qScalePtr,
+                       reinterpret_cast<OutputHead*>(output.data_ptr()),
+ #if LOW_PREC_OUTPUT
+--- a/flashinfer/jit/xqa.py
++++ b/flashinfer/jit/xqa.py
+@@ -158,11 +158,22 @@
+     else:
+         flag_sm90_mha = ["-DUSE_SM90_MHA=0"]
+ 
++    # SM12x DFlash sliding attention uses a stable per-request split count.
++    # Version the JIT URI as well as the flags: existing prebuilt/cached modules
++    # must never satisfy this new math policy under their old identity.
++    batch_invariant_sliding = use_sliding_window and any(
++        major == 12 for major, _ in compilation_context.TARGET_CUDA_ARCHS
++    )
++    sliding_suffix = "_batch_invariant_sliding_v1" if batch_invariant_sliding else ""
++    flag_batch_invariant_sliding = (
++        ["-DXQA_BATCH_INVARIANT_SLIDING=1"] if batch_invariant_sliding else []
++    )
++
+     # Suffix the URI only when ragged Q actually changes the compile flags
+     # (i.e. it suppressed the SPEC_Q_SEQ_LEN specialization above).
+     ragged_suffix = "_ragged_q" if ragged_changes_flags else ""
+     return gen_jit_spec(
+-        f"xqa_input_{filename_safe_dtype_map[input_dtype]}_kv_cache_{filename_safe_dtype_map[kv_cache_dtype]}_output_{filename_safe_dtype_map[output_dtype]}_page_size_{page_size}_head_dim_{head_dim}_head_group_ratio_{head_group_ratio}_use_sliding_window_{use_sliding_window}_use_spec_dec_{use_spec_dec}_spec_q_seq_len_{q_seq_len}{ragged_suffix}",
++        f"xqa_input_{filename_safe_dtype_map[input_dtype]}_kv_cache_{filename_safe_dtype_map[kv_cache_dtype]}_output_{filename_safe_dtype_map[output_dtype]}_page_size_{page_size}_head_dim_{head_dim}_head_group_ratio_{head_group_ratio}_use_sliding_window_{use_sliding_window}_use_spec_dec_{use_spec_dec}_spec_q_seq_len_{q_seq_len}{ragged_suffix}{sliding_suffix}",
+         sources,
+         extra_cuda_cflags=xqa_nvcc_flags
+         + sm_nvcc_flags
+@@ -175,7 +186,8 @@
+         + flag_low_prec_output
+         + flag_spec_dec
+         + flag_mla_wrapper
+-        + flag_sm90_mha,
++        + flag_sm90_mha
++        + flag_batch_invariant_sliding,
+         extra_ldflags=["-lcuda"],  # Add CUDA Driver API library
+     )
+ 

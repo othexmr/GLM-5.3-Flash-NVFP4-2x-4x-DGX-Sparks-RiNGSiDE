@@ -1,0 +1,250 @@
+{
+ "schema": 2,
+ "kind": "file-overlay",
+ "upstream": "https://github.com/vllm-project/vllm.git",
+ "reference_base": "98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0)",
+ "authors": "the GLM-5.3 RiNGSiDE recipe lab (othexmr), except the third-party changes named in each patch header and in NOTICE",
+ "licence": "upstream licence of each file (Apache-2.0); see licenses/README.md",
+ "patches": [
+  {
+   "path": "tp2/config-vllm.py.patch",
+   "profile": "tp2",
+   "target": "vllm/config/vllm.py"
+  },
+  {
+   "path": "tp2/entrypoints-launchers-api_server-entry.py.patch",
+   "profile": "tp2",
+   "target": "vllm/entrypoints/launchers/api_server/entry.py"
+  },
+  {
+   "path": "tp2/model_executor-kernels-mhc-tilelang.py.patch",
+   "profile": "tp2",
+   "target": "vllm/model_executor/kernels/mhc/tilelang.py"
+  },
+  {
+   "path": "tp2/model_executor-layers-attention-mla_attention.py.patch",
+   "profile": "tp2",
+   "target": "vllm/model_executor/layers/attention/mla_attention.py"
+  },
+  {
+   "path": "tp2/model_executor-layers-fused_moe-b12x.py.patch",
+   "profile": "tp2",
+   "target": "vllm/model_executor/layers/fused_moe/b12x.py"
+  },
+  {
+   "path": "tp2/models-glm5next-nvidia-attention.py.patch",
+   "profile": "tp2",
+   "target": "vllm/models/glm5next/nvidia/attention.py"
+  },
+  {
+   "path": "tp2/models-glm5next-nvidia-kda.py.patch",
+   "profile": "tp2",
+   "target": "vllm/models/glm5next/nvidia/kda.py"
+  },
+  {
+   "path": "tp2/models-glm5next-nvidia-model.py.patch",
+   "profile": "tp2",
+   "target": "vllm/models/glm5next/nvidia/model.py"
+  },
+  {
+   "path": "tp2/models-glm5next-nvidia-ops-kpool_compress.py.patch",
+   "profile": "tp2",
+   "target": "vllm/models/glm5next/nvidia/ops/kpool_compress.py"
+  },
+  {
+   "path": "tp2/models-glm5next-nvidia-ops-third_party-kda-fused_recurrent.py.patch",
+   "profile": "tp2",
+   "target": "vllm/models/glm5next/nvidia/ops/third_party/kda/fused_recurrent.py"
+  },
+  {
+   "path": "tp2/v1-core-kv_cache_utils.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/core/kv_cache_utils.py"
+  },
+  {
+   "path": "tp2/v1-core-sched-scheduler.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/core/sched/scheduler.py"
+  },
+  {
+   "path": "tp2/v1-core-single_type_kv_cache_manager.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/core/single_type_kv_cache_manager.py"
+  },
+  {
+   "path": "tp2/v1-sample-ops-topk_topp_triton.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/sample/ops/topk_topp_triton.py"
+  },
+  {
+   "path": "tp2/v1-worker-gpu-async_utils.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/worker/gpu/async_utils.py"
+  },
+  {
+   "path": "tp2/v1-worker-gpu-model_runner.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/worker/gpu/model_runner.py"
+  },
+  {
+   "path": "tp2/v1-worker-gpu-sample-gumbel.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/worker/gpu/sample/gumbel.py"
+  },
+  {
+   "path": "tp2/v1-worker-gpu-sample-sampler.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/worker/gpu/sample/sampler.py"
+  },
+  {
+   "path": "tp2/v1-worker-gpu-spec_decode-rejection_sampler.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/worker/gpu/spec_decode/rejection_sampler.py"
+  },
+  {
+   "path": "tp2/v1-worker-gpu-spec_decode-rejection_sampler_utils.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py"
+  },
+  {
+   "path": "tp2/v1-worker-gpu_worker.py.patch",
+   "profile": "tp2",
+   "target": "vllm/v1/worker/gpu_worker.py"
+  },
+  {
+   "path": "tp4/config-vllm.py.patch",
+   "profile": "tp4",
+   "target": "vllm/config/vllm.py"
+  },
+  {
+   "path": "tp4/distributed-device_communicators-cuda_communicator.py.patch",
+   "profile": "tp4",
+   "target": "vllm/distributed/device_communicators/cuda_communicator.py"
+  },
+  {
+   "path": "tp4/entrypoints-launchers-api_server-entry.py.patch",
+   "profile": "tp4",
+   "target": "vllm/entrypoints/launchers/api_server/entry.py"
+  },
+  {
+   "path": "tp4/model_executor-kernels-linear-nvfp4-b12x.py.patch",
+   "profile": "tp4",
+   "target": "vllm/model_executor/kernels/linear/nvfp4/b12x.py"
+  },
+  {
+   "path": "tp4/model_executor-kernels-mhc-tilelang.py.patch",
+   "profile": "tp4",
+   "target": "vllm/model_executor/kernels/mhc/tilelang.py"
+  },
+  {
+   "path": "tp4/model_executor-layers-attention-mla_attention.py.patch",
+   "profile": "tp4",
+   "target": "vllm/model_executor/layers/attention/mla_attention.py"
+  },
+  {
+   "path": "tp4/model_executor-layers-fused_moe-b12x.py.patch",
+   "profile": "tp4",
+   "target": "vllm/model_executor/layers/fused_moe/b12x.py"
+  },
+  {
+   "path": "tp4/model_executor-layers-fused_moe-runner-moe_runner.py.patch",
+   "profile": "tp4",
+   "target": "vllm/model_executor/layers/fused_moe/runner/moe_runner.py"
+  },
+  {
+   "path": "tp4/model_executor-layers-fused_moe-runner-moe_runner_interface.py.patch",
+   "profile": "tp4",
+   "target": "vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py"
+  },
+  {
+   "path": "tp4/model_executor-layers-linear.py.patch",
+   "profile": "tp4",
+   "target": "vllm/model_executor/layers/linear.py"
+  },
+  {
+   "path": "tp4/model_executor-layers-mla.py.patch",
+   "profile": "tp4",
+   "target": "vllm/model_executor/layers/mla.py"
+  },
+  {
+   "path": "tp4/model_executor-layers-sparse_attn_indexer_kpool.py.patch",
+   "profile": "tp4",
+   "target": "vllm/model_executor/layers/sparse_attn_indexer_kpool.py"
+  },
+  {
+   "path": "tp4/models-glm5next-nvidia-attention.py.patch",
+   "profile": "tp4",
+   "target": "vllm/models/glm5next/nvidia/attention.py"
+  },
+  {
+   "path": "tp4/models-glm5next-nvidia-kda.py.patch",
+   "profile": "tp4",
+   "target": "vllm/models/glm5next/nvidia/kda.py"
+  },
+  {
+   "path": "tp4/models-glm5next-nvidia-model.py.patch",
+   "profile": "tp4",
+   "target": "vllm/models/glm5next/nvidia/model.py"
+  },
+  {
+   "path": "tp4/models-glm5next-nvidia-ops-kpool_compress.py.patch",
+   "profile": "tp4",
+   "target": "vllm/models/glm5next/nvidia/ops/kpool_compress.py"
+  },
+  {
+   "path": "tp4/v1-core-kv_cache_utils.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/core/kv_cache_utils.py"
+  },
+  {
+   "path": "tp4/v1-core-sched-scheduler.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/core/sched/scheduler.py"
+  },
+  {
+   "path": "tp4/v1-core-single_type_kv_cache_manager.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/core/single_type_kv_cache_manager.py"
+  },
+  {
+   "path": "tp4/v1-sample-ops-topk_topp_triton.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/sample/ops/topk_topp_triton.py"
+  },
+  {
+   "path": "tp4/v1-worker-gpu-async_utils.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/worker/gpu/async_utils.py"
+  },
+  {
+   "path": "tp4/v1-worker-gpu-model_runner.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/worker/gpu/model_runner.py"
+  },
+  {
+   "path": "tp4/v1-worker-gpu-sample-gumbel.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/worker/gpu/sample/gumbel.py"
+  },
+  {
+   "path": "tp4/v1-worker-gpu-sample-sampler.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/worker/gpu/sample/sampler.py"
+  },
+  {
+   "path": "tp4/v1-worker-gpu-spec_decode-rejection_sampler.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/worker/gpu/spec_decode/rejection_sampler.py"
+  },
+  {
+   "path": "tp4/v1-worker-gpu-spec_decode-rejection_sampler_utils.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py"
+  },
+  {
+   "path": "tp4/v1-worker-gpu_worker.py.patch",
+   "profile": "tp4",
+   "target": "vllm/v1/worker/gpu_worker.py"
+  }
+ ]
+}

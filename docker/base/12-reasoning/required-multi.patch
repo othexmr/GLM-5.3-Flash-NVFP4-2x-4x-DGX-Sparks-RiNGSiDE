@@ -1,0 +1,158 @@
+--- a/vllm/tool_parsers/streaming.py
++++ b/vllm/tool_parsers/streaming.py
+@@ -124,6 +124,43 @@
+     )
+ 
+ 
++def _completed_required_tools(text: str | None) -> list[dict]:
++    """Read complete tool objects from an unfinished JSON array.
++
++    Required tool arguments are emitted atomically per completed object. This
++    avoids partial-JSON repairs changing escapes or assigning an old object's
++    tail to a newly started array index when a delta crosses tool boundaries.
++    """
++    if not text:
++        return []
++    decoder = json.JSONDecoder()
++    pos = len(text) - len(text.lstrip())
++    if pos >= len(text) or text[pos] != "[":
++        return []
++    pos += 1
++    result = []
++    while True:
++        while pos < len(text) and text[pos].isspace():
++            pos += 1
++        if pos >= len(text) or text[pos] == "]":
++            return result
++        try:
++            obj, end = decoder.raw_decode(text, pos)
++        except json.JSONDecodeError:
++            return result
++        if not isinstance(obj, dict) or not isinstance(obj.get("name"), str):
++            return result
++        if "parameters" not in obj:
++            return result
++        result.append(obj)
++        pos = end
++        while pos < len(text) and text[pos].isspace():
++            pos += 1
++        if pos >= len(text) or text[pos] != ",":
++            return result
++        pos += 1
++
++
+ def extract_required_tool_call_streaming(
+     *,
+     previous_text: str,
+@@ -133,91 +170,23 @@
+     tool_call_idx: int | None,
+     tool_call_id_type: str,
+ ) -> tuple[DeltaMessage | None, bool]:
+-    if current_text is None or current_text == "":
+-        # if the current text is empty, we cannot parse it
+-        return None, function_name_returned
+-    try:
+-        flags = Allow.ALL
+-        obj, _ = partial_json_loads(current_text, flags)
+-    except (
+-        partial_json_parser.core.exceptions.MalformedJSON,
+-        json.JSONDecodeError,
+-    ):
+-        obj = None
+-
+-    # check if the current text is a valid array
+-    # containing a partial tool calling object
+-    # if not repeat
+-    if obj is None or not isinstance(obj, list) or not len(obj) > 0:
+-        function_name_returned = False
+-        delta_message = None
+-    else:
+-        _, finishes_previous_tool = filter_delta_text(delta_text, previous_text)
+-        # take the last tool call from the generated list
+-        current_tool_call = obj[-1]
+-
+-        # once parameters have been generated the name is complete as well
+-        if not finishes_previous_tool and (
+-            "name" not in current_tool_call or "parameters" not in current_tool_call
+-        ):
+-            function_name_returned = False
+-            delta_message = None
+-        else:
+-            if not function_name_returned:
+-                # get partly generated arguments from the latest tool call
+-                param_match = re.search(
+-                    r'.*"parameters":\s*(.*)', current_text, re.DOTALL
+-                )
+-                if param_match:
+-                    arguments = param_match.group(1)
+-                    arguments_prefix = current_text[: param_match.start(1)]
+-                    arguments, _ = filter_delta_text(arguments, arguments_prefix)
+-                else:
+-                    arguments = ""
+-
+-                # if this iteration finishes a previous tool call but a
+-                # new incomplete tool is already generated, take the
+-                # previous from the list
+-                if finishes_previous_tool and "parameters" not in current_tool_call:
+-                    current_tool_call = obj[-2]
+-
+-                function_name_returned = True
+-                tool_call_id = make_tool_call_id(
+-                    id_type=tool_call_id_type,
+-                    func_name=current_tool_call["name"],
+-                    idx=tool_call_idx,
+-                )
+-                delta_message = DeltaMessage(
+-                    tool_calls=[
+-                        DeltaToolCall(
+-                            id=tool_call_id,
+-                            function=DeltaFunctionCall(
+-                                name=current_tool_call["name"], arguments=arguments
+-                            ),
+-                            index=len(obj) - 1,
+-                            type="function",
+-                        )
+-                    ]
+-                )
+-
+-            else:
+-                delta_text, _ = filter_delta_text(delta_text, previous_text)
+-
+-                if delta_text != "":
+-                    delta_message = DeltaMessage(
+-                        tool_calls=[
+-                            DeltaToolCall(
+-                                function=DeltaFunctionCall(
+-                                    # OpenAI API returns None
+-                                    # instead of name every time
+-                                    name=None,
+-                                    arguments=delta_text,
+-                                ),
+-                                index=len(obj) - 1,
+-                            )
+-                        ]
+-                    )
+-                else:
+-                    delta_message = None
+-
+-    return delta_message, function_name_returned
++    previous = _completed_required_tools(previous_text)
++    current = _completed_required_tools(current_text)
++    calls = []
++    for index in range(len(previous), len(current)):
++        obj = current[index]
++        calls.append(DeltaToolCall(
++            id=make_tool_call_id(
++                id_type=tool_call_id_type,
++                func_name=obj["name"],
++                idx=None if tool_call_idx is None else tool_call_idx + index - len(previous),
++            ),
++            type="function",
++            index=index,
++            function=DeltaFunctionCall(
++                name=obj["name"],
++                arguments=json.dumps(obj["parameters"], ensure_ascii=False),
++            ),
++        ))
++    return (DeltaMessage(tool_calls=calls) if calls else None,
++            function_name_returned or bool(calls))

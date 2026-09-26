@@ -1,0 +1,227 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/core/sched/scheduler.py
+Preimage:    sha256 db8796f984d2d8a1b77e8f809d5e45b7d06904fc624490badcb0df133186952e
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    image-baked lab change (mixed-prefill repair build layer) on the GLM-5.3 backport file; differs from both upstream and the backport
+Evidence:    baked by the image build layer 017fd0ba (installed hash paired with the image on both ranks; image source closure, 2026-09-21)
+Postimage:   sha256 851b7cc0d3af0b13242b6520dc951eeb9010ff67a41ec654703e5132f69bb628 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Attribution: sparkring-kda-ckpt (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/core/sched/scheduler.py b/vllm/v1/core/sched/scheduler.py
+index 7c5f36fb35b06a119f1e85111869b30b0cdc1058..d6c7bdb9ca78e0640b7c333bdeb27b2f30566138 100644
+--- a/vllm/v1/core/sched/scheduler.py
++++ b/vllm/v1/core/sched/scheduler.py
+@@ -1,6 +1,22 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
+-from glm53_speedup.scheduler import bridge as _speedup_bridge, prefill_limit as _speedup_prefill_limit, order_running as _speedup_order_running, alignment_limit as _speedup_alignment_limit
++# Modified by the GLM-5.3 lab (replay-boundary, 2026-09-24): one complete hybrid state kept at the replay
++# boundary R(P) (outputs/2026-09-24-replay-boundary/DESIGN.md). Inert unless GLM53_REPLAY_BOUNDARY=1.
++# Modified by the GLM-5.3 lab (kda-checkpoints, 2026-09-24): KDA checkpoints saved inside a prefill chunk,
++# after FujitsuPolycom/sparkring runtime/images/sparkring-r35/patches/vllm-sparkring.patch @ 90d510a5
++# (Apache-2.0; see outputs/2026-09-24-kda-prefill-checkpoints/NOTICE). Inert unless GLM53_KDA_CKPT=1.
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): glm53_speedup scheduling hooks (prefill limits and alignment,
++# running order, waiting-request deferral, draft-acceptance bridge), in-chunk KDA checkpoint planning (GLM53_KDA_CKPT),
++# the replay-boundary chunk stop and export (GLM53_REPLAY_BOUNDARY) and an opt-in prefix-cache contract log line.
++from glm53_speedup.scheduler import bridge as _speedup_bridge, prefill_limit as _speedup_prefill_limit, order_running as _speedup_order_running, alignment_limit as _speedup_alignment_limit, defer_waiting as _speedup_defer_waiting
++try:  # replay-boundary: mounted with the candidate; absent = the feature stays off
++    import glm53_replay_boundary as _glm53_rb
++except ImportError:  # pragma: no cover
++    _glm53_rb = None
++try:  # kda-checkpoints: mounted with the candidate; absent = the feature stays off
++    import glm53_kda_ckpt_plan as _glm53_ckpt
++except ImportError:  # pragma: no cover
++    _glm53_ckpt = None
+ import itertools
+ import time
+ from collections import defaultdict, deque
+@@ -345,6 +361,16 @@ class Scheduler(SchedulerInterface):
+             and self.hash_block_size < self.block_size
+             and self.kv_cache_manager.coordinator.enable_partial_hash_hits
+         )
++        # kda-checkpoints: KDA states exported from inside a prefill chunk (GLM53_KDA_CKPT=1). Plans live for one
++        # scheduling pass: _mamba_block_aligned_split writes them, the mamba managers read them while allocating,
++        # the SchedulerOutput carries the scheduled ones to the workers.
++        self._glm53_ckpt_plans: dict[str, tuple[int, int, tuple[int, ...]]] = {}
++        self._glm53_ckpt_counts = {"plans": 0, "dropped": 0}
++        self._glm53_ckpt_enabled = _glm53_ckpt_enable(self)
++
++        # replay-boundary: validate the geometry and install the boundary registry (GLM53_REPLAY_BOUNDARY=1)
++        self._glm53_rb = _glm53_rb is not None and _glm53_rb.enable(self)
++        _prefix_retention_contract(self)
+ 
+         # Counts of non-empty steps scheduled / processed. update_from_output
+         # is called once per scheduled step in FIFO order, so these stay in sync.
+@@ -457,10 +483,25 @@ class Scheduler(SchedulerInterface):
+             if self.mamba_partial_cache_hit
+             else 0
+         )
++        # replay-boundary (GLM53_REPLAY_BOUNDARY=1): R(P), the longest prefix a replay can hit under the DFlash2
++        # drafter, replaces the prompt-tail stop (reachable only by verbatim output re-sends) and, without in-chunk
++        # KDA exports (where that stop would cost a forward), the block-floored DFlash backoff it supersedes; a chunk
++        # starting mid-block runs on to the next mandatory stop (the managers mask the column it started in).
++        glm53_rb = (
++            _glm53_rb.request_boundary(
++                self, request, block_size, last_cache_position, num_external_computed_tokens
++            )
++            if getattr(self, "_glm53_rb", False)
++            else None
++        )
++        if glm53_rb is not None:
++            tail_boundary = glm53_rb.stop
++            if glm53_rb.stop and not getattr(self, "_glm53_ckpt_enabled", False):
++                last_cache_position = 0
+         stops = (
+             # Same invariant: a chunk starting mid-block stops at the boundary
+             # rather than running past it.
+-            next_block_boundary if start % block_size != 0 else 0,
++            next_block_boundary if start % block_size != 0 and glm53_rb is None else 0,
+             # Never run past the last cacheable block boundary mid-chunk.
+             last_cache_position,
+             # Fine-grained hits: the prompt's partial-tail entry can only be
+@@ -475,6 +516,29 @@ class Scheduler(SchedulerInterface):
+             if start < request.shared_prefix_boundary < end
+             else 0,
+         )
++        if getattr(self, "_glm53_ckpt_enabled", False):
++            # kda-checkpoints: run past the stops whose states this chunk exports itself (block-grid positions,
++            # chunk-aligned from a block-aligned start; pure prompt prefill, no connector tokens).
++            self._glm53_ckpt_plans.pop(request.request_id, None)
++            if (
++                block_size == self.block_size
++                and (start % block_size == 0 or glm53_rb is not None)
++                and not num_external_computed_tokens
++                and request.num_output_tokens == 0
++                and request.num_tokens == request.num_prompt_tokens
++                and not request.has_encoder_inputs
++            ):
++                if glm53_rb is not None:
++                    # replay-boundary: R(P) is exported too (off the grid, into the column of its block), also from
++                    # a mid-block start; a column clash ends the chunk at R(P) instead.
++                    ckpt_end, exports = _glm53_rb.plan_chunk(
++                        start, end, stops, block_size, glm53_rb.tokens, _glm53_ckpt.MAX_EXPORTS
++                    )
++                else:
++                    ckpt_end, exports = _glm53_ckpt.plan_chunk(start, end, stops, block_size)
++                if exports:
++                    self._glm53_ckpt_plans[request.request_id] = (start, ckpt_end, exports)
++                    return max(ckpt_end - start, 0)
+         # Stop at the earliest mandatory position strictly inside the chunk.
+         end = min((s for s in stops if start < s < end), default=end)
+         return max(end - start, 0)
+@@ -1015,6 +1079,10 @@ class Scheduler(SchedulerInterface):
+                     assert num_new_tokens > 0
+ 
+                     num_new_tokens = _speedup_prefill_limit(self, request, num_new_tokens)
++                    if num_new_tokens == 0 and _speedup_defer_waiting(self, request):
++                        request_queue.pop_request()
++                        step_skipped_waiting.prepend_request(request)
++                        continue
+                     # Apply Mamba alignment before encoder caps.
+                     if self.need_mamba_block_aligned_split:
+                         num_new_tokens = self._mamba_block_aligned_split(
+@@ -1374,6 +1442,9 @@ class Scheduler(SchedulerInterface):
+             ec_manager_metadata=self.encoder_cache_manager.get_manager_metadata(),
+         )
+ 
++        if getattr(self, "_glm53_ckpt_enabled", False):
++            _glm53_ckpt_attach(self, scheduler_output, num_scheduled_tokens)
++
+         # NOTE(Kuntai): this function is designed for multiple purposes:
+         # 1. Plan the KV cache store
+         # 2. Wrap up all the KV cache load / save ops into an opaque object
+@@ -2650,6 +2721,8 @@ class Scheduler(SchedulerInterface):
+             self.prev_step_scheduled_req_ids.clear()
+ 
+         reset_successful = self.kv_cache_manager.reset_prefix_cache()
++        if reset_successful and getattr(self, "_glm53_rb", False) and _glm53_rb.registry() is not None:
++            _glm53_rb.registry().clear()  # replay-boundary: the pool dropped every entry
+         if reset_running_requests and not reset_successful:
+             raise RuntimeError(
+                 "Failed to reset KV cache even when all the running requests are "
+@@ -3114,3 +3187,83 @@ class Scheduler(SchedulerInterface):
+         self.failed_recving_kv_req_ids |= async_failed_req_ids
+         # Return sync affected IDs to skip in update_from_output
+         return sync_failed_req_ids
++
++def _prefix_retention_contract(scheduler):
++    # One host-side startup receipt; no scheduling, pool, or device mutation.
++    import os
++    if os.environ.get("GLM53_PREFIX_CACHE_CONTRACT") != "1":
++        return
++    import json
++    cache = scheduler.cache_config
++    coord = scheduler.kv_cache_manager.coordinator
++    logger.info("GLM53_PREFIX_CACHE_CONTRACT %s", json.dumps(dict(
++        schema=1, scheduler_block_size=scheduler.block_size,
++        hash_block_size=scheduler.hash_block_size,
++        effective_cache_block_size=cache.block_size,
++        retention_interval=cache.prefix_cache_retention_interval,
++        enable_prefix_caching=cache.enable_prefix_caching,
++        mamba_cache_mode=cache.mamba_cache_mode,
++        use_eagle=scheduler.use_eagle,
++        mamba_has_prefill_checkpoint_blocks=scheduler.mamba_has_prefill_checkpoint_blocks,
++        mamba_partial_cache_hit=scheduler.mamba_partial_cache_hit,
++        cache_hit_alignment_tokens=coord._cache_hit_alignment_tokens,
++        eagle_group_ids=sorted(coord.eagle_group_ids),
++        manager_block_sizes=[m.block_size for m in coord.single_type_managers],
++        max_num_scheduled_tokens=scheduler.max_num_scheduled_tokens), sort_keys=True))
++
++
++def _glm53_ckpt_enable(scheduler) -> bool:
++    """kda-checkpoints: validate the geometry once at startup and share the plan table with every mamba manager.
++    GLM53_KDA_CKPT=1 on an unsupported geometry fails the boot instead of running silently without the feature."""
++    if _glm53_ckpt is None or not _glm53_ckpt.ENABLED:
++        return False
++    cache = scheduler.cache_config
++    mamba = [m for m in scheduler.kv_cache_manager.coordinator.single_type_managers
++             if isinstance(m.kv_cache_spec, MambaSpec)]
++    problems = []
++    if not scheduler.need_mamba_block_aligned_split:
++        problems.append("mamba cache mode is not align")
++    if not cache.enable_prefix_caching:
++        problems.append("prefix caching is off")
++    if getattr(cache, "prefix_cache_retention_interval", None) == 0:
++        problems.append("retention interval 0 (the split keeps the cache block grid)")
++    if scheduler.mamba_has_prefill_checkpoint_blocks:
++        problems.append("vLLM's own prefill checkpoint blocks are on")
++    if not mamba:
++        problems.append("no mamba group")
++    for m in mamba:
++        if m.block_size != scheduler.block_size:
++            problems.append(f"mamba block {m.block_size} != scheduler block {scheduler.block_size}")
++        if m.kv_cache_spec.num_prefill_checkpoint_blocks or m.num_speculative_blocks:
++            problems.append("mamba prefill-checkpoint or speculative blocks")
++        if not hasattr(m, "_glm53_ckpt_plans"):
++            problems.append("the mamba manager lacks the kda-checkpoints overlay")
++    if problems:
++        raise ValueError("GLM53_KDA_CKPT=1: " + "; ".join(sorted(set(problems))))
++    for m in mamba:
++        m._glm53_ckpt_plans = scheduler._glm53_ckpt_plans
++    logger.info("GLM53_KDA_CKPT scheduler on: block %d, at most %d exports per chunk, %d mamba groups",
++                scheduler.block_size, _glm53_ckpt.MAX_EXPORTS, len(mamba))
++    return True
++
++
++def _glm53_ckpt_attach(scheduler, scheduler_output, num_scheduled_tokens) -> None:
++    """kda-checkpoints: hand this pass's plans of scheduled requests to the workers, then clear the table."""
++    plans, counts = {}, scheduler._glm53_ckpt_counts
++    for rid, plan in scheduler._glm53_ckpt_plans.items():
++        start, end, _ = plan
++        if num_scheduled_tokens.get(rid) == end - start:
++            plans[rid] = plan
++        else:
++            counts["dropped"] += 1
++            if counts["dropped"] == 1:
++                logger.warning("GLM53_KDA_CKPT plan dropped: request %s scheduled %s of a planned [%d, %d)",
++                               rid, num_scheduled_tokens.get(rid), start, end)
++    scheduler._glm53_ckpt_plans.clear()
++    scheduler_output.glm53_kda_ckpt_plans = plans or None
++    for rid, (start, end, exports) in plans.items():
++        counts["plans"] += 1
++        n = counts["plans"]
++        if n <= 8 or n & (n - 1) == 0:
++            logger.info("GLM53_KDA_CKPT plan %d: request %s span [%d, %d) exports %s", n, rid, start, end,
++                        list(exports))

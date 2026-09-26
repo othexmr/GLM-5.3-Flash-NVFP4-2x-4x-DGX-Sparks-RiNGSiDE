@@ -1,0 +1,80 @@
+--- a/vllm/models/glm5next/nvidia/model.py
++++ b/vllm/models/glm5next/nvidia/model.py
+@@ -60,9 +60,11 @@
+     Glm4vForConditionalGeneration,
+ )
+ from vllm.model_executor.models.interfaces import (
++    EagleModelMixin,
+     HasInnerState,
+     IsHybrid,
+     MixtureOfExperts,
++    SupportsEagle3,
+     SupportsPP,
+ )
+ from vllm.model_executor.models.utils import (
+@@ -575,7 +577,7 @@
+         )
+ 
+ 
+-class Glm5NextModel(nn.Module):
++class Glm5NextModel(nn.Module, EagleModelMixin):
+     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
+         super().__init__()
+ 
+@@ -682,10 +684,29 @@
+         if self.is_sequence_parallel:
+             hidden_states = sp_shard(hidden_states)
+ 
++        # Auxiliary hidden-state capture adapted from vLLM's DeepseekV4Model.forward (vllm/models/deepseek_v4/nvidia/model.py; Apache-2.0, Copyright contributors to the vLLM project).
++        # An id k in aux_hidden_state_layers selects the output of decoder layer
++        # k - 1 (absolute index); the list follows layer order, one entry per layer.
++        aux_layer_ids = self.aux_hidden_state_layers
++        aux_hidden_states: list[torch.Tensor] = []
+         for layer in self._active_layers:
+             hidden_states, residual, post, comb = layer(
+                 positions, hidden_states, residual, post, comb
+             )
++            if layer.layer_idx + 1 in aux_layer_ids:
++                if post is None:
++                    # Already one stream: the last mHC layer's contracted output,
++                    # or the output of a layer without mHC.
++                    aux_hidden_state = hidden_states
++                else:
++                    # The layer deferred its post-mix to the next layer: materialise
++                    # the streams with its own post operator, then average them.
++                    aux_hidden_state = hc_contract(
++                        layer.hc_post(hidden_states, residual, post, comb), layer.n
++                    )
++                if self.is_sequence_parallel:
++                    aux_hidden_state = sp_all_gather(aux_hidden_state)[:full_num_tokens]
++                aux_hidden_states.append(aux_hidden_state)
+ 
+         if not get_pp_group().is_last_rank:
+             # PP is gated off for GLM-5.3-Flash (no make_empty_intermediate_tensors),
+@@ -701,6 +722,8 @@
+             hidden_states = sp_all_gather(hidden_states)[:full_num_tokens]
+ 
+         hidden_states = self.norm(hidden_states)
++        if aux_hidden_states:
++            return hidden_states, aux_hidden_states
+         return hidden_states
+ 
+     def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
+@@ -865,7 +888,7 @@
+ 
+ 
+ class Glm5NextForCausalLM(
+-    nn.Module, HasInnerState, SupportsPP, MixtureOfExperts, IsHybrid
++    nn.Module, HasInnerState, SupportsPP, SupportsEagle3, MixtureOfExperts, IsHybrid
+ ):
+     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
+         super().__init__()
+@@ -961,7 +984,7 @@
+     dummy_inputs=Glm4vDummyInputsBuilder,
+ )
+ class Glm5NextForConditionalGeneration(
+-    Glm4vForConditionalGeneration, HasInnerState, IsHybrid
++    Glm4vForConditionalGeneration, HasInnerState, IsHybrid, SupportsEagle3
+ ):
+     # The text model (KDA + dense-MLA + MoE) is a hybrid mamba model. The
+     # multimodal wrapper must declare the same interfaces so vLLM treats it as

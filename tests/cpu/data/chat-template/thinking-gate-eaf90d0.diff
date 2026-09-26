@@ -1,0 +1,14 @@
+1a2,6
+> {%- if thinking is defined or enable_thinking is defined -%}
+> {%- set thinking_enabled = (thinking if thinking is defined else false) or (enable_thinking if enable_thinking is defined else false) -%}
+> {%- else -%}
+> {%- set thinking_enabled = true -%}
+> {%- endif -%}
+3c8
+< {%- if effective_reasoning_effort is not none -%}<|system|>Reasoning Effort: {{ effective_reasoning_effort | capitalize }}{%- endif -%}
+---
+> {%- if thinking_enabled and effective_reasoning_effort is not none -%}<|system|>Reasoning Effort: {{ effective_reasoning_effort | capitalize }}{%- endif -%}
+256c261
+<     <|assistant|>{{- '<think>' -}}
+---
+>     <|assistant|>{{- '<think>' if thinking_enabled else '<think></think>' -}}

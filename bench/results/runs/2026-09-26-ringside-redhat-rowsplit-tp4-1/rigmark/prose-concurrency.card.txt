@@ -1,0 +1,28 @@
+╭──────────────────────────────────────────────────────────────────────────────────────────╮
+│  R I G M A R K   //   AGENT WORKLOAD RECEIPT                                             │
+│  BENCHMARKS LOCAL AI HOW CODING AGENTS ACTUALLY USE IT                                   │
+│  ●  6/6 BASIC OUTPUT GATES PASSED                                                        │
+├─ SYSTEM ─────────────────────────────────────────────────────────────────────────────────┤
+│  MODEL      nvidia/GLM-5.3-Flash-NVFP4                                                   │
+│  APPLIANCE  4 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance              │
+│  RUN        reasoning=low  •  protocol=1.1.0                                             │
+│  SOURCE     git:6e0e24a6ff50  •  clean                                                   │
+├─ REAL OUTPUT ────────────────────────────────────────────────────────────────────────────┤
+│  WORKLOAD       DECODE EST.      LAST OUTPUT          RANGE          BASIC GATE          │
+│  CODE             105.9 tok/s      19.9s last    105.1–106.8    ✓ 2/2                    │
+│  PROSE             60.8 tok/s      17.0s last     58.8–62.7     ✓ 2/2                    │
+│  STRUCTURED*      148.3 tok/s       3.2s last    144.6–152.0    ✓ 2/2                    │
+│  * predictable-output ceiling; not a proxy for agent speed                               │
+├─ CAPPED CONCURRENT GENERATION ───────────────────────────────────────────────────────────┤
+│  SHORT PROSE • END-TO-END • 256-TOKEN CAP PER AGENT                                      │
+│  AGGREGATE   C1 58.9  •  C2 75.1  •  C3 97.2  •  C4 110.8  •  C5 123.1  •  C6 132.7  •  …│
+│  C16 OUTPUT STATE   normal stop 0/32  •  visible 32/32  •  reasoning may be included     │
+├─ STAGGERED ARRIVALS ─────────────────────────────────────────────────────────────────────┤
+│  S16 • 15 RUNNING + 1 ARRIVING • 32,768-TOKEN LONG REQUEST • 1024/256-TOKEN CAPS         │
+│  DECODE-FIRST   long TTFT 10.06s (1.56x solo)  •  incumbent stall 0.70s  •  2/2 valid    │
+│  PREFILL-FIRST  short TTFT 2.80s (14.49x solo)  •  long TTFT 1.39x solo  •  2/2 valid    │
+├─ RECEIPT ────────────────────────────────────────────────────────────────────────────────┤
+│  JSON       sha256:9482dab6efa43d8f…                                                     │
+│  SHARE THE CARD • LINK THE JSON RECEIPT • #RIGMARK                                       │
+│  github.com/alexellis/rigmark                                                            │
+╰──────────────────────────────────────────────────────────────────────────────────────────╯

@@ -1,0 +1,78 @@
+RiNGSiDE overlay patch, profile tp2
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tilelang.py
+Preimage:    sha256 c8ce81539c779436eb2b9fbba84738f3114bf3ac0a149f2b606f7d38bd1067ce
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    image manifest hash checked by an executed leaf (image source closure, 2026-09-21)
+Postimage:   sha256 a02ce5e6836de40a5ead235b21d19d050c81f31bb9637d3e4669c3938dd26ebb (the file the tp2 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/model_executor/kernels/mhc/tilelang.py b/vllm/model_executor/kernels/mhc/tilelang.py
+index c3c773d07f2f3409a7cdba03b82e81c5ecb5aca4..5ee498a68aa412047dbe3b9311cebe25d656bf42 100644
+--- a/vllm/model_executor/kernels/mhc/tilelang.py
++++ b/vllm/model_executor/kernels/mhc/tilelang.py
+@@ -1,10 +1,32 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in small-batch mHC kernel geometry for TP4 and TP2
++# (GLM53_TP4_MHC_GEOMETRY, GLM53_TP2_MHC_GEOMETRY) and a shape check for the small fused kernel.
+ import torch
+ 
+ from vllm.utils.torch_utils import direct_register_custom_op
+ 
+ 
++
++import os as _mhc_geometry_os
++
++_GLM53_TP4_MHC_GEOMETRY = _mhc_geometry_os.environ.get("GLM53_TP4_MHC_GEOMETRY", "0") == "1"
++from .tp2_geometry import parse_map as _tp2_mhc_parse, select_geometry as _tp2_mhc_select
++_GLM53_TP2_MHC_GEOMETRY = _mhc_geometry_os.environ.get("GLM53_TP2_MHC_GEOMETRY", "0") == "1"
++_GLM53_TP2_MHC_MAP = _tp2_mhc_parse(_mhc_geometry_os.environ.get(
++    "GLM53_TP2_MHC_MAP", '{"5":[4,4],"10":[4,2]}')) if _GLM53_TP2_MHC_GEOMETRY else {}
++
++
++
++def _glm53_tp4_mhc_geometry(tokens, hidden_size, streams, normalized, tp_size):
++    if tp_size == 2 and _GLM53_TP2_MHC_GEOMETRY:
++        return _tp2_mhc_select(_GLM53_TP2_MHC_MAP, tokens, hidden_size, streams, normalized, tp_size)
++    if not _GLM53_TP4_MHC_GEOMETRY or tp_size != 4:
++        return None
++    if hidden_size != 4096 or streams != 4 or not normalized:
++        return None
++    return {5: (4, 4), 10: (4, 2)}.get(tokens)
++
+ def _torch_hc_prenorm_gemm(
+     x: torch.Tensor,
+     fn: torch.Tensor,
+@@ -520,6 +542,15 @@ def mhc_fused_post_pre_tilelang(
+         # TODO(gnovack): investigate autotuning these heuristics
+         tile_n = 2 if num_tokens < 8 else 3
+         n_splits = 8 if (num_tokens < 8 and hidden_size <= 4096) else 4
++        if _GLM53_TP4_MHC_GEOMETRY or _GLM53_TP2_MHC_GEOMETRY:
++            from vllm.distributed import get_tensor_model_parallel_world_size
++
++            selected = _glm53_tp4_mhc_geometry(
++                num_tokens, hidden_size, hc_mult, norm_weight is not None,
++                get_tensor_model_parallel_world_size(),
++            )
++            if selected is not None:
++                tile_n, n_splits = selected
+     else:
+         if use_deep_gemm:
+             # these number are from deepgemm kernel impl
+@@ -531,6 +562,14 @@ def mhc_fused_post_pre_tilelang(
+         else:
+             n_splits = 1
+ 
++    if use_small_fma and (
++        hidden_size % (n_splits * 256) != 0 or hc_mult3 % tile_n != 0
++    ):
++        raise ValueError(
++            "small mHC fused kernel requires hidden_size divisible by "
++            "n_splits * 256 and all output columns divisible by tile_n"
++        )
++
+     gemm_out_mul = torch.empty(
+         n_splits,
+         num_tokens,

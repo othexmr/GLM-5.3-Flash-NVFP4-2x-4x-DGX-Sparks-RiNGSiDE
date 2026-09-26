@@ -1,0 +1,29 @@
+--- a/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
++++ b/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
+@@ -5,6 +5,7 @@
+ from typing import TYPE_CHECKING
+ 
+ import torch
++from deterministic_sparse_topk import canonicalize_topk
+ 
+ import vllm.envs as envs
+ from vllm._aiter_ops import rocm_aiter_ops
+@@ -570,6 +571,9 @@
+                     select_k,
+                 )
+ 
++            canonicalize_topk(logits, chunk.cu_seqlen_ks,
++                              chunk.cu_seqlen_ke, topk_dst)
++
+             if index_kpool > 1:
+                 pool_ids = pool_topk.to(torch.int64)
+                 if positions is not None:
+@@ -844,6 +848,8 @@
+                     logits.stride(1),
+                     select_k,
+                 )
++
++        canonicalize_topk(logits, None, seq_lens, topk_dst)
+ 
+         # Resolve to token-level indices in the output buffer.
+         if index_kpool > 1:

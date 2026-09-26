@@ -1,0 +1,1026 @@
+{
+ "benchmark": {
+  "campaign": "RigMark code-full (cold and warm-replay TTFT at 8K/32K/64K, single-stream decode, short code requests at 1-16 streams) and prose concurrency with staggered arrivals 2-16, then the cached-prefix check, the same campaign in both windows",
+  "previous_base_rigmark": {
+   "chat_template_kwargs": {
+    "reasoning_effort": "low"
+   },
+   "measured_revision": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+   "prompts_sha256": "0c3ac4015813af6a1b967659bd2289990fde895a5e43ae065b894d1e1f909ecb",
+   "prompts_version": "1.0.0",
+   "protocol_version": "1.1.0",
+   "published_as": {
+    "branch": "feat/staggered-arrival",
+    "commit": "40fabcaf6e963ac27ab347f61d54a225dbd07419",
+    "note": "published with the identical tree to the measured revision",
+    "repository": "othexmr/rigmark",
+    "tree": "3ba4ae72a548bc72df66933163106829b0644e15"
+   },
+   "staggered_rounds": 1,
+   "worktree_dirty": false
+  },
+  "rigmark": {
+   "chat_template_kwargs": {
+    "reasoning_effort": "low"
+   },
+   "measured_revision": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+   "prompts_sha256": "0c3ac4015813af6a1b967659bd2289990fde895a5e43ae065b894d1e1f909ecb",
+   "prompts_version": "1.0.0",
+   "protocol_version": "1.1.0",
+   "published_as": {
+    "branch": "feat/staggered-arrival",
+    "commit": "40fabcaf6e963ac27ab347f61d54a225dbd07419",
+    "note": "published with the identical tree to the measured revision",
+    "repository": "othexmr/rigmark",
+    "tree": "3ba4ae72a548bc72df66933163106829b0644e15"
+   },
+   "staggered_rounds": 1,
+   "worktree_dirty": false
+  }
+ },
+ "dates": {
+  "date": "2026-09-24",
+  "final_profile": {
+   "cache_check": [
+    "2026-09-24T13:28:22+07:00",
+    "2026-09-24T13:29:16+07:00"
+   ],
+   "campaign_started": "2026-09-24T13:14:19+07:00",
+   "code_full": [
+    "2026-09-24T13:14:49+07:00",
+    "2026-09-24T13:17:04+07:00"
+   ],
+   "launch_to_ready_s": 232.4,
+   "prose_concurrency": [
+    "2026-09-24T13:17:04+07:00",
+    "2026-09-24T13:28:21+07:00"
+   ],
+   "window_begin": "2026-09-24T13:09:56+07:00",
+   "window_finished": "2026-09-24T13:30:12+07:00"
+  },
+  "previous_base": {
+   "cache_check": [
+    "2026-09-24T13:07:37+07:00",
+    "2026-09-24T13:08:34+07:00"
+   ],
+   "campaign_started": "2026-09-24T12:53:28+07:00",
+   "code_full": [
+    "2026-09-24T12:53:58+07:00",
+    "2026-09-24T12:56:12+07:00"
+   ],
+   "launch_to_ready_s": 239.9,
+   "prose_concurrency": [
+    "2026-09-24T12:56:13+07:00",
+    "2026-09-24T13:07:35+07:00"
+   ],
+   "window_begin": "2026-09-24T12:48:57+07:00",
+   "window_finished": "2026-09-24T13:09:30+07:00"
+  },
+  "timezone": "UTC+7"
+ },
+ "lab_plans": {
+  "final_profile": {
+   "lab_plan": "594faefb",
+   "lab_plan_sha256": "594faefb7b40b6f52287cf9c77bcfa1a77a8bc3d00ff1552feec4ac1aa42b234"
+  },
+  "previous_base": {
+   "lab_plan": "9e4f793a",
+   "lab_plan_sha256": "9e4f793a6088b22818d816796c3832f5940c9e816c75edb7dfe32bb3268d158b"
+  },
+  "published_profile": {
+   "lab_plan": "50e80d44",
+   "relation": "differs from 594faefb only in the header comment of one mounted file (mhc_prefill_sharding.py)"
+  }
+ },
+ "lab_receipts": {
+  "final_profile": "2026-09-24-kda-ckpt-tp4-1",
+  "previous_base": "2026-09-24-kda-ckpt-ref-tp4-1"
+ },
+ "measurement_kind": "measured",
+ "negative_findings": [
+  "Under the rule fixed at 12:32 the final profile did NOT pass: clause 4 (no cached-prefix mismatch outside near-ties) failed on one difference (8K replay against cold, token 3, gap 0.875). It passed only under clause 4' (mismatches no more than the fresh reference's, no gap above 2.0), amended at 13:12 before any candidate cache-check data.",
+  "The unchanged previous base failed the same clause 4 in its own window: 3 differences outside near-ties (8K replay token 5 gap 1.75; 32K replay token 13 gap 0.625; 64K extension token 0 gap 1.25).",
+  "Cached-prefix outputs of the TP4 profile differ from fresh prefills beyond the near-tie band in both windows; the cause is not established.",
+  "The final profile's 13,824-row prefill forwards without a checkpoint plan ran 5-15 ms (0.2-0.5 %) slower than the reference's in the saved log tails; cause not established (window drift or a fixed per-forward hook cost).",
+  "Warm replay at 8K moved -0.90 %, inside single-sample noise; the replay gains are at 32K and 64K.",
+  "Single samples: no cell has repetitions."
+ ],
+ "page_strings": {
+  "acceptance": "0.3968 | 0.4008 | +0.0040",
+  "cold_ttft_s": {
+   "32768": "6.919 s | 6.569 s | -5.06 %",
+   "65536": "13.631 s | 13.284 s | -2.55 %",
+   "8192": "2.062 s | 1.884 s | -8.63 %"
+  },
+  "decode": "28 fixed (streams, K) cells, median -0.10 %, range -2.07 to +2.69 %",
+  "final_profile_mismatch": "1 difference outside near-ties (8K replay, token 3, logprob gap 0.875)",
+  "previous_base_mismatches": "3 (gaps up to 1.75)",
+  "warm_replay_ttft_s": "-0.90 % / -17.16 % / -16.76 %",
+  "window_span": "between 12:48 and 13:30"
+ },
+ "record": "kda-checkpoints-tp4",
+ "related_negative_findings": [
+  {
+   "cold_change_pct": {
+    "32768": 3.96,
+    "65536": 2.52,
+    "8192": -15.72
+   },
+   "decode_step_time_change_pct": {
+    "max": 6.77,
+    "mean": 1.27,
+    "median": 0.29,
+    "min": -1.53,
+    "n": 16
+   },
+   "failed_checks": [
+    "2 replay 32K and 64K each <= +2.0 %",
+    "5 decode guard: step median within +-0.3 %, no cell > +3.0 %"
+   ],
+   "lab_receipts": {
+    "candidate": "2026-09-24-kda-ckpt-tp2-1",
+    "reference": "2026-09-24-kda-ckpt-ref-tp2-1"
+   },
+   "source": "outputs/2026-09-24-kda-prefill-checkpoints/score-tp2-1-c4.json",
+   "warm_replay_change_pct": {
+    "32768": 15.6,
+    "65536": 8.71,
+    "8192": -6.82
+   },
+   "what": "The same lever at TP2 (node pair A) FAILED its rule under both clause-4 variants; no retry. The recipe ships the KDA checkpoints in the TP4 profile only."
+  }
+ ],
+ "schema": "switchless-evidence/1",
+ "sources": [
+  "outputs/2026-09-23-scoring/compare_steps.py",
+  "outputs/2026-09-23-scoring/window-steps-kda-ckpt-ref-tp4-1.json",
+  "outputs/2026-09-23-scoring/window-steps-kda-ckpt-tp4-1.json",
+  "outputs/2026-09-23-scoring/window_steps.py",
+  "outputs/2026-09-24-kda-ckpt-ref-tp4-1/kda-ckpt-cache-check/report.json",
+  "outputs/2026-09-24-kda-ckpt-ref-tp4-1/native/code-full.json",
+  "outputs/2026-09-24-kda-ckpt-tp4-1/kda-ckpt-cache-check/report.json",
+  "outputs/2026-09-24-kda-ckpt-tp4-1/native/code-full.json",
+  "outputs/2026-09-24-kda-prefill-checkpoints/README.md",
+  "outputs/2026-09-24-kda-prefill-checkpoints/cache_check.py",
+  "outputs/2026-09-24-kda-prefill-checkpoints/compare-steps-tp4-1.json",
+  "outputs/2026-09-24-kda-prefill-checkpoints/score-tp4-1-c4.json",
+  "outputs/2026-09-24-kda-prefill-checkpoints/score-tp4-1.json"
+ ],
+ "values": {
+  "cached_prefix_check": {
+   "final_profile": {
+    "cells": {
+     "32768": {
+      "comparisons": {
+       "extend_vs_fresh": {
+        "classification": "equal",
+        "equal": true,
+        "first_difference_token": null,
+        "near_tie": false,
+        "reference_top2_logprob_gap": null
+       },
+       "replay_vs_cold": {
+        "classification": "near-tie",
+        "equal": false,
+        "first_difference_token": 4,
+        "near_tie": true,
+        "reference_top2_logprob_gap": 0.25
+       }
+      },
+      "expected_replay_hit_tokens": 29952,
+      "hits_ok": true,
+      "requests": {
+       "cold": {
+        "cached_tokens": 0,
+        "prompt_tokens": 32768,
+        "seconds": 6.859
+       },
+       "extend": {
+        "cached_tokens": 29952,
+        "prompt_tokens": 34304,
+        "seconds": 1.536
+       },
+       "fresh": {
+        "cached_tokens": 0,
+        "prompt_tokens": 34304,
+        "seconds": 7.452
+       },
+       "replay": {
+        "cached_tokens": 29952,
+        "prompt_tokens": 32768,
+        "seconds": 0.936
+       }
+      }
+     },
+     "65536": {
+      "comparisons": {
+       "extend_vs_fresh": {
+        "classification": "near-tie",
+        "equal": false,
+        "first_difference_token": 10,
+        "near_tie": true,
+        "reference_top2_logprob_gap": 0.25
+       },
+       "replay_vs_cold": {
+        "classification": "equal",
+        "equal": true,
+        "first_difference_token": null,
+        "near_tie": false,
+        "reference_top2_logprob_gap": null
+       }
+      },
+      "expected_replay_hit_tokens": 62208,
+      "hits_ok": true,
+      "requests": {
+       "cold": {
+        "cached_tokens": 0,
+        "prompt_tokens": 65536,
+        "seconds": 13.558
+       },
+       "extend": {
+        "cached_tokens": 62208,
+        "prompt_tokens": 67072,
+        "seconds": 1.462
+       },
+       "fresh": {
+        "cached_tokens": 0,
+        "prompt_tokens": 67072,
+        "seconds": 13.892
+       },
+       "replay": {
+        "cached_tokens": 62208,
+        "prompt_tokens": 65536,
+        "seconds": 1.097
+       }
+      }
+     },
+     "8192": {
+      "comparisons": {
+       "extend_vs_fresh": {
+        "classification": "near-tie",
+        "equal": false,
+        "first_difference_token": 7,
+        "near_tie": true,
+        "reference_top2_logprob_gap": 0.1875
+       },
+       "replay_vs_cold": {
+        "classification": "difference outside near-ties",
+        "equal": false,
+        "first_difference_token": 3,
+        "near_tie": false,
+        "reference_top2_logprob_gap": 0.875
+       }
+      },
+      "expected_replay_hit_tokens": 6912,
+      "hits_ok": true,
+      "requests": {
+       "cold": {
+        "cached_tokens": 0,
+        "prompt_tokens": 8192,
+        "seconds": 2.265
+       },
+       "extend": {
+        "cached_tokens": 6912,
+        "prompt_tokens": 9728,
+        "seconds": 1.047
+       },
+       "fresh": {
+        "cached_tokens": 0,
+        "prompt_tokens": 9728,
+        "seconds": 2.368
+       },
+       "replay": {
+        "cached_tokens": 6912,
+        "prompt_tokens": 8192,
+        "seconds": 0.965
+       }
+      }
+     }
+    },
+    "differences": [
+     {
+      "classification": "difference outside near-ties",
+      "comparison": "replay_vs_cold",
+      "depth": 8192,
+      "first_difference_token": 3,
+      "gap": 0.875
+     },
+     {
+      "classification": "near-tie",
+      "comparison": "extend_vs_fresh",
+      "depth": 8192,
+      "first_difference_token": 7,
+      "gap": 0.1875
+     },
+     {
+      "classification": "near-tie",
+      "comparison": "replay_vs_cold",
+      "depth": 32768,
+      "first_difference_token": 4,
+      "gap": 0.25
+     },
+     {
+      "classification": "near-tie",
+      "comparison": "extend_vs_fresh",
+      "depth": 65536,
+      "first_difference_token": 10,
+      "gap": 0.25
+     }
+    ],
+    "extension_tokens": 1536,
+    "finished": "2026-09-24T13:29:16+07:00",
+    "generated_tokens_compared": 16,
+    "max_gap_outside_near_ties": 0.875,
+    "started": "2026-09-24T13:28:22+07:00",
+    "summary": {
+     "hits_ok": true,
+     "mismatches": 1,
+     "near_ties": 3
+    }
+   },
+   "interpretation": {
+    "kind": "inference, not tested",
+    "text": "The lab lists two untested likely causes for differences in the unchanged base: the non-deterministic atomic MoE accumulation, and the FP8 (e4m3) MLA KV cache read across different chunk boundaries (extension against fresh)."
+   },
+   "method": "For each depth (8,192 / 32,768 / 65,536 prompt tokens of exact token ids): a cold request, the same prompt replayed (hits the cache), the prompt extended by 1,536 tokens (hits the cache) and a fresh cold prefill of that extended prompt under another cache salt; greedy, 16 tokens, top-2 logprobs. Replay is compared with cold, extension with fresh, token by token.",
+   "near_tie_rule": "a difference counts as a near-tie when the top-2 logprob gap of the reference request (the cold request for a replay, the fresh cold prefill for an extension) at the first differing token is below 0.5; any other difference is a mismatch (\"difference outside near-ties\"). Token positions are 0-based indices into the 16 generated tokens.",
+   "previous_base": {
+    "cells": {
+     "32768": {
+      "comparisons": {
+       "extend_vs_fresh": {
+        "classification": "near-tie",
+        "equal": false,
+        "first_difference_token": 0,
+        "near_tie": true,
+        "reference_top2_logprob_gap": 0.25
+       },
+       "replay_vs_cold": {
+        "classification": "difference outside near-ties",
+        "equal": false,
+        "first_difference_token": 13,
+        "near_tie": false,
+        "reference_top2_logprob_gap": 0.625
+       }
+      },
+      "expected_replay_hit_tokens": 29952,
+      "hits_ok": true,
+      "requests": {
+       "cold": {
+        "cached_tokens": 0,
+        "prompt_tokens": 32768,
+        "seconds": 7.287
+       },
+       "extend": {
+        "cached_tokens": 29952,
+        "prompt_tokens": 34304,
+        "seconds": 1.793
+       },
+       "fresh": {
+        "cached_tokens": 0,
+        "prompt_tokens": 34304,
+        "seconds": 7.658
+       },
+       "replay": {
+        "cached_tokens": 29952,
+        "prompt_tokens": 32768,
+        "seconds": 1.189
+       }
+      }
+     },
+     "65536": {
+      "comparisons": {
+       "extend_vs_fresh": {
+        "classification": "difference outside near-ties",
+        "equal": false,
+        "first_difference_token": 0,
+        "near_tie": false,
+        "reference_top2_logprob_gap": 1.25
+       },
+       "replay_vs_cold": {
+        "classification": "equal",
+        "equal": true,
+        "first_difference_token": null,
+        "near_tie": false,
+        "reference_top2_logprob_gap": null
+       }
+      },
+      "expected_replay_hit_tokens": 62208,
+      "hits_ok": true,
+      "requests": {
+       "cold": {
+        "cached_tokens": 0,
+        "prompt_tokens": 65536,
+        "seconds": 14.014
+       },
+       "extend": {
+        "cached_tokens": 62208,
+        "prompt_tokens": 67072,
+        "seconds": 1.894
+       },
+       "fresh": {
+        "cached_tokens": 0,
+        "prompt_tokens": 67072,
+        "seconds": 14.24
+       },
+       "replay": {
+        "cached_tokens": 62208,
+        "prompt_tokens": 65536,
+        "seconds": 1.343
+       }
+      }
+     },
+     "8192": {
+      "comparisons": {
+       "extend_vs_fresh": {
+        "classification": "near-tie",
+        "equal": false,
+        "first_difference_token": 2,
+        "near_tie": true,
+        "reference_top2_logprob_gap": 0.0
+       },
+       "replay_vs_cold": {
+        "classification": "difference outside near-ties",
+        "equal": false,
+        "first_difference_token": 5,
+        "near_tie": false,
+        "reference_top2_logprob_gap": 1.75
+       }
+      },
+      "expected_replay_hit_tokens": 6912,
+      "hits_ok": true,
+      "requests": {
+       "cold": {
+        "cached_tokens": 0,
+        "prompt_tokens": 8192,
+        "seconds": 2.523
+       },
+       "extend": {
+        "cached_tokens": 6912,
+        "prompt_tokens": 9728,
+        "seconds": 1.296
+       },
+       "fresh": {
+        "cached_tokens": 0,
+        "prompt_tokens": 9728,
+        "seconds": 2.783
+       },
+       "replay": {
+        "cached_tokens": 6912,
+        "prompt_tokens": 8192,
+        "seconds": 0.925
+       }
+      }
+     }
+    },
+    "differences": [
+     {
+      "classification": "difference outside near-ties",
+      "comparison": "replay_vs_cold",
+      "depth": 8192,
+      "first_difference_token": 5,
+      "gap": 1.75
+     },
+     {
+      "classification": "near-tie",
+      "comparison": "extend_vs_fresh",
+      "depth": 8192,
+      "first_difference_token": 2,
+      "gap": 0.0
+     },
+     {
+      "classification": "difference outside near-ties",
+      "comparison": "replay_vs_cold",
+      "depth": 32768,
+      "first_difference_token": 13,
+      "gap": 0.625
+     },
+     {
+      "classification": "near-tie",
+      "comparison": "extend_vs_fresh",
+      "depth": 32768,
+      "first_difference_token": 0,
+      "gap": 0.25
+     },
+     {
+      "classification": "difference outside near-ties",
+      "comparison": "extend_vs_fresh",
+      "depth": 65536,
+      "first_difference_token": 0,
+      "gap": 1.25
+     }
+    ],
+    "extension_tokens": 1536,
+    "finished": "2026-09-24T13:08:34+07:00",
+    "generated_tokens_compared": 16,
+    "max_gap_outside_near_ties": 1.75,
+    "started": "2026-09-24T13:07:37+07:00",
+    "summary": {
+     "hits_ok": true,
+     "mismatches": 3,
+     "near_ties": 2
+    }
+   }
+  },
+  "cold_ttft": {
+   "cells": {
+    "32768": {
+     "change_pct": -5.06,
+     "final_profile_s": 6.569,
+     "previous_base_s": 6.919
+    },
+    "65536": {
+     "change_pct": -2.55,
+     "final_profile_s": 13.284,
+     "previous_base_s": 13.631
+    },
+    "8192": {
+     "change_pct": -8.63,
+     "final_profile_s": 1.884,
+     "previous_base_s": 2.062
+    }
+   },
+   "geometric_mean_change_pct": -5.45,
+   "statistic": "median of the single run (RigMark native/code-full.json)"
+  },
+  "decode_step_time": {
+   "bands": {
+    "C1-C4": {
+     "max": 2.69,
+     "mean": -0.1,
+     "median": -0.2,
+     "min": -2.07,
+     "n": 12
+    },
+    "C5-C8": {
+     "max": 0.97,
+     "mean": -0.09,
+     "median": 0.03,
+     "min": -1.64,
+     "n": 8
+    },
+    "C9-C16": {
+     "max": 1.81,
+     "mean": 0.09,
+     "median": -0.1,
+     "min": -1.16,
+     "n": 8
+    }
+   },
+   "cells": [
+    {
+     "cand_ms": 31.39,
+     "cell": "1/k2",
+     "change_pct": 0.35,
+     "k": 2,
+     "n_steps": [
+      1000,
+      940
+     ],
+     "ref_ms": 31.28,
+     "streams": 1
+    },
+    {
+     "cand_ms": 34.29,
+     "cell": "1/k3",
+     "change_pct": -0.06,
+     "k": 3,
+     "n_steps": [
+      1894,
+      1926
+     ],
+     "ref_ms": 34.31,
+     "streams": 1
+    },
+    {
+     "cand_ms": 38.47,
+     "cell": "1/k4",
+     "change_pct": 0.42,
+     "k": 4,
+     "n_steps": [
+      1611,
+      1599
+     ],
+     "ref_ms": 38.31,
+     "streams": 1
+    },
+    {
+     "cand_ms": 40.13,
+     "cell": "1/k5",
+     "change_pct": 2.69,
+     "k": 5,
+     "n_steps": [
+      166,
+      177
+     ],
+     "ref_ms": 39.08,
+     "streams": 1
+    },
+    {
+     "cand_ms": 40.97,
+     "cell": "1/k6",
+     "change_pct": 2.12,
+     "k": 6,
+     "n_steps": [
+      128,
+      116
+     ],
+     "ref_ms": 40.12,
+     "streams": 1
+    },
+    {
+     "cand_ms": 42.96,
+     "cell": "1/k7",
+     "change_pct": -0.49,
+     "k": 7,
+     "n_steps": [
+      321,
+      370
+     ],
+     "ref_ms": 43.17,
+     "streams": 1
+    },
+    {
+     "cand_ms": 49.75,
+     "cell": "2/k3",
+     "change_pct": -1.5,
+     "k": 3,
+     "n_steps": [
+      114,
+      108
+     ],
+     "ref_ms": 50.51,
+     "streams": 2
+    },
+    {
+     "cand_ms": 57.07,
+     "cell": "2/k4",
+     "change_pct": -0.95,
+     "k": 4,
+     "n_steps": [
+      344,
+      332
+     ],
+     "ref_ms": 57.62,
+     "streams": 2
+    },
+    {
+     "cand_ms": 63.08,
+     "cell": "3/k3",
+     "change_pct": -0.24,
+     "k": 3,
+     "n_steps": [
+      459,
+      396
+     ],
+     "ref_ms": 63.23,
+     "streams": 3
+    },
+    {
+     "cand_ms": 69.2,
+     "cell": "3/k4",
+     "change_pct": -2.07,
+     "k": 4,
+     "n_steps": [
+      190,
+      192
+     ],
+     "ref_ms": 70.66,
+     "streams": 3
+    },
+    {
+     "cand_ms": 73.13,
+     "cell": "4/k3",
+     "change_pct": -1.28,
+     "k": 3,
+     "n_steps": [
+      102,
+      109
+     ],
+     "ref_ms": 74.08,
+     "streams": 4
+    },
+    {
+     "cand_ms": 82.34,
+     "cell": "4/k4",
+     "change_pct": -0.15,
+     "k": 4,
+     "n_steps": [
+      311,
+      308
+     ],
+     "ref_ms": 82.46,
+     "streams": 4
+    },
+    {
+     "cand_ms": 81.38,
+     "cell": "5/k3",
+     "change_pct": -0.27,
+     "k": 3,
+     "n_steps": [
+      423,
+      428
+     ],
+     "ref_ms": 81.6,
+     "streams": 5
+    },
+    {
+     "cand_ms": 88.38,
+     "cell": "5/k4",
+     "change_pct": 0.27,
+     "k": 4,
+     "n_steps": [
+      177,
+      194
+     ],
+     "ref_ms": 88.14,
+     "streams": 5
+    },
+    {
+     "cand_ms": 89.29,
+     "cell": "6/k3",
+     "change_pct": 0.5,
+     "k": 3,
+     "n_steps": [
+      93,
+      93
+     ],
+     "ref_ms": 88.85,
+     "streams": 6
+    },
+    {
+     "cand_ms": 100.19,
+     "cell": "6/k4",
+     "change_pct": -0.61,
+     "k": 4,
+     "n_steps": [
+      272,
+      272
+     ],
+     "ref_ms": 100.8,
+     "streams": 6
+    },
+    {
+     "cand_ms": 97.18,
+     "cell": "7/k3",
+     "change_pct": 0.07,
+     "k": 3,
+     "n_steps": [
+      384,
+      350
+     ],
+     "ref_ms": 97.11,
+     "streams": 7
+    },
+    {
+     "cand_ms": 104.27,
+     "cell": "7/k4",
+     "change_pct": -1.64,
+     "k": 4,
+     "n_steps": [
+      78,
+      76
+     ],
+     "ref_ms": 106.01,
+     "streams": 7
+    },
+    {
+     "cand_ms": 103.09,
+     "cell": "8/k3",
+     "change_pct": 0.97,
+     "k": 3,
+     "n_steps": [
+      90,
+      91
+     ],
+     "ref_ms": 102.1,
+     "streams": 8
+    },
+    {
+     "cand_ms": 115.73,
+     "cell": "8/k4",
+     "change_pct": -0.01,
+     "k": 4,
+     "n_steps": [
+      266,
+      266
+     ],
+     "ref_ms": 115.74,
+     "streams": 8
+    },
+    {
+     "cand_ms": 120.5,
+     "cell": "11/k3",
+     "change_pct": -0.44,
+     "k": 3,
+     "n_steps": [
+      358,
+      339
+     ],
+     "ref_ms": 121.03,
+     "streams": 11
+    },
+    {
+     "cand_ms": 130.66,
+     "cell": "11/k4",
+     "change_pct": 1.81,
+     "k": 4,
+     "n_steps": [
+      68,
+      75
+     ],
+     "ref_ms": 128.34,
+     "streams": 11
+    },
+    {
+     "cand_ms": 123.04,
+     "cell": "12/k3",
+     "change_pct": -0.59,
+     "k": 3,
+     "n_steps": [
+      92,
+      94
+     ],
+     "ref_ms": 123.77,
+     "streams": 12
+    },
+    {
+     "cand_ms": 138.56,
+     "cell": "12/k4",
+     "change_pct": 0.34,
+     "k": 4,
+     "n_steps": [
+      256,
+      262
+     ],
+     "ref_ms": 138.09,
+     "streams": 12
+    },
+    {
+     "cand_ms": 137.96,
+     "cell": "15/k3",
+     "change_pct": -0.74,
+     "k": 3,
+     "n_steps": [
+      326,
+      321
+     ],
+     "ref_ms": 138.99,
+     "streams": 15
+    },
+    {
+     "cand_ms": 149.99,
+     "cell": "15/k4",
+     "change_pct": 0.23,
+     "k": 4,
+     "n_steps": [
+      91,
+      87
+     ],
+     "ref_ms": 149.64,
+     "streams": 15
+    },
+    {
+     "cand_ms": 142.26,
+     "cell": "16/k3",
+     "change_pct": 1.27,
+     "k": 3,
+     "n_steps": [
+      53,
+      85
+     ],
+     "ref_ms": 140.47,
+     "streams": 16
+    },
+    {
+     "cand_ms": 154.48,
+     "cell": "16/k4",
+     "change_pct": -1.16,
+     "k": 4,
+     "n_steps": [
+      284,
+      254
+     ],
+     "ref_ms": 156.3,
+     "streams": 16
+    }
+   ],
+   "metric": "rank-0 scheduler round trip (scheduler_roundtrip_ms) of pure decode steps, median per fixed (streams, K) cell, compared only for cells with at least 30 steps in both windows; not ms per token, which moves with acceptance",
+   "min_steps_per_cell": 30,
+   "summary": {
+    "max": 2.69,
+    "mean": -0.04,
+    "median": -0.1,
+    "min": -2.07,
+    "n": 28
+   }
+  },
+  "speculative_acceptance": {
+   "change": 0.004,
+   "final_profile": {
+    "accepted_tokens": 58931,
+    "by_streams": {
+     "1": 0.6127,
+     "10": 0.296,
+     "11": 0.3296,
+     "12": 0.3814,
+     "13": 0.358,
+     "14": 0.3597,
+     "15": 0.3314,
+     "16": 0.3772,
+     "2": 0.5232,
+     "3": 0.3713,
+     "4": 0.4353,
+     "5": 0.3754,
+     "6": 0.4039,
+     "7": 0.3368,
+     "8": 0.3914,
+     "9": 0.3978
+    },
+    "proposed_tokens": 147016,
+    "rate": 0.4008,
+    "request_steps": 42169
+   },
+   "metric": "window-wide accepted / proposed draft tokens over every pure-decode and mixed step of the rank-0 scheduler records",
+   "previous_base": {
+    "accepted_tokens": 58697,
+    "by_streams": {
+     "1": 0.6157,
+     "10": 0.3486,
+     "11": 0.3356,
+     "12": 0.376,
+     "13": 0.2995,
+     "14": 0.2561,
+     "15": 0.3218,
+     "16": 0.3669,
+     "2": 0.5151,
+     "3": 0.3778,
+     "4": 0.432,
+     "5": 0.3819,
+     "6": 0.4039,
+     "7": 0.325,
+     "8": 0.3938,
+     "9": 0.3271
+    },
+    "proposed_tokens": 147938,
+    "rate": 0.3968,
+    "request_steps": 42342
+   }
+  },
+  "warm_replay_ttft": {
+   "cells": {
+    "32768": {
+     "change_pct": -17.16,
+     "final_profile_s": 0.729,
+     "previous_base_s": 0.88
+    },
+    "65536": {
+     "change_pct": -16.76,
+     "final_profile_s": 0.919,
+     "previous_base_s": 1.104
+    },
+    "8192": {
+     "change_pct": -0.9,
+     "final_profile_s": 0.551,
+     "previous_base_s": 0.556
+    }
+   },
+   "statistic": "median of the single run (RigMark native/code-full.json, warm_replay)"
+  }
+ },
+ "verdicts": {
+  "rule_fixed_1232": {
+   "checks": {
+    "1 cold 8K <= -5.0 % and cold geo-mean <= -2.0 %": true,
+    "2 replay 32K and 64K each <= +2.0 %": true,
+    "3 created cache tokens unchanged (replay hits as measured in the finals in both windows; all hits identical)": true,
+    "4 cached-prefix regression: no mismatch outside near-ties": false,
+    "5 decode guard: step median within +-0.3 %, no cell > +3.0 %": true,
+    "6 acceptance >= ref - 0.0083": true,
+    "7 engagement on every rank, reference clean, completed answer": true
+   },
+   "rule_met": false
+  },
+  "rule_with_clause_4_amended_1312": {
+   "checks": {
+    "1 cold 8K <= -5.0 % and cold geo-mean <= -2.0 %": true,
+    "2 replay 32K and 64K each <= +2.0 %": true,
+    "3 created cache tokens unchanged (replay hits as measured in the finals in both windows; all hits identical)": true,
+    "4' cached-prefix outputs against the fresh reference (amended 13:12, option B): mismatches outside near-ties <= the reference's, no first-difference gap > 2.0, clause 3": true,
+    "5 decode guard: step median within +-0.3 %, no cell > +3.0 %": true,
+    "6 acceptance >= ref - 0.0083": true,
+    "7 engagement on every rank, reference clean, completed answer": true
+   },
+   "clause_4_amended": {
+    "candidate_mismatches": 1,
+    "clause3": true,
+    "count_ok": true,
+    "gap_max": 2.0,
+    "gaps_ok": true,
+    "reference_mismatches": 3
+   },
+   "rule_met": true
+  }
+ },
+ "what": "KDA checkpoints saved inside a prefill chunk: the KDA-checkpoint plan (lab plan 594faefb = the TP4 base 9e4f793a plus the checkpoint delta; the code of the TP4 profile 50e80d44 of 2026-09-24, keyed final_profile here) against a fresh window of that base (keyed previous_base), measured back to back in one session. Single samples per cell. The page section \"KDA checkpoints against the TP4 base before them\"."
+}

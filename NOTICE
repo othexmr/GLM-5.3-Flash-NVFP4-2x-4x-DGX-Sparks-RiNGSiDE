@@ -1,0 +1,274 @@
+GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE
+Copyright 2026 othexmr
+
+Original recipe code and documentation in this repository are licensed under the Apache License, Version 2.0
+(LICENSE), except where a file or directory states another licence. The repository also carries patches to, and files
+derived from, the third-party projects below. Those portions keep their own licences and notices; the root licence
+does not relicense them. licenses/README.md lists every served file with its licence.
+
+-------------------------------------------------------------------------------------------------------------
+Patched or copied third-party code
+-------------------------------------------------------------------------------------------------------------
+
+Modification notice. Every file served through patches/ (vLLM, b12x and sparse-MLA plugin files of the base
+image), the NCCL sources changed by patches/nccl, and every served file listed below as adapted from or containing
+third-party code were modified by the GLM-5.3 RiNGSiDE recipe (othexmr); sources/installed-files.json and
+licenses/README.md list them. The served chat template is the exception: it is the file of
+MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks (zai-org's template with Raymond Lucke's thinking gate), unchanged (below).
+The NCCL series and the sparse-MLA build patches carry such a notice in the changed source files, under the recipe's
+earlier name (GLM-5.3 Switchless recipe). Every modified third-party file that either profile serves carries the
+notice inside the file ("Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): ..."), after any "Modified by the
+GLM-5.3 lab" comments of the lab.
+
+vLLM (https://github.com/vllm-project/vllm), Apache License 2.0.
+  Copyright contributors to the vLLM project.
+  patches/vllm/ modifies vLLM files of the base image (vLLM v0.29.0, commit 98dff2a8, with the GLM-5.3 model
+  sources of the ZJY0516/vllm glm-release branch (JaredforReal, ZJY0516 and co-authors; vllm-project/vllm#53906)).
+  src/*/vllm/models/glm5next/nvidia/ops/recoverssm.py is
+  adapted from vLLM's Kimi-K3 RecoverSSM module (vllm/models/kimi_k3/nvidia/ops/recoverssm.py; vllm-project/vllm#51855
+  by ZJY0516 with benchislett, which began as ReplaySSM support for Kimi-K3 and runs under the --use-replayssm option
+  of ReplaySSM, vllm-project/vllm#48018 by Johnny-Liou, Dao AI Lab and NVIDIA). The TP2 file is that module with the
+  per-token records in per-layer buffers indexed by spec-batch position and the exact-landing column; the TP4 file
+  also adds the fused commit with its ordering fix and the fp16/bf16 state with fp32 slow channels. The glm5next
+  kda.py patches load Kimi-K3's KDA metadata builder and commit context from the image unchanged.
+  src/tp4/glm53_kda_conv.py (run_kda_prefill_conv_fused) and
+  src/tp4/glm53_kda_ckpt.py (_bind) follow the b12x KDA prefill launcher (_run_b12x_kda_prefill) of the GLM-5.3
+  backport's vllm/models/glm5next/nvidia/kda.py. src/tp4/vllm/models/glm5next/nvidia/kda_state_store.py (the fp16
+  KDA state storage) was written in this recipe's lab inside vLLM's model package and carries vLLM's Apache-2.0 SPDX
+  header and copyright line. In both profiles, the DFlash2 auxiliary hidden-state capture of
+  vllm/models/glm5next/nvidia/model.py is adapted from vLLM's DeepseekV4Model.forward
+  (vllm/models/deepseek_v4/nvidia/model.py), and the DFlash2 drafter KV-cache group of vllm/v1/core/kv_cache_utils.py
+  is built on vLLM's own KV-cache group mechanisms; the base-image stage inputs carry the same code (below).
+  build/glm53_fp8_gemm/ is derived from vLLM v0.29.0's SM120
+  FP8 kernels and contains three verbatim vLLM headers: scaled_mm_epilogues_c3x.hpp (Apache-2.0,
+  vendor/LICENSE-vllm) and the two broadcast_load_epilogue headers, which vLLM took from NVIDIA CUTLASS (below).
+  src/tp4/vllm/models/common/ops/glm53_qnorm_fp8.py is adapted from vLLM's fused q/kv RMSNorm kernel
+  (vllm/models/common/ops/fused_qk_rmsnorm.py), with the per-token FP8 quantization of q_b_proj fused in.
+  build/topk_rowspread/ holds the rowspread change to vLLM's persistent top-k kernel (persistent_topk.cuh with the
+  hunks of vllm-project/vllm pull request 55314 by Dovis01 (after sgl-project/sglang#37625 by ormandj and bold84), as
+  the base image's stage 15 builds it); the TP4 profile's
+  nvfp4_topk_rowspread extension is built from it and the stage's other kernel sources.
+
+vLLM pull requests and a vLLM fork ported into served files, Apache License 2.0.
+  vllm-project/vllm#58454 (https://github.com/vllm-project/vllm/pull/58454) by mmastrac, building on
+  vllm-project/vllm#55219 by ivanium: the kpool tail ring sized for speculative decoding, in the TP4 patches of
+  vllm/models/glm5next/nvidia/ops/kpool_compress.py and vllm/models/glm5next/nvidia/attention.py, as the vLLM fork
+  Morrowmake/vllm-cmp170hx (https://github.com/Morrowmake/vllm-cmp170hx) ported it in commit 1d4b59e.
+  vllm-project/vllm#50843 (https://github.com/vllm-project/vllm/pull/50843) by alexbi29: the tile argmax of the
+  sampling kernels clamped to the vocabulary, in the TP4 patches of vllm/v1/worker/gpu/sample/gumbel.py and
+  vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py.
+
+flash-linear-attention (https://github.com/fla-org/flash-linear-attention), MIT License.
+  Flash Linear Attention (Songlin Yang, Yu Zhang). Copyright (c) 2023-2025, Songlin Yang, Yu Zhang
+  (licenses/MIT-fla-org-flash-linear-attention.txt). The kernel derives from Tri Dao's Triton layer norm
+  (state-spaces/mamba, mamba_ssm/ops/triton/layernorm.py, Copyright (c) 2023, Tri Dao, Apache License 2.0), which the
+  first version of FLA's module (fla/modules/fused_norm_gate.py, baf1d71) named in its header; FLA's header has named
+  only its own authors since bb6ba34. The masked variance, rstd, normalisation and weight steps of
+  glm53_gated_rmsnorm_fp8_kernel are that kernel's; the row tiling and the output gate are FLA's; the head-strided
+  gate addressing is vLLM's (#50089).
+  src/tp4/vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py: glm53_gated_rmsnorm_fp8_kernel contains code
+  copied from the project's layer_norm_gated_fwd_kernel, through vLLM's copy in
+  vllm/third_party/flash_linear_attention/ops/kda.py, and keeps that copy's MIT notice and copyright lines.
+
+b12x (https://github.com/local-inference-lab/b12x; first published as lukealonso/b12x), Apache License 2.0.
+  Luke Alonso and contributors.
+  patches/b12x/ modifies b12x files of the base image. src/tp4/glm53_kda_ckpt.py contains a copy of b12x's KDA
+  prefill recurrence kernel class (b12x/sequence/kda_prefill/_cute_kernels.py) with modifications.
+  src/tp4/glm53_kda_conv.py contains b12x's KDA prefill prepare kernel and its compile and launch helpers (same file,
+  as installed in the base image) with the short causal convolution folded into the kernel's staging; the rest of
+  that kernel is unchanged.
+  src/tp4/glm53_lean_allreduce/ is adapted from b12x's RoCEnante transport (b12x.comm.roce, local-inference-lab/b12x
+  pull request 295 by Jason Cook) as vendored and changed by SparkRing (below).
+
+vllm-sparse-mla-blackwell (https://github.com/Libertai/vllm-sparse-mla-blackwell), Apache License 2.0.
+  patches/sparse-mla/ modifies the glm53_sparse_mla plugin (backend and CUDA kernels).
+
+NVIDIA CUTLASS (https://github.com/NVIDIA/cutlass), BSD 3-Clause License.
+  Copyright (c) 2023 - 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+  build/glm53_fp8_gemm/vendor/cutlass_extensions/epilogue/broadcast_load_epilogue_c3x.hpp and
+  broadcast_load_epilogue_array_c3x.hpp are modified excerpts of CUTLASS v3.5.0 as vendored by vLLM; they keep
+  their BSD-3-Clause header, which licenses/BSD-3-Clause-NVIDIA-CUTLASS.txt reproduces.
+
+NVIDIA NCCL (https://github.com/NVIDIA/nccl), licensed as described in licenses/nccl-LICENSE.txt
+  (Apache License 2.0, with portions under the BSD licence).
+  Copyright (c) 2015-2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+  patches/nccl/ is applied to NCCL v2.30.7-1 (commit 73cf1122).
+
+SparkRing (https://github.com/FujitsuPolycom/sparkring), Apache License 2.0.
+  Its NOTICE file (licenses/sparkring-NOTICE.txt) reads:
+
+    SparkRing
+    Copyright 2026 SparkRing contributors
+
+    This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+    This product includes portions of NVIDIA NCCL
+    (Copyright (c) 2015-2026 NVIDIA CORPORATION & AFFILIATES. All rights
+    reserved.), licensed under the Apache License, Version 2.0, contained in the
+    patch files under spark_transport/nccl/.
+
+    For all third-party attributions and related obligations, see
+    THIRD_PARTY_NOTICES.md.
+
+  Material in this repository derived from SparkRing:
+  - patches/nccl/0001: the switchless-cycle NCCL patches (skip Tree/PAT connection setup, advertise both listener
+    GIDs), first published in SparkRing b9b2225363c45ea76139493153c7756769ae5de5. Their skip-Tree/skip-PAT approach
+    was first published by Joseph Rose (josephdrose/nccl-spark-switchless, 27ca6d3b, 2026-07-04, no licence stated);
+    no code of his is included (SparkRing THIRD_PARTY_NOTICES.md section 2; switchless-nccl PROVENANCE.md).
+  - src/tp4/vllm/models/glm5next/nvidia/mhc_prefill_sharding.py and the reduction-deferral changes in the vLLM
+    patches that it relies on (linear.py, mla.py, moe_runner.py, moe_runner_interface.py, attention.py, kda.py,
+    model.py): token-sharded mHC prefill, adapted from SparkRing's mHC prefill source package
+    (runtime/glm53-spark-mtp3-mesh/performance/mhc-prefill, revision 61f277bd0c97fbff892668e12ea04a330a45fa01).
+    That package's NOTICE reads:
+
+      Token-sharded mHC prefill source package
+
+      The archived vLLM files retain their upstream copyright and SPDX notices.
+      Modifications add explicit per-call TP reduction deferral, eager-prefill
+      token ownership, and NCCL reduce-scatter/all-gather around local mHC.
+      The new mhc_prefill_sharding.py helper is provided under Apache-2.0.
+
+  - src/tp4/glm53_kda_ckpt.py, src/tp4/glm53_kda_ckpt_plan.py and the KDA-checkpoint changes in the TP4 vLLM
+    patches (v1/core/sched/scheduler.py, v1/core/single_type_kv_cache_manager.py, v1/worker/gpu/model_runner.py,
+    models/glm5next/nvidia/kda.py): KDA checkpoints saved inside a prefill chunk, a port of SparkRing's
+    continuation-prefill coalescing and multi-checkpoint KDA export
+    (runtime/images/sparkring-r35/patches/{b12x,vllm}-sparkring.patch at 90d510a5f0fca27cb2d7a18fcf39579f9fe9ad12;
+    runtime/sparkring/jovian-r33/patches/vllm-r33-sparkring.patch at 1b709300649d04aee01bab79fc0f0e340622974a).
+  - src/tp4/glm53_lean_allreduce/: _cute_intrinsics.py is byte-identical to SparkRing's
+    runtime/transport_profiles/tp2-rocenante-adaptive/roce/_cute_intrinsics.py (last changed in
+    4b9b6a0a213456b96400c5e1a1cf59c20ff892c8); _proxy.py, _roce_proxy.c and _lean_cute.py are adapted from the
+    _proxy.py, _roce_proxy.c and _oneshot_cute.py of the same SparkRing directory, which SparkRing vendored from b12x
+    pull request 295 (RoCEnante, by Jason Cook) with local changes. The file headers name b12x RoCEnante only; this
+    notice adds the SparkRing provenance.
+
+switchless-nccl (https://github.com/alexellis/switchless-nccl), Apache License 2.0.
+  Its NOTICE file (licenses/switchless-nccl-NOTICE.txt) reads:
+
+    Switchless NCCL for DGX Spark
+    Copyright 2026 Alex Ellis, OpenFaaS Ltd
+
+    This product includes software developed by NVIDIA Corporation and affiliates.
+    See THIRD_PARTY_NOTICES.md and the upstream notices bundled with release assets.
+
+    The two switchless-cycle patches were originally published by SparkRing.
+    The hardened switchless patch, project tooling, documentation, and packaging
+    contain modifications owned by Alex Ellis, OpenFaaS Ltd.
+    Joseph Rose is credited for the earlier switchless skip-Tree/skip-PAT approach;
+    no source from his unlicensed repository is included.
+
+  patches/nccl/0001 includes the hardening of alexellis/switchless-nccl f5ab0a309e63b1773e9bdf9bf6b61e9b65200986.
+
+Humming (https://github.com/vllm-project/humming), Apache License 2.0.
+  The TP4 profile mounts the humming-kernels 0.1.15 package built from commit
+  a74973b5079e42ef861720b62f847ce9d33447f5. It is not copied into this repository.
+
+GLM-5.3-Flash (https://huggingface.co/zai-org/GLM-5.3-Flash), MIT License.
+  Copyright (c) 2026 Z.AI Co., Ltd (licenses/MIT-zai-org-GLM-5.3-Flash.txt).
+  The chat template served as launch/profiles/*/chat_template_mm.jinja (and carried as
+  docker/base/thinking-gate/chat_template_mm.jinja) is based on the model's chat_template.jinja (zai-org/GLM-5.3-Flash
+  revision 690b705278a3a58e538fcb37c2ca8b5f9511213c, git blob 06bd89e9). Its one change, the thinking gate, is Raymond
+  Lucke's, as carried in MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks (next entry).
+
+MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks (https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks), GNU Affero
+General Public License v3.0 since 2026-09-07 (commit cf0f430); the contributions made before that date were
+distributed under the MIT License, whose notice the project keeps
+(licenses/MIT-MiaAI-Lab-GLM-5.3-Flash-EXL3-2x-DGX-Sparks.txt).
+  Copyright (c) 2026 Mia's AI Lab.
+  launch/profiles/*/chat_template_mm.jinja and docker/base/thinking-gate/chat_template_mm.jinja are byte-identical to
+  that project's files/chat_template.jinja from its commit 68ce597 on (sha256 7a5a0dda...). Its only change to
+  zai-org's template (revision 690b705) is the thinking gate, written by Raymond Lucke (GitHub rwl4) in eaf90d0: a
+  request's `thinking` or `enable_thinking` argument decides whether the assistant turn opens `<think>` or an empty
+  `<think></think>`, and the "Reasoning Effort" system line is emitted only when thinking is on; without either
+  argument the template behaves as the original. In the project's history, 4753ac2 made the Reasoning Effort line
+  unconditional again, a5cc004 (Mia's AI Lab) restored Raymond Lucke's gate, and 68ce597 (Rusty's AI Lab) ported
+  zai-org's own later corrections into the file. The served file is MIT-licensed: it equals, byte for byte, zai-org's
+  chat_template.jinja at revision 690b705 (sha256 0c4099f3382d6c92700dfb99725025360966fd73032f0ecf32377c0d9e6309c5)
+  with the thinking-gate hunk of eaf90d0 (committed on 2026-08-27, in the project's MIT period; its file has sha256
+  96ed83160b243de213e95eb2fa19bde4ac13b676661cfec477d18e45e9fcca3a) applied: sha256
+  7a5a0dda1331a7c40d930961cc1cb3b57c3b52625250c13372fe006ba2e9dfdb. tests/cpu/test_licences.py rebuilds it from the
+  two files and the hunk in tests/cpu/data/chat-template. a5cc004 restores eaf90d0's lines exactly and 68ce597 ports
+  zai-org's own text, so the project's later commits add nothing beyond those MIT sources; 68ce597, a commit of the
+  project's later licence period, has the same bytes. The recipe keeps both MIT notices
+  (licenses/MIT-zai-org-GLM-5.3-Flash.txt, licenses/MIT-MiaAI-Lab-GLM-5.3-Flash-EXL3-2x-DGX-Sparks.txt). The recipe's
+  GLM-5.3 parser (vllm/parser/glm53_moe.py) is the lab's own and relies on this gate.
+
+-------------------------------------------------------------------------------------------------------------
+Base image stages (docker/base)
+-------------------------------------------------------------------------------------------------------------
+
+docker/base carries the inputs of the lab's image stages, byte for byte but for one docstring, the DFlash2 files below
+and the SPDX line of the lab's own files, which names the repository licence (docker/base/README.md); from them
+docker/Dockerfile rebuilds the base image. Their bytes are pinned by the stages' own hashes, which follow those
+changes; this notice states their provenance and the modification. Third-party code among them keeps its licence and
+headers:
+
+vLLM (https://github.com/vllm-project/vllm), Apache License 2.0.
+  Copyright contributors to the vLLM project.
+  The chain starts from the vLLM source image built from the glm-release branch of the vLLM fork ZJY0516/vllm
+  (https://github.com/ZJY0516/vllm), commit 4500c80c080328dfe62435d083f4063e00d987df, with its docker/Dockerfile.
+  docker/base/v029-port/v029-glm53-local.patch ports the GLM-5.3 model sources of the glm-release commit 4500c80c onto
+  vLLM v0.29.0 and carries the lab's changes to vLLM files; the stage patches and patch scripts of stages 02 to 10,
+  12, 16 and 17 change vLLM files of the source image; 15-topk-repair holds kernel sources of that commit and hunks of
+  vllm-project/vllm pull request 55314; 19-runtime-bugfixes/runtime-candidate/vllm, 21-atomic-prefill and
+  mixed-prefill-repair/overlay/vllm hold vLLM files as the lab changed them. The DFlash2 auxiliary hidden-state
+  capture and drafter KV-cache group of stage 02 (its three DFlash2 patches and their oracle) and of the port patch
+  (model.py, kv_cache_utils.py) are the recipe's, described above, in place of the lab's earlier versions.
+
+b12x (https://github.com/local-inference-lab/b12x), Apache License 2.0.
+  Luke Alonso and contributors.
+  docker/base/04-b12x-kda/b12x-kda-prefill-overlay holds the policy and sequence packages of b12x's public KDA
+  prefill work: 19 of its 22 files are identical to b12x commit 4b389912412bed957cb5c1654b24c6c39d387316
+  (Luke Alonso). The lab took the files from c083e1d4, its local rewrite on b12x commit 287be2e4. The lab of the
+  GLM-5.3 RiNGSiDE recipe (othexmr) changed b12x/sequence/kda_prefill/_cute_kernels.py: it combines the upstream
+  fixes b794879d (Martin Vit) and 4b389912 (Luke Alonso). The two policy profile data files
+  (b12x/policy/_profiles/data/*.json.gz) are those of 287be2e4 and differ from 4b389912's.
+  docker/base/04-b12x-kda/README.md has the details. Stages 11, 13 and 19 change files of b12x 1.3.0.
+
+FlashInfer (https://github.com/flashinfer-ai/flashinfer), Apache License 2.0.
+  Copyright (c) 2025 by FlashInfer team; the XQA sources: Copyright (c) 2023-2025 NVIDIA CORPORATION & AFFILIATES.
+  docker/base/19-runtime-bugfixes/drafter-batch-fix holds four FlashInfer 0.6.18 files and the lab's change to them.
+
+vllm-sparse-mla-blackwell (https://github.com/Libertai/vllm-sparse-mla-blackwell), Apache License 2.0.
+  Stages 02, 14, 19 and 21 change the plugin's glm53_sparse_mla/backend.py; docker/Dockerfile fetches the plugin
+  source itself.
+
+GLM-5.3-Flash chat template (zai-org, MIT License; the thinking gate by Raymond Lucke, as carried in
+MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks, MIT).
+  docker/base/thinking-gate/chat_template_mm.jinja is the served chat template, unchanged (entries above).
+
+Modification notice. The patches and changed files of docker/base were modified in the lab of the GLM-5.3 RiNGSiDE
+recipe (othexmr); most carry no notice inside the file. The lab's own installers, tests, manifests and checksum lists
+in docker/base are under the repository licence, Apache-2.0. docker/Dockerfile, docker/tools and the other recipe
+files are the recipe's own (Apache-2.0). Building the images downloads further third-party software under its own
+terms (docs/redistribution.md).
+
+-------------------------------------------------------------------------------------------------------------
+Used, not redistributed
+-------------------------------------------------------------------------------------------------------------
+
+Model and drafter weights are downloaded by the operator from Hugging Face and are not part of this repository:
+RedHatAI/GLM-5.3-Flash-NVFP4 (revision 18d55bfd5a2194887738da73753975c9d3842f46, MIT), quantized from
+zai-org/GLM-5.3-Flash, with the tokenizer.json of nvidia/GLM-5.3-Flash-NVFP4 (revision
+423acf37583782c51c142d145aef733d72943d93, MIT) read in place of its own, and incoai/GLM-5.3-Flash-DFlash2, Inco AI's
+DFlash 2 drafter on the DFlash method of z-lab/dflash (Jian Chen, Yesheng Liang, Zhijian Liu) (revision
+7d74cdd881ed7e32c31175984a67823127b66cfe, CC BY-NC-ND 4.0: its model card releases the drafter for research and
+evaluation). A launch loads both as downloaded; the recipe neither redistributes nor modifies them.
+The optional weightless GLP-44 steering of the TP4 profile (off by default; README.md) uses msuiche/weightless
+(https://github.com/msuiche/weightless, Matt Suiche; no licence stated): the steering method, its GLM-5.3 patcher
+(patches/hotfix-glm53-steering-projective.py at commit 15ed1373f6265c336ef227e7b4280e6ebdd347b3) and the GLP-44
+vector msuiche/GLM-5.3-Flash-abliterated-cyber-GLP-44 (Hugging Face, revision
+ef85b0169fd25a3c0223eedddee124cf6b1580dc, GLM-5.3-Flash-abliterated-cyber-GLP-44-L1-44-a2.gguf, MIT, gated). The
+operator fetches both (the vector with their own Hugging Face token); launch/options/weightless/prepare.py applies
+the patcher's replacements on the operator's machine, reading its strings without running it. This repository
+contains none of weightless's code or data: the recipe's own guards, the ownership fix and the notice line it adds
+are Apache-2.0 (the repository licence), and the lines it replaces are named by sha256 only.
+Benchmarks use RigMark (https://github.com/alexellis/rigmark, MIT), llama-benchy
+(https://github.com/eugr/llama-benchy, MIT), tool-eval-bench (https://github.com/SeraphimSerapis/tool-eval-bench, MIT;
+scenario methodology adapted from stevibe/ToolCall-15) and the lab's own Python reproduction of the decode benchmark
+protocol of MiaAI-Lab/sparkDash (https://github.com/MiaAI-Lab/sparkDash); none of their code is in this repository.
+bench/results/runs/ holds output files of RigMark and llama-benchy runs, and
+bench/results/evidence/tool-eval-bench.json a summary of tool-eval-bench results. docs/credits.md lists every project
+this recipe builds on or was compared with.
+
+References to paths such as "outputs/2026-09-24-..." inside served source files point to the lab's research
+archive, which is not part of this repository.

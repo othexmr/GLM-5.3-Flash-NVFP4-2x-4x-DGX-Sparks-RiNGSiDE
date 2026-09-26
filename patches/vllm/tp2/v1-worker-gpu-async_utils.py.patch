@@ -1,0 +1,51 @@
+RiNGSiDE overlay patch, profile tp2
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/async_utils.py
+Preimage:    sha256 36bd876f1c2cf648ed9436c66205db39df7bd4f9b0da90f507fed8b3159840c5
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    installed hash recorded from the image by the lab (2026-09-13 source-control manifest); equals the v0.29.0 port source tree
+Postimage:   sha256 019aefd848e47ca4d6d916113e5b4672b632460ed1ce6a3426b53def291e394f (the file the tp2 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/worker/gpu/async_utils.py b/vllm/v1/worker/gpu/async_utils.py
+index ba0a66d2bc81899a0d0b23b3cbaf841c5eb76439..2d40960a5e37112e106c702ff99babe540ea120a 100644
+--- a/vllm/v1/worker/gpu/async_utils.py
++++ b/vllm/v1/worker/gpu/async_utils.py
+@@ -1,5 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): step timing events are also recorded and handed to the
++# glm53_speedup telemetry when it is enabled.
+ import contextlib
+ from collections.abc import Iterator
+ from dataclasses import dataclass, field
+@@ -7,6 +9,7 @@ from typing import TYPE_CHECKING
+ 
+ import numpy as np
+ import torch
++from glm53_speedup.telemetry import drain as _cost_drain, enabled as _cost_timing
+ 
+ import vllm.envs as envs
+ from vllm.model_executor.layers.fused_moe.all2all_utils import get_ep_all2all_manager
+@@ -92,7 +95,7 @@ class StepTimingCollector:
+         self._batch = (full_cudagraph, input_batch.num_tokens, input_batch.num_reqs)
+ 
+     def forward_start(self) -> None:
+-        if self._collecting:
++        if self._collecting or _cost_timing():
+             self._step = StepTimingEvents()
+             self._step.forward_start.record()
+ 
+@@ -108,7 +111,10 @@ class StepTimingCollector:
+         """Ends the step: only steps that reach here have a draft cost."""
+         if self._step is not None:
+             self._step.drafter_end.record()
+-            self._timed.append((self._step, self._batch))
++            if self._collecting:
++                self._timed.append((self._step, self._batch))
++            elif _cost_timing():
++                _cost_drain(self._step)
+             self._step = None
+ 
+ 

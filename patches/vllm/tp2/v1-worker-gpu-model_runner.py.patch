@@ -1,0 +1,86 @@
+RiNGSiDE overlay patch, profile tp2
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py
+Preimage:    sha256 f01ae09c799799c8949778588d4e5e43f8c4c2dc4fd531a0eb7a553eb5d45c5e
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    read from a running container of the image (2026-09-17, no overlay on this path); equals the v0.29.0 port source tree
+Postimage:   sha256 fb93f06a693815f6f376ec8727b641a26b6dcca77b6767d114d0ef986fd642ab (the file the tp2 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/worker/gpu/model_runner.py b/vllm/v1/worker/gpu/model_runner.py
+index 42c7b385d17cf0fe7d66ac5ee41eddc654250574..831d80cad00dd86f2a5660c4623bee523480feba 100644
+--- a/vllm/v1/worker/gpu/model_runner.py
++++ b/vllm/v1/worker/gpu/model_runner.py
+@@ -1,5 +1,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): per-step batch, forward and drafter timing hooks for the
++# glm53_speedup telemetry.
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): kpool tail group left out of the generic slot mapping.
+ """
+ NOTE: Coding style guide for this file:
+ This model runner is shared by all models: text and multimodal, generative
+@@ -26,6 +29,7 @@ from typing import Any, NamedTuple
+ 
+ import numpy as np
+ import torch
++from glm53_speedup.telemetry import record_batch as _cost_record_batch
+ import torch.nn as nn
+ 
+ import vllm.envs as envs
+@@ -551,6 +555,11 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+                 getattr(self.model_config.hf_config, "max_source_positions", 0),
+             )
+ 
++        # The GLM-5.3 kpool tail (KpoolTailSpec) is one circular block per request, as a CircularBufferSpec group is.
++        # KpoolTailMetadataBuilder writes every actual token's tail slot itself (compute_kpool_tail_slot_mapping), and
++        # the generic mapping would read block_table[req, pos // ring] far past the group's 32-column block table.
++        from vllm.v1.kv_cache_interface import KpoolTailSpec
++
+         block_sizes = []
+         max_num_blocks_per_group = []
+         slot_mapping_enabled = []
+@@ -560,7 +569,9 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+             layer_spec = (
+                 spec.first_spec if isinstance(spec, UniformTypeKVCacheSpecs) else spec
+             )
+-            slot_mapping_enabled.append(not isinstance(layer_spec, CircularBufferSpec))
++            slot_mapping_enabled.append(
++                not isinstance(layer_spec, (CircularBufferSpec, KpoolTailSpec))
++            )
+             # Let each cache type account for CP. Attention KV is DCP-sharded,
+             # while Mamba/GDN recurrent state is replicated across DCP ranks.
+             max_num_blocks = spec.max_num_blocks_per_req(
+@@ -1729,6 +1740,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+         # Update the EPLB meta.
+         self.eplb.prepare_forward(self.model_config, input_batch.num_tokens)
+ 
++        _cost_record_batch(input_batch, batch_desc)
+         self.step_timing.record_batch(
+             input_batch, batch_desc.cg_mode == CUDAGraphMode.FULL
+         )
+@@ -1830,6 +1842,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+         aux_hidden_states = self.execute_model_state.aux_hidden_states
+         dp_sync = self.execute_model_state.dp_sync
+         finished_req_ids = self.execute_model_state.finished_req_ids
++        self.step_timing.forward_end()
+         ec_connector_output = self.execute_model_state.ec_connector_output
+         routed_experts = self.execute_model_state.routed_experts
+         self.execute_model_state = None
+@@ -1938,6 +1951,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+                 pre_hc_hidden_states = self.model.get_mtp_target_hidden_states()
+                 spec_hidden_states = pre_hc_hidden_states[: hidden_states.shape[0]]  # type: ignore[union-attr]
+             with use_workspace_lane(self._draft_workspace_lane):
++                self.step_timing.drafter_start()
+                 draft_tokens = self.speculator.propose(
+                     input_batch,
+                     attn_metadata,
+@@ -1953,6 +1967,7 @@ class GPUModelRunner(LoRAModelRunnerMixin):
+                     dp_sync=dp_sync,
+                     mm_inputs=mm_inputs,
+                 )
++            self.step_timing.drafter_end()
+             self.req_states.draft_tokens[input_batch.idx_mapping] = draft_tokens
+             if self.adaptive_verification is not None:
+                 self.adaptive_verification.record_confidences(

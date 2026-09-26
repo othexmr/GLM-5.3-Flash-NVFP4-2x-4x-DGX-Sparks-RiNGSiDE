@@ -1,0 +1,274 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/b12x.py
+Preimage:    sha256 445dfa61c627b4c2baf9c3e47927b8c98c382309102f40fda85df5654d9cbc3e
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    image-baked lab change (atomic-prefill adapter build stage) on the GLM-5.3 backport file; differs from both upstream and the backport
+Evidence:    sha256 read inside the image by the lab mixed-batch work preflight (atomic-prefill adapter baked into the image)
+Postimage:   sha256 f0b2511291270610a493c0886bd15db2243911b7e54397fec961d65e4757779d (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/model_executor/layers/fused_moe/b12x.py b/vllm/model_executor/layers/fused_moe/b12x.py
+index 13616bb97fbaedfc7eda276d9d1e49bb9b2d4716..b974b5fafdd14c111491f6d0cc3b508ed77e090f 100644
+--- a/vllm/model_executor/layers/fused_moe/b12x.py
++++ b/vllm/model_executor/layers/fused_moe/b12x.py
+@@ -1,5 +1,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in atomic NVFP4 MoE plans for eager pure-prefill batches and
++# for launches above a row threshold, and mixed prefill+decode batches split into deterministic decode rows and atomic
++# prefill rows (B12X_GLM53_ATOMIC_PREFILL, B12X_GLM53_ATOMIC_DECODE_MIN_ROWS, B12X_GLM53_MIXED_SPLIT).
+ """b12x modular tensor-parallel fused MoE backend."""
+ 
+ import os
+@@ -69,6 +72,132 @@ def _glm53_use_atomic_prefill(tokens: int, quant_mode: str) -> bool:
+     marked = [m for m in values if hasattr(m, "glm53_moe_all_prefill")]
+     return bool(marked) and all(m.glm53_moe_all_prefill is True for m in marked)
+ 
++
++# Range-limited atomic decode MoE (2026-09-24, moe-decode-atomic-range; off unless
++# B12X_GLM53_ATOMIC_DECODE_MIN_ROWS > 0). Every NVFP4 MoE launch of at least that many rows takes the atomic plan:
++# decode, spec verify, graph capture, mixed and prefill batches alike. The decision depends on the row count only, so a
++# captured graph replays the plan its size was captured with. Launches below the threshold keep the deterministic plan
++# (and B12X_GLM53_DET_SLICES where it applies). Above the threshold the output is NOT bit-reproducible: the atomic
++# red.add order varies run to run (within the decode MoE tolerance contract).
++_GLM53_ATOMIC_DECODE_MIN_ROWS = max(
++    0, int(os.environ.get("B12X_GLM53_ATOMIC_DECODE_MIN_ROWS", "0").strip() or "0")
++)
++_GLM53_ATOMIC_DECODE_LOGGED = [False]
++
++
++def _glm53_atomic_decode(tokens: int, quant_mode: str) -> bool:
++    """Whether a launch of `tokens` rows takes the atomic plan by the row threshold (knob off: never)."""
++    return bool(
++        _GLM53_ATOMIC_DECODE_MIN_ROWS > 0
++        and quant_mode == "nvfp4"
++        and int(tokens) >= _GLM53_ATOMIC_DECODE_MIN_ROWS
++    )
++
++
++# Mixed-step row split (moe-mixed-batch, 2026-09-24; off unless B12X_GLM53_MIXED_SPLIT=1). In an eager mixed
++# prefill + decode NVFP4 batch whose leading rows are exactly its non-prefilling (decode / spec-verify) requests,
++# those D rows run the deterministic plan a decode batch of D rows runs, and the remaining rows run the atomic plan
++# a pure-prefill batch of the same size runs, as two launches sharing workspace2. Every other batch keeps its plan.
++_GLM53_MIXED_SPLIT = os.environ.get("B12X_GLM53_MIXED_SPLIT", "0") == "1"
++_GLM53_MIXED_SPLIT_MIN_PREFILL = max(
++    128, int(os.environ.get("B12X_GLM53_MIXED_SPLIT_MIN_PREFILL", "128").strip() or "128")
++)
++_GLM53_MIXED_SPLIT_COUNTS = {"split": 0, "below_min_prefill": 0, "not_leading": 0, "atomic_decode": 0}
++
++
++def _glm53_mixed_split_rows(tokens: int, quant_mode: str) -> int:
++    """D > 0 when this eager forward's rows [0, D) are its non-prefilling requests and at least
++    B12X_GLM53_MIXED_SPLIT_MIN_PREFILL prefilling rows follow (glm53_sparse_mla's glm53_moe_decode_prefix_tokens,
++    CPU scheduler state, unanimous over the marked metadata); else 0. Decided once per forward context."""
++    if not (_GLM53_MIXED_SPLIT and _GLM53_ATOMIC_PREFILL) or quant_mode != "nvfp4":
++        return 0
++    if not is_forward_context_available() or _is_current_stream_capturing():
++        return 0
++    ctx = get_forward_context()
++    from vllm.config import CUDAGraphMode
++    if ctx.cudagraph_runtime_mode != CUDAGraphMode.NONE:
++        return 0
++    decided = getattr(ctx, "_glm53_moe_mixed_split", None)
++    if decided is None:
++        decided = _glm53_decide_mixed_split(ctx.attn_metadata)
++        try:
++            ctx._glm53_moe_mixed_split = decided
++        except AttributeError:
++            pass
++    decode, actual = decided
++    if decode <= 0 or int(tokens) < actual:
++        return 0
++    return decode
++
++
++def _glm53_decide_mixed_split(metadata: Any) -> tuple[int, int]:
++    """(D, actual tokens) for a splittable forward, else (0, 0); counts and logs mixed forwards."""
++    if not isinstance(metadata, dict) or not metadata:
++        return 0, 0
++    marks = {
++        (int(m.glm53_moe_decode_prefix_tokens), int(m.num_actual_tokens))
++        for m in metadata.values()
++        if hasattr(m, "glm53_moe_decode_prefix_tokens")
++    }
++    if len(marks) != 1:
++        return 0, 0
++    decode, actual = marks.pop()
++    if decode == 0:
++        return 0, 0
++    counts = _GLM53_MIXED_SPLIT_COUNTS
++    if decode < 0:
++        reason = "not_leading"
++    elif actual - decode < _GLM53_MIXED_SPLIT_MIN_PREFILL:
++        reason = "below_min_prefill"
++    elif _glm53_atomic_decode(decode, "nvfp4"):
++        # moe-decode-atomic-range: the decode rows would be atomic anyway, so the whole batch runs one atomic launch.
++        # With fewer decode rows than the threshold the split stays, and they keep the deterministic plan.
++        reason = "atomic_decode"
++    else:
++        reason = "split"
++    counts[reason] += 1
++    if counts[reason] == 1:
++        logger.info(
++            "GLM53_MOE_MIXED_SPLIT %s: first mixed forward of this kind (%d tokens, decode prefix %d, min prefill %d)",
++            "engaged" if reason == "split" else "fallback " + reason, actual, decode, _GLM53_MIXED_SPLIT_MIN_PREFILL,
++        )
++    total = sum(counts.values())
++    if total >= 8 and total & (total - 1) == 0:
++        logger.info(
++            "GLM53_MOE_MIXED_SPLIT mixed forwards %d: split %d, below min prefill %d, decode rows not leading %d, "
++            "atomic decode %d",
++            total, counts["split"], counts["below_min_prefill"], counts["not_leading"], counts["atomic_decode"],
++        )
++    return (decode, actual) if reason == "split" else (0, 0)
++
++
++def _glm53_run_mixed_split(
++    *,
++    decode: int,
++    decode_plan: Any,
++    prefill_plan: Any,
++    scratch: torch.Tensor,
++    hidden_states: torch.Tensor,
++    prepared: Any,
++    topk_weights: torch.Tensor,
++    topk_ids: torch.Tensor,
++    output: torch.Tensor,
++    unit_scale_contract: bool,
++) -> None:
++    """Rows [0, decode) through decode_plan, then rows [decode, M) through prefill_plan, on one stream (the second
++    launch reuses scratch after the first completes). Row slices of the contiguous inputs and output."""
++    for plan, rows in ((decode_plan, slice(0, decode)), (prefill_plan, slice(decode, None))):
++        _run_b12x_moe_plan(
++            plan=plan,
++            scratch=scratch,
++            hidden_states=hidden_states[rows],
++            prepared=prepared,
++            topk_weights=topk_weights[rows],
++            topk_ids=topk_ids[rows],
++            output=output[rows],
++            unit_scale_contract=unit_scale_contract,
++        )
++
+ _B12X_MOE_MODES: dict[
+     tuple[torch.dtype | str | None, torch.dtype | str | None],
+     tuple[str, str, str],
+@@ -584,10 +713,15 @@ class B12xExperts(mk.FusedMoEExpertsModular):
+         topk: int,
+         activation: MoEActivation,
+         apply_router_weight_on_input: bool = False,
++        atomic_prefill: bool | None = None,
+     ) -> Any:
+         fused_moe = _require_b12x_fused_moe()
+ 
+-        atomic_prefill = _glm53_use_atomic_prefill(int(tokens), self._quant_mode)
++        # None: the batch's own policy (as before). The mixed-step split passes the policy of each part explicitly.
++        if atomic_prefill is None:
++            atomic_prefill = _glm53_use_atomic_prefill(int(tokens), self._quant_mode) or _glm53_atomic_decode(
++                int(tokens), self._quant_mode
++            )
+         key = (
+             max(int(tokens), 1),
+             int(topk),
+@@ -626,6 +760,12 @@ class B12xExperts(mk.FusedMoEExpertsModular):
+                 logger.info("GLM53_MOE_PHASE_POLICY policy=%s tokens=%d deterministic=%s",
+                             policy, int(tokens), plan.launch_plan.deterministic_output)
+                 _GLM53_PREFILL_POLICY_LOGGED.add(policy)
++        if atomic_prefill and not _GLM53_ATOMIC_DECODE_LOGGED[0] and _glm53_atomic_decode(int(tokens), self._quant_mode):
++            _GLM53_ATOMIC_DECODE_LOGGED[0] = True
++            logger.info(
++                "GLM53_MOE_ATOMIC_DECODE engaged: atomic plan at %d rows (min rows %d, deterministic=%s)",
++                int(tokens), _GLM53_ATOMIC_DECODE_MIN_ROWS, plan.launch_plan.deterministic_output,
++            )
+         self._plans[key] = plan
+         return plan
+ 
+@@ -750,18 +890,49 @@ class B12xExperts(mk.FusedMoEExpertsModular):
+         activation: MoEActivation,
+     ) -> tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...]]:
+         del N, global_num_experts, local_num_experts, expert_tokens_meta
+-        plan = self._plan(
+-            tokens=M,
+-            topk=topk,
+-            activation=activation,
+-            apply_router_weight_on_input=self._apply_router_weight_on_input,
+-        )
++        decode = _glm53_mixed_split_rows(M, self._quant_mode)
++        if decode:
++            nbytes = max(
++                _b12x_scratch_nbytes(plan)
++                for plan in self._mixed_split_plans(
++                    M, decode, topk, activation, self._apply_router_weight_on_input
++                )
++            )
++        else:
++            plan = self._plan(
++                tokens=M,
++                topk=topk,
++                activation=activation,
++                apply_router_weight_on_input=self._apply_router_weight_on_input,
++            )
++            nbytes = _b12x_scratch_nbytes(plan)
+         itemsize = self.moe_config.in_dtype.itemsize
+         scratch_elements = max(
+-            1, (_b12x_scratch_nbytes(plan) + itemsize - 1) // itemsize
++            1, (nbytes + itemsize - 1) // itemsize
+         )
+         return (0,), (scratch_elements,), (M, K)
+ 
++    def _mixed_split_plans(
++        self,
++        tokens: int,
++        decode: int,
++        topk: int,
++        activation: MoEActivation,
++        apply_router_weight_on_input: bool,
++    ) -> tuple[Any, Any]:
++        """The decode rows' deterministic plan (a decode batch's key) and the prefill rows' atomic plan (a
++        pure-prefill batch's key)."""
++        return tuple(
++            self._plan(
++                tokens=rows,
++                topk=topk,
++                activation=activation,
++                apply_router_weight_on_input=apply_router_weight_on_input,
++                atomic_prefill=atomic,
++            )
++            for rows, atomic in ((decode, False), (int(tokens) - decode, True))
++        )
++
+     def apply(
+         self,
+         output: torch.Tensor,
+@@ -791,6 +962,30 @@ class B12xExperts(mk.FusedMoEExpertsModular):
+         prepared = self._prepared()
+         topk_ids = _normalize_topk_ids(topk_ids)
+         topk_weights = _normalize_topk_weights(topk_weights)
++        decode = _glm53_mixed_split_rows(int(hidden_states.shape[0]), self._quant_mode)
++        if decode:
++            decode_plan, prefill_plan = self._mixed_split_plans(
++                int(hidden_states.shape[0]),
++                decode,
++                int(topk_ids.shape[1]),
++                activation,
++                bool(apply_router_weight_on_input),
++            )
++            scratch = _workspace_as_b12x_scratch(workspace2, decode_plan)
++            _workspace_as_b12x_scratch(workspace2, prefill_plan)
++            _glm53_run_mixed_split(
++                decode=decode,
++                decode_plan=decode_plan,
++                prefill_plan=prefill_plan,
++                scratch=scratch,
++                hidden_states=hidden_states,
++                prepared=prepared,
++                topk_weights=topk_weights,
++                topk_ids=topk_ids,
++                output=output,
++                unit_scale_contract=self._quant_mode == "w4a16",
++            )
++            return
+         plan = self._plan(
+             tokens=int(hidden_states.shape[0]),
+             topk=int(topk_ids.shape[1]),

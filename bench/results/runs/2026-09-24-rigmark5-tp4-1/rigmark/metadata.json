@@ -1,0 +1,52 @@
+{
+  "competing_traffic": "Exclusive four-node owner window required; no concurrent profiling or transfers",
+  "context_limit": 262144,
+  "hardware": "4 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance",
+  "kv_cache_dtype": "fp8_e4m3 target; auto draft",
+  "model": "nvidia/GLM-5.3-Flash-NVFP4",
+  "model_revision": "423acf37583782c51c142d145aef733d72943d93",
+  "quantisation": "NVIDIA NVFP4; inherited promoted B12X paths",
+  "serving_engine": "vLLM 0.29.0 GLM backport; sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
+  "topology": "Four-node switchless ring; inherited promotion-13 fabric",
+  "serving_image": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
+  "selectors": {
+    "GLM53_HUMMING_DENSE": "shared_down"
+  },
+  "tensor_parallel_size": 4,
+  "max_num_seqs": 16,
+  "proposal_k": 7,
+  "captured_geometry": {
+    "capture_ks": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "capture_requests": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "expected_draft_descriptors": 16,
+    "expected_target_descriptors": 112,
+    "max_requests": 16,
+    "proposal_k": 7
+  },
+  "comparison_note": "TP4 final base (plan sha256 50e80d44); RigMark 5 rounds of every suite, concurrency 1-16, staggered 2-16, prefill 8K-256K"
+}

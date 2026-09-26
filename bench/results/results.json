@@ -1,0 +1,1266 @@
+[
+ {
+  "cold": {
+   "8192": 1.712,
+   "32768": 6.464,
+   "65536": 12.868
+  },
+  "replay": {
+   "8192": 0.427,
+   "32768": 0.54,
+   "65536": 0.7
+  },
+  "decode": {
+   "code": 105.33,
+   "prose": 61.688,
+   "structured": 145.446
+  },
+  "agg": {
+   "1": 77.004,
+   "12": 283.196,
+   "16": 345.817,
+   "2": 105.052,
+   "3": 136.366,
+   "4": 155.457,
+   "5": 180.75,
+   "6": 191.894,
+   "8": 232.644
+  },
+  "prose_agg": {
+   "1": 58.883,
+   "12": 194.424,
+   "16": 225.643,
+   "2": 75.059,
+   "3": 97.165,
+   "4": 110.771,
+   "5": 123.122,
+   "6": 132.739,
+   "8": 153.999
+  },
+  "staggered": {
+   "12": [
+    2.67,
+    9.818
+   ],
+   "16": [
+    2.804,
+    10.064
+   ],
+   "2": [
+    2.423,
+    7.657
+   ],
+   "4": [
+    2.467,
+    7.848
+   ],
+   "6": [
+    2.547,
+    9.414
+   ],
+   "8": [
+    2.526,
+    9.506
+   ]
+  },
+  "protocol": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+  "runs": 2,
+  "staggered_rounds": 2,
+  "id": "tp4-ringside",
+  "tp": "TP4",
+  "table": "main",
+  "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+  "admits": 16,
+  "lab_plan": "89dfef84",
+  "prefill_suite": {
+   "8192": {
+    "cold_s": 1.712,
+    "replay_s": 0.427,
+    "cold_tok_s": 4784.587,
+    "replay_tok_s": 19197.427
+   },
+   "32768": {
+    "cold_s": 6.464,
+    "replay_s": 0.54,
+    "cold_tok_s": 5069.112,
+    "replay_tok_s": 60711.05
+   },
+   "65536": {
+    "cold_s": 12.868,
+    "replay_s": 0.7,
+    "cold_tok_s": 5093.149,
+    "replay_tok_s": 93606.658
+   },
+   "131072": {
+    "cold_s": 25.984,
+    "replay_s": 0.715,
+    "cold_tok_s": 5044.347,
+    "replay_tok_s": 183306.824
+   },
+   "262136": {
+    "cold_s": 53.568,
+    "replay_s": 0.768,
+    "cold_tok_s": 4893.499,
+    "replay_tok_s": 341343.461
+   }
+  },
+  "configuration": "release window of the TP4 profile, lab plan 89dfef84 (the RiNGSiDE release plan); RigMark cells are medians of 2 runs; sparkDash (a Python reproduction of MiaAI-Lab/sparkDash's decode-benchmark protocol) the median of 2 rounds in the same boot; replay matrix not run on it",
+  "sparkdash": {
+   "prosex1": 82.06,
+   "prosex2": 51.48,
+   "prosex3": 44.41,
+   "prosex4": 40.1,
+   "structuredx1": 159.87,
+   "structuredx2": 102.11,
+   "structuredx3": 92.86,
+   "structuredx4": 76.81,
+   "codex1": 151.28,
+   "codex2": 103.13,
+   "codex3": 97.22,
+   "codex4": 77.65,
+   "jsonx1": 108.38,
+   "jsonx2": 76.06,
+   "jsonx3": 62.61,
+   "jsonx4": 54.28
+  },
+  "sparkdash_window": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+  "lab_receipt": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+  "sparkdash_rounds": 2
+ },
+ {
+  "tp": "TP4",
+  "cold": {
+   "8192": 4.522,
+   "32768": 14.165,
+   "65536": 28.385
+  },
+  "replay": {
+   "8192": 1.627,
+   "32768": 1.326,
+   "65536": 1.604
+  },
+  "decode": {
+   "code": 82.453,
+   "prose": 35.814,
+   "structured": 127.44
+  },
+  "agg": {
+   "1": 58.297,
+   "2": 41.801,
+   "3": 55.12,
+   "4": 111.184,
+   "5": 83.262,
+   "6": 92.436
+  },
+  "staggered": {
+   "2": [
+    7.935,
+    14.583
+   ],
+   "4": [
+    8.052,
+    14.711
+   ],
+   "6": [
+    8.156,
+    14.902
+   ]
+  },
+  "id": "tp4-tonyd2wild-2ac4e8dd",
+  "table": "main",
+  "recipe": "tonyd2wild/GLM-5.3-Flash-NVFP4-1M-KV-4x-DGX-Spark",
+  "configuration": "commit 2ac4e8dd, the recipe's image at 262,144 context and 6 request slots (the lab's choice; the published launch uses 500,000 and 64), on this ring's NCCL transport (the recipe's optional all-peer RoCE route needs connectivity a ring does not have); sparkDash from a separate window of the same launch plan",
+  "admits": 6,
+  "sparkdash": {
+   "prosex1": 53.93,
+   "prosex2": 39.61,
+   "prosex3": 31.54,
+   "prosex4": 30.41,
+   "structuredx1": 131.98,
+   "structuredx2": 100.93,
+   "structuredx3": 90.95,
+   "structuredx4": 83.15,
+   "codex1": 120.75,
+   "codex2": 86.3,
+   "codex3": 60.56,
+   "codex4": 69.99,
+   "jsonx1": 101.23,
+   "jsonx2": 59.33,
+   "jsonx3": 58.56,
+   "jsonx4": 51.23
+  },
+  "sparkdash_window": "2026-09-22-sparkdash-tony-4",
+  "runs": 1,
+  "lab_receipt": "2026-09-21-tony-common-capacity-full-2"
+ },
+ {
+  "tp": "TP4",
+  "cold": {
+   "8192": 10.528,
+   "32768": 14.719,
+   "65536": 29.647
+  },
+  "replay": {
+   "8192": 0.56,
+   "32768": 0.373,
+   "65536": 0.655
+  },
+  "decode": {
+   "code": 70.561,
+   "prose": 36.883,
+   "structured": 80.842
+  },
+  "agg": {
+   "1": 49.737,
+   "2": 43.248,
+   "3": 107.873,
+   "4": 75.624,
+   "5": 105.465,
+   "6": 107.658
+  },
+  "staggered": {
+   "2": [
+    6.349,
+    42.019
+   ],
+   "4": [
+    6.392,
+    51.342
+   ],
+   "6": [
+    6.476,
+    null
+   ]
+  },
+  "sparkdash": {
+   "prosex1": 50.69,
+   "prosex2": 39.78,
+   "prosex3": 35.15,
+   "prosex4": 31.48,
+   "structuredx1": 87.55,
+   "structuredx2": 76.71,
+   "structuredx3": 67.85,
+   "structuredx4": 56.21,
+   "codex1": 81.62,
+   "codex2": 74.64,
+   "codex3": 65.73,
+   "codex4": 56.1,
+   "jsonx1": 72.14,
+   "jsonx2": 54.99,
+   "jsonx3": 46.79,
+   "jsonx4": 40.46
+  },
+  "id": "tp4-miaai-7cded8e",
+  "table": "main",
+  "recipe": "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+  "configuration": "commit 7cded8e, their default-off speed options on except KDA_BF16_LARGE_M and DRAFT_KV_COMPACT; image built by their Dockerfile with one self-test skipped; TP4 on this ring's NCCL transport",
+  "admits": 4,
+  "runs": 1,
+  "lab_receipt": "2026-09-23-mia-7cded8e-tp4-full-2"
+ },
+ {
+  "cold": {
+   "8192": 3.559,
+   "32768": 12.944,
+   "65536": 25.664
+  },
+  "replay": {
+   "8192": 0.704,
+   "32768": 0.862,
+   "65536": 1.105
+  },
+  "decode": {
+   "code": 56.537,
+   "prose": 32.962,
+   "structured": 83.373
+  },
+  "agg": {
+   "1": 43.979,
+   "2": 54.587,
+   "3": 68.982,
+   "4": 77.784,
+   "5": 84.538,
+   "6": 97.286
+  },
+  "prose_agg": {
+   "1": 32.269,
+   "2": 43.644,
+   "3": 49.621,
+   "4": 57.804,
+   "5": 63.556,
+   "6": 70.278
+  },
+  "staggered": {
+   "2": [
+    4.696,
+    14.381
+   ],
+   "4": [
+    5.153,
+    14.814
+   ],
+   "6": [
+    4.899,
+    15.424
+   ]
+  },
+  "protocol": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+  "runs": 2,
+  "staggered_rounds": 2,
+  "id": "tp2-ringside",
+  "tp": "TP2",
+  "table": "main",
+  "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+  "admits": 6,
+  "lab_plan": "69ad74fc",
+  "configuration": "final TP2 run, lab plan 69ad74fc (the TP2 profile's base, before the release's changes and fixes); RigMark cells are medians of 2 runs; one window, no fresh reference; sparkDash (a Python reproduction of MiaAI-Lab/sparkDash's decode-benchmark protocol) from a separate window of the same plan; replay matrix not run on it",
+  "sparkdash": {
+   "prosex1": 45.82,
+   "prosex2": 28.67,
+   "prosex3": 21.77,
+   "prosex4": 20.95,
+   "structuredx1": 82.91,
+   "structuredx2": 54.47,
+   "structuredx3": 42.83,
+   "structuredx4": 67.1,
+   "codex1": 85.69,
+   "codex2": 53.11,
+   "codex3": 43.29,
+   "codex4": 43.21,
+   "jsonx1": 68.09,
+   "jsonx2": 40.26,
+   "jsonx3": 30.02,
+   "jsonx4": 28.73
+  },
+  "sparkdash_window": "2026-09-25-sparkdash-tp2-final-1",
+  "lab_receipt": "2026-09-25-tp2-final-1"
+ },
+ {
+  "tp": "TP2",
+  "cold": {
+   "8192": 5.18,
+   "32768": 19.794,
+   "65536": 39.048
+  },
+  "replay": {
+   "8192": 0.764,
+   "32768": 0.56,
+   "65536": 0.815
+  },
+  "decode": {
+   "code": 48.588,
+   "prose": 25.026,
+   "structured": 75.281
+  },
+  "agg": {
+   "1": 37.469,
+   "2": 51.285,
+   "3": 68.832,
+   "4": 70.707,
+   "5": 65.51,
+   "6": 67.268
+  },
+  "staggered": {
+   "2": [
+    5.658,
+    54.872
+   ],
+   "4": [
+    5.758,
+    69.062
+   ],
+   "6": [
+    5.772,
+    null
+   ]
+  },
+  "sparkdash": {
+   "prosex1": 36.51,
+   "prosex2": 26.59,
+   "prosex3": 21.08,
+   "prosex4": 18.61,
+   "structuredx1": 78.12,
+   "structuredx2": 51.94,
+   "structuredx3": 52.78,
+   "structuredx4": 47.72,
+   "codex1": 72.98,
+   "codex2": 62.86,
+   "codex3": 50.46,
+   "codex4": 50.16,
+   "jsonx1": 52.86,
+   "jsonx2": 31.76,
+   "jsonx3": 31.09,
+   "jsonx4": 25.1
+  },
+  "id": "tp2-miaai-7cded8e",
+  "table": "main",
+  "recipe": "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+  "configuration": "commit 7cded8e, their default-off speed options and compact draft pages on; image built by their Dockerfile with one self-test skipped",
+  "admits": 4,
+  "runs": 1,
+  "lab_receipt": "2026-09-23-mia-7cded8e-tp2-compact-full-1"
+ },
+ {
+  "tp": "TP2",
+  "cold": {
+   "8192": 6.292,
+   "32768": 28.561,
+   "65536": 57.397
+  },
+  "replay": {
+   "8192": 2.244,
+   "32768": 0.61,
+   "65536": 8.123
+  },
+  "decode": {
+   "code": 41.693,
+   "prose": 15.811,
+   "structured": 63.477
+  },
+  "agg": {
+   "1": 24.343,
+   "2": 38.258,
+   "3": 51.132,
+   "4": 47.311,
+   "5": 62.727,
+   "6": 84.746
+  },
+  "staggered": {
+   "2": [
+    17.854,
+    19.8
+   ],
+   "4": [
+    11.326,
+    26.503
+   ],
+   "6": [
+    22.747,
+    20.236
+   ]
+  },
+  "sparkdash": {
+   "prosex1": 24.59,
+   "prosex2": 18.83,
+   "prosex3": 17.97,
+   "prosex4": 14.24,
+   "structuredx1": 66.88,
+   "structuredx2": 51.11,
+   "structuredx3": 43.21,
+   "structuredx4": 42.55,
+   "codex1": 56.58,
+   "codex2": 42.66,
+   "codex3": 41.03,
+   "codex4": 42.37,
+   "jsonx1": 45.58,
+   "jsonx2": 32.89,
+   "jsonx3": 27.96,
+   "jsonx4": 25.83
+  },
+  "id": "tp2-tonyd2wild-9fea48c",
+  "table": "main",
+  "recipe": "tonyd2wild/GLM-5.3-Flash-NVFP4-DFlash2-2x-DGX-Spark",
+  "configuration": "commit 9fea48c with five recorded changes: this pair's direct link and addresses, a pinned drafter, the recipe's RoCE all-reduce off (it needs another image from the same author), the chat template of the author's TP4 recipe, the author's documented prefix-cache repair",
+  "admits": 6,
+  "runs": 1,
+  "lab_receipt": "2026-09-23-tony-tp2-9fea48c-full-1"
+ },
+ {
+  "cold": {
+   "8192": 1.691,
+   "32768": 6.499,
+   "65536": 13.134
+  },
+  "replay": {
+   "8192": 0.416,
+   "32768": 0.544,
+   "65536": 0.717
+  },
+  "decode": {
+   "code": 103.803,
+   "prose": 59.785,
+   "structured": 147.432
+  },
+  "agg": {
+   "1": 79.784,
+   "12": 275.445,
+   "16": 323.843,
+   "2": 103.315,
+   "3": 124.593,
+   "4": 143.07,
+   "5": 172.833,
+   "6": 197.196,
+   "8": 220.229
+  },
+  "prose_agg": {
+   "1": 60.455,
+   "12": 195.22,
+   "16": 222.939,
+   "2": 74.872,
+   "3": 90.6,
+   "4": 108.784,
+   "5": 121.06,
+   "6": 133.197,
+   "8": 156.468
+  },
+  "staggered": {
+   "12": [
+    2.632,
+    9.797
+   ],
+   "16": [
+    2.705,
+    10.213
+   ],
+   "2": [
+    2.372,
+    7.658
+   ],
+   "4": [
+    2.43,
+    7.812
+   ],
+   "6": [
+    2.474,
+    9.325
+   ],
+   "8": [
+    2.532,
+    9.567
+   ]
+  },
+  "protocol": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+  "runs": 3,
+  "staggered_rounds": 3,
+  "prefill_suite": {
+   "8192": {
+    "cold_s": 1.691,
+    "replay_s": 0.416,
+    "cold_tok_s": 4845.233,
+    "replay_tok_s": 19708.463
+   },
+   "32768": {
+    "cold_s": 6.499,
+    "replay_s": 0.544,
+    "cold_tok_s": 5042.106,
+    "replay_tok_s": 60219.354
+   },
+   "65536": {
+    "cold_s": 13.134,
+    "replay_s": 0.717,
+    "cold_tok_s": 4989.8,
+    "replay_tok_s": 91453.068
+   },
+   "131072": {
+    "cold_s": 27.415,
+    "replay_s": 0.787,
+    "cold_tok_s": 4781.097,
+    "replay_tok_s": 166642.087
+   },
+   "262136": {
+    "cold_s": 60.417,
+    "replay_s": 0.874,
+    "cold_tok_s": 4338.749,
+    "replay_tok_s": 299930.205
+   }
+  },
+  "id": "tp4-release-nvidia",
+  "tp": "TP4",
+  "table": "extra",
+  "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+  "admits": 16,
+  "lab_plan": "31978478",
+  "lab_receipt": "2026-09-25-ringside-combined-tp4-1",
+  "configuration": "the RiNGSiDE release plan on the NVIDIA checkpoint (nvidia/GLM-5.3-Flash-NVFP4 423acf37), lab plan 31978478; RigMark cells are medians of 3 runs in one boot, then llama-benchy; tool-eval-bench, sparkDash and the correctness checks did not run (the window stopped there); replay matrix not run on it"
+ },
+ {
+  "cold": {
+   "8192": 1.707,
+   "32768": 6.52,
+   "65536": 13.202
+  },
+  "replay": {
+   "8192": 0.455,
+   "32768": 0.542,
+   "65536": 0.724
+  },
+  "decode": {
+   "code": 108.86,
+   "prose": 60.43,
+   "structured": 154.096
+  },
+  "agg": {
+   "1": 77.399,
+   "12": 282.958,
+   "16": 334.263,
+   "2": 110.844,
+   "3": 129.469,
+   "4": 159.427,
+   "5": 177.589,
+   "6": 199.691,
+   "8": 231.105
+  },
+  "prose_agg": {
+   "1": 56.761,
+   "12": 198.745,
+   "16": 233.132,
+   "2": 78.447,
+   "3": 98.125,
+   "4": 116.164,
+   "5": 125.287,
+   "6": 139.595,
+   "8": 161.411
+  },
+  "staggered": {
+   "12": [
+    2.653,
+    9.772
+   ],
+   "16": [
+    2.756,
+    10.046
+   ],
+   "2": [
+    2.386,
+    7.686
+   ],
+   "4": [
+    2.438,
+    7.823
+   ],
+   "6": [
+    2.482,
+    9.434
+   ],
+   "8": [
+    2.536,
+    9.508
+   ]
+  },
+  "protocol": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+  "runs": 2,
+  "staggered_rounds": 2,
+  "id": "tp4-previous-run",
+  "tp": "TP4",
+  "table": "extra",
+  "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+  "admits": 16,
+  "lab_plan": "387b3ff3",
+  "prefill_suite": {
+   "8192": {
+    "cold_s": 1.707,
+    "replay_s": 0.455,
+    "cold_tok_s": 4800.422,
+    "replay_tok_s": 17999.15
+   },
+   "32768": {
+    "cold_s": 6.52,
+    "replay_s": 0.542,
+    "cold_tok_s": 5025.926,
+    "replay_tok_s": 60493.952
+   },
+   "65536": {
+    "cold_s": 13.202,
+    "replay_s": 0.724,
+    "cold_tok_s": 4964.205,
+    "replay_tok_s": 90568.009
+   },
+   "131072": {
+    "cold_s": 27.541,
+    "replay_s": 0.831,
+    "cold_tok_s": 4759.165,
+    "replay_tok_s": 157774.488
+   },
+   "262136": {
+    "cold_s": 60.516,
+    "replay_s": 0.922,
+    "cold_tok_s": 4331.709,
+    "replay_tok_s": 284368.842
+   }
+  },
+  "configuration": "final TP4 run before the release, lab plan 387b3ff3: lab plan 6f490797 without the replay-boundary admit fix; RigMark cells are medians of 2 runs; sparkDash (a Python reproduction of MiaAI-Lab/sparkDash's decode-benchmark protocol) from a separate window of lab plan 6f490797; replay matrix not run on it",
+  "sparkdash": {
+   "prosex1": 81.76,
+   "prosex2": 57.93,
+   "prosex3": 44.21,
+   "prosex4": 37.98,
+   "structuredx1": 152.62,
+   "structuredx2": 104.54,
+   "structuredx3": 93.66,
+   "structuredx4": 73.96,
+   "codex1": 150.39,
+   "codex2": 102.59,
+   "codex3": 88.37,
+   "codex4": 81.09,
+   "jsonx1": 111.49,
+   "jsonx2": 75.37,
+   "jsonx3": 59.64,
+   "jsonx4": 56.98
+  },
+  "sparkdash_window": "2026-09-25-sparkdash-tp4-final-1",
+  "sparkdash_plan": "6f490797",
+  "lab_receipt": "2026-09-25-tp4-final-2"
+ },
+ {
+  "cold": {
+   "8192": 1.809,
+   "32768": 6.549,
+   "65536": 13.255
+  },
+  "replay": {
+   "8192": 0.539,
+   "32768": 0.724,
+   "65536": 0.902
+  },
+  "decode": {
+   "code": 102.768,
+   "prose": 59.455,
+   "structured": 146.969
+  },
+  "agg": {
+   "1": 78.533,
+   "12": 273.072,
+   "16": 318.695,
+   "2": 100.878,
+   "3": 122.825,
+   "4": 145.631,
+   "5": 168.849,
+   "6": 185.152,
+   "8": 219.478
+  },
+  "prose_agg": {
+   "1": 56.204,
+   "12": 187.612,
+   "16": 218.515,
+   "2": 76.605,
+   "3": 91.845,
+   "4": 107.007,
+   "5": 122.496,
+   "6": 131.132,
+   "8": 154.838
+  },
+  "staggered": {
+   "12": [
+    2.654,
+    9.786
+   ],
+   "16": [
+    2.753,
+    9.952
+   ],
+   "2": [
+    2.395,
+    7.583
+   ],
+   "4": [
+    2.434,
+    7.777
+   ],
+   "6": [
+    2.494,
+    9.289
+   ],
+   "8": [
+    2.546,
+    9.55
+   ]
+  },
+  "protocol": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+  "runs": 5,
+  "staggered_rounds": 5,
+  "id": "tp4-previous-profile",
+  "tp": "TP4",
+  "table": "extra",
+  "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+  "admits": 16,
+  "lab_plan": "50e80d44",
+  "sparkdash": {
+   "prosex1": 77.29,
+   "prosex2": 56.14,
+   "prosex3": 43.4,
+   "prosex4": 38.6,
+   "structuredx1": 147.09,
+   "structuredx2": 105.16,
+   "structuredx3": 91.25,
+   "structuredx4": 72.36,
+   "codex1": 150.65,
+   "codex2": 114.94,
+   "codex3": 90.8,
+   "codex4": 80.79,
+   "jsonx1": 114.41,
+   "jsonx2": 74.2,
+   "jsonx3": 61.29,
+   "jsonx4": 54.66
+  },
+  "sparkdash_window": "2026-09-24-final-full-protocol-3",
+  "sparkdash_plan": "9e4f793a",
+  "replay_matrix": {
+   "window": "2026-09-24-final-replay-ours-tp4-1",
+   "valid": true,
+   "quality": "15/16",
+   "capacity": 0.2,
+   "swept": [
+    0.05,
+    0.1,
+    0.15,
+    0.2,
+    0.3,
+    0.4
+   ]
+  },
+  "replay_plan": "9e4f793a",
+  "configuration": "previous TP4 profile, lab plan 50e80d44 (before A2b, greedy argmax verification, the replay boundary and P1); RigMark cells are medians of 5 runs; sparkDash and replay matrix single runs of lab plan 9e4f793a",
+  "lab_receipt": "2026-09-24-rigmark5-tp4-1"
+ },
+ {
+  "cold": {
+   "8192": 1.884,
+   "32768": 6.569,
+   "65536": 13.284
+  },
+  "replay": {
+   "8192": 0.551,
+   "32768": 0.729,
+   "65536": 0.919
+  },
+  "decode": {
+   "code": 101.563,
+   "prose": 57.367,
+   "structured": 145.028
+  },
+  "agg": {
+   "1": 79.09,
+   "12": 272.507,
+   "16": 310.075,
+   "2": 101.832,
+   "3": 129.691,
+   "4": 154.617,
+   "5": 168.278,
+   "6": 175.676,
+   "8": 209.955
+  },
+  "prose_agg": {
+   "1": 58.613,
+   "12": 191.832,
+   "16": 217.212,
+   "2": 76.021,
+   "3": 92.853,
+   "4": 100.741,
+   "5": 121.648,
+   "6": 131.372,
+   "8": 151.189
+  },
+  "staggered": {
+   "12": [
+    2.677,
+    9.914
+   ],
+   "16": [
+    2.81,
+    9.965
+   ],
+   "2": [
+    2.382,
+    7.648
+   ],
+   "4": [
+    2.45,
+    7.875
+   ],
+   "6": [
+    2.485,
+    9.358
+   ],
+   "8": [
+    2.589,
+    9.718
+   ]
+  },
+  "protocol": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+  "runs": 1,
+  "staggered_rounds": 1,
+  "id": "tp4-ringside-single-run",
+  "tp": "TP4",
+  "table": "extra",
+  "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+  "admits": 16,
+  "lab_plan": "594faefb",
+  "configuration": "lab plan 594faefb, the same TP4 code as the previous profile 50e80d44; single-run window of 2026-09-24 13:09-13:30",
+  "lab_receipt": "2026-09-24-kda-ckpt-tp4-1"
+ },
+ {
+  "tp": "TP4",
+  "cold": {
+   "8192": 2.062,
+   "32768": 6.9,
+   "65536": 13.59
+  },
+  "replay": {
+   "8192": 0.548,
+   "32768": 0.883,
+   "65536": 1.096
+  },
+  "decode": {
+   "code": 101.665,
+   "prose": 59.755,
+   "structured": 149.719
+  },
+  "agg": {
+   "1": 81.959,
+   "2": 110.293,
+   "3": 128.359,
+   "4": 149.687,
+   "5": 166.833,
+   "6": 186.468
+  },
+  "staggered": {
+   "2": [
+    2.397,
+    7.849
+   ],
+   "4": [
+    3.513,
+    8.006
+   ],
+   "6": [
+    2.5,
+    9.401
+   ]
+  },
+  "sparkdash": {
+   "prosex1": 77.29,
+   "prosex2": 56.14,
+   "prosex3": 43.4,
+   "prosex4": 38.6,
+   "structuredx1": 147.09,
+   "structuredx2": 105.16,
+   "structuredx3": 91.25,
+   "structuredx4": 72.36,
+   "codex1": 150.65,
+   "codex2": 114.94,
+   "codex3": 90.8,
+   "codex4": 80.79,
+   "jsonx1": 114.41,
+   "jsonx2": 74.2,
+   "jsonx3": 61.29,
+   "jsonx4": 54.66
+  },
+  "replay_matrix": {
+   "window": "2026-09-24-final-replay-ours-tp4-1",
+   "valid": true,
+   "quality": "15/16",
+   "capacity": 0.2
+  },
+  "id": "tp4-previous-base",
+  "table": "extra",
+  "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+  "configuration": "earlier TP4 base (lab plan 9e4f793a, without the KDA checkpoints); NON-DETERMINISTIC decode",
+  "admits": 16,
+  "runs": 1,
+  "lab_receipt": "2026-09-24-final-full-protocol-3"
+ },
+ {
+  "tp": "TP4",
+  "cold": {
+   "8192": 2.187,
+   "32768": 7.332,
+   "65536": 14.484
+  },
+  "replay": {
+   "8192": 0.598,
+   "32768": 0.921,
+   "65536": 1.178
+  },
+  "decode": {
+   "code": 101.564,
+   "prose": 58.501,
+   "structured": 136.727
+  },
+  "agg": {
+   "1": 84.313,
+   "2": 107.523,
+   "3": 120.35,
+   "4": 146.629,
+   "5": 170.77,
+   "6": 174.801
+  },
+  "staggered": {
+   "2": [
+    2.596,
+    8.27
+   ],
+   "4": [
+    2.661,
+    8.412
+   ],
+   "6": [
+    2.714,
+    9.971
+   ]
+  },
+  "sparkdash": {
+   "prosex1": 79.09,
+   "prosex2": 48.87,
+   "prosex3": 41.77,
+   "prosex4": 37.04,
+   "structuredx1": 154.86,
+   "structuredx2": 102.94,
+   "structuredx3": 91.52,
+   "structuredx4": 80.6,
+   "codex1": 148.89,
+   "codex2": 103.51,
+   "codex3": 89.97,
+   "codex4": 85.48,
+   "jsonx1": 109.5,
+   "jsonx2": 71.25,
+   "jsonx3": 62.18,
+   "jsonx4": 54.65
+  },
+  "replay_matrix": {
+   "window": "2026-09-24-final-replay-ours-tp4-weightless-1",
+   "valid": true,
+   "quality": "16/16",
+   "capacity": 0.2
+  },
+  "id": "tp4-previous-base-weightless",
+  "table": "extra",
+  "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE + msuiche/weightless",
+  "configuration": "earlier TP4 base with the optional weightless GLP-44 steering; NON-DETERMINISTIC decode",
+  "admits": 16,
+  "runs": 1,
+  "lab_receipt": "2026-09-24-final-weightless-full-1"
+ },
+ {
+  "cold": {
+   "8192": 4.079,
+   "32768": 13.11,
+   "65536": 25.926
+  },
+  "replay": {
+   "8192": 1.66,
+   "32768": 2.33,
+   "65536": 2.573
+  },
+  "decode": {
+   "code": 54.814,
+   "prose": 33.611,
+   "structured": 76.972
+  },
+  "agg": {
+   "1": 41.835,
+   "2": 49.444,
+   "3": 67.164,
+   "4": 76.327,
+   "5": 82.881,
+   "6": 85.694
+  },
+  "prose_agg": {
+   "1": 32.295,
+   "2": 39.618,
+   "3": 46.718,
+   "4": 53.339,
+   "5": 62.863,
+   "6": 65.632
+  },
+  "staggered": {
+   "2": [
+    4.647,
+    14.987
+   ],
+   "4": [
+    4.736,
+    14.991
+   ],
+   "6": [
+    5.487,
+    15.261
+   ]
+  },
+  "protocol": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+  "runs": 1,
+  "staggered_rounds": 3,
+  "id": "tp2-previous-profile",
+  "tp": "TP2",
+  "table": "extra",
+  "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+  "admits": 6,
+  "lab_plan": "32dd2ab8",
+  "sparkdash": {
+   "prosex1": 48.17,
+   "prosex2": 29.34,
+   "prosex3": 21.63,
+   "prosex4": 20.73,
+   "structuredx1": 84.1,
+   "structuredx2": 53.74,
+   "structuredx3": 44.16,
+   "structuredx4": 63.58,
+   "codex1": 84.85,
+   "codex2": 55.41,
+   "codex3": 47.09,
+   "codex4": 42.12,
+   "jsonx1": 66.38,
+   "jsonx2": 39.13,
+   "jsonx3": 32.68,
+   "jsonx4": 28.77
+  },
+  "sparkdash_window": "2026-09-24-final-tp2-full-1",
+  "sparkdash_plan": "f1771e0a",
+  "replay_matrix": {
+   "window": "2026-09-24-tp2ws-cand-1",
+   "valid": true,
+   "quality": "16/16",
+   "capacity": null,
+   "swept": [
+    0.05,
+    0.1,
+    0.15
+   ]
+  },
+  "configuration": "previous TP2 profile, lab plan 32dd2ab8; staggered cells are the median of three rounds; sparkDash from lab plan f1771e0a; promoted although three guard clauses failed (TP2 section)",
+  "lab_receipt": "2026-09-24-tp2ws-cand-1"
+ },
+ {
+  "tp": "TP2",
+  "cold": {
+   "8192": 4.378,
+   "32768": 13.558,
+   "65536": 25.716
+  },
+  "replay": {
+   "8192": 3.881,
+   "32768": 2.936,
+   "65536": 4.673
+  },
+  "decode": {
+   "code": 54.568,
+   "prose": 32.979,
+   "structured": 81.506
+  },
+  "agg": {
+   "1": 42.835,
+   "2": 55.665,
+   "3": 68.128,
+   "4": 77.479,
+   "5": 87.328,
+   "6": 99.646
+  },
+  "staggered": {
+   "2": [
+    5.893,
+    15.628
+   ],
+   "4": [
+    11.957,
+    16.026
+   ],
+   "6": [
+    4.795,
+    16.675
+   ]
+  },
+  "sparkdash": {
+   "prosex1": 48.17,
+   "prosex2": 29.34,
+   "prosex3": 21.63,
+   "prosex4": 20.73,
+   "structuredx1": 84.1,
+   "structuredx2": 53.74,
+   "structuredx3": 44.16,
+   "structuredx4": 63.58,
+   "codex1": 84.85,
+   "codex2": 55.41,
+   "codex3": 47.09,
+   "codex4": 42.12,
+   "jsonx1": 66.38,
+   "jsonx2": 39.13,
+   "jsonx3": 32.68,
+   "jsonx4": 28.77
+  },
+  "replay_matrix": {
+   "window": "2026-09-24-final-replay-ours-tp2-1",
+   "valid": true,
+   "quality": "16/16",
+   "capacity": null,
+   "swept": [
+    0.05,
+    0.1,
+    0.15,
+    0.2,
+    0.3,
+    0.4
+   ]
+  },
+  "id": "tp2-previous-base",
+  "table": "extra",
+  "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+  "configuration": "earlier TP2 base (lab plan f1771e0a, before the weak-spot fixes)",
+  "admits": 6,
+  "runs": 1,
+  "lab_receipt": "2026-09-24-final-tp2-full-1"
+ },
+ {
+  "tp": "TP2",
+  "cold": {
+   "8192": 6.039,
+   "32768": 22.739,
+   "65536": 45.297
+  },
+  "replay": {
+   "8192": 0.911,
+   "32768": 0.567,
+   "65536": 0.956
+  },
+  "decode": {
+   "code": 51.192,
+   "prose": 20.684,
+   "structured": 76.583
+  },
+  "agg": {
+   "1": 38.515,
+   "2": 49.931,
+   "3": 45.431,
+   "4": 50.032,
+   "5": 47.592,
+   "6": 52.911
+  },
+  "staggered": {
+   "2": [
+    1.817,
+    69.64
+   ],
+   "4": [
+    16.883,
+    null
+   ],
+   "6": [
+    29.965,
+    null
+   ]
+  },
+  "sparkdash": {
+   "prosex1": 33.04,
+   "prosex2": 24.73,
+   "prosex3": 26.89,
+   "prosex4": 24.72,
+   "structuredx1": 80.08,
+   "structuredx2": 54.19,
+   "structuredx3": 66.99,
+   "structuredx4": 60.76,
+   "codex1": 75.69,
+   "codex2": 62.56,
+   "codex3": 44.3,
+   "codex4": 60.54,
+   "jsonx1": 54.46,
+   "jsonx2": 43.27,
+   "jsonx3": 36.82,
+   "jsonx4": 40.91
+  },
+  "id": "tp2-miaai-71962cd-long-coding",
+  "table": "extra",
+  "recipe": "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+  "configuration": "commit 71962cd, their examples/tp2-long-coding.env, other node pair, automatic KV pool (12.2 / 12.0 GiB per rank)",
+  "admits": 2,
+  "runs": 1,
+  "lab_receipt": "2026-09-24-mia-tp2-longcoding-pairB-full-1"
+ }
+]

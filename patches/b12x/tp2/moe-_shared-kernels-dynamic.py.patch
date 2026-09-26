@@ -1,0 +1,242 @@
+RiNGSiDE overlay patch, profile tp2
+Target:      /usr/local/lib/python3.12/dist-packages/b12x/moe/_shared/kernels/dynamic.py
+Preimage:    sha256 2ebe82bd221aacf915b4d2cc0b50e52dc77c7b7b73aea720ad17941a85d1a060
+             image file: b12x (local-inference-lab/b12x) as installed in the base image
+Upstream:    image-baked lab change (deterministic output, atomic prefill, decode fast path) on b12x 1.3.0, whose file equals local-inference-lab/b12x@3a437ab5
+Evidence:    pinned as the image file by the lab tile-major work (runtime image 017fd0ba)
+Postimage:   sha256 9d65bb84560650928114a81128cc9a3bc4c5dd30ca6c3f357ecceca9998709fe (the file the tp2 profile serves)
+Licence:     Apache-2.0 (b12x file)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/b12x/moe/_shared/kernels/dynamic.py b/b12x/moe/_shared/kernels/dynamic.py
+index 539c828e3cec97e3f724e9bd521e42e18c9d9319..eb375c892d7e04be42908c0dcf999218ce0bee33 100644
+--- a/b12x/moe/_shared/kernels/dynamic.py
++++ b/b12x/moe/_shared/kernels/dynamic.py
+@@ -1,3 +1,5 @@
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): GLM-5.3 NVFP4 decode fast path (B12X_GLM53_DECODE_FASTPATH) and a
++# tile-major expert-weight layout.
+ """
+ MoEDynamicKernel — fused routed low-precision MoE kernel for SM120.
+ 
+@@ -836,6 +838,15 @@ class MoEDynamicKernelBackend:
+             raise ValueError("trellis_coupled requires quant_recipe='w4a8_trellis'")
+         self.trellis_coupled = bool(trellis_coupled)
+         self.trellis_direct_lut = bool(trellis_direct_lut) and self.w4a8_trellis
++        # TP4 tile-major weight layout: off until configure_tile_major_b().
++        self.tile_major_b = False
++        self.tm_n = 0
++        self.tm_k = 0
++        self.tm_k_tiles = 0
++        self.tm_gate_tiles = 0
++        self.tm_out_tiles = 0
++        self.tm_w13_rows = 0
++        self.tm_w2_rows = 0
+         self.w4a8_repacked = bool(w4a8_repacked)
+         self.direct_routing = bool(direct_routing)
+         self.materialize_intermediate = bool(materialize_intermediate)
+@@ -1156,6 +1167,46 @@ class MoEDynamicKernelBackend:
+         ) // self.threads_per_cta
+         self.fastpath_k_splits = k_splits
+ 
++    def configure_tile_major_b(self, *, intermediate_size: int, hidden_size: int) -> None:
++        """Enable the TP4 tile-major FC1/FC2 weight operands (default off).
++
++        The operands arrive as [tiles*128, 128, E] FP4 views whose every
++        (128-row, 128-element) TMA box is one contiguous 8 KB range, ordered
++        per intermediate slice as gate k-tiles, up k-tiles, then FC2 output
++        tiles -- the order the producer warp issues them.  Shared-memory
++        contents, scale operands, MMA and epilogue are unchanged.
++        """
++        if (
++            self.quant_recipe != "nvfp4"
++            or self.is_w4a8
++            or self.is_w6a8
++            or self.w4a8_repacked
++            or self.materialize_intermediate
++            or self.direct_routing
++            or self.swap_ab
++            or self.work_source != _WORK_SOURCE_MATERIALIZED_QUEUE
++        ):
++            raise ValueError(
++                "tile-major weights require the plain grouped NVFP4 dynamic kernel "
++                "on the materialized work queue"
++            )
++        n = int(intermediate_size)
++        k = int(hidden_size)
++        if self.tile_shape_mnk[1] != 128 or self.tile_shape_mnk[2] != 128:
++            raise ValueError("tile-major weights require 128x128 FP4 weight boxes")
++        if not self.is_gated:
++            raise ValueError("tile-major weights require the gated FC1")
++        if n % 128 != 0 or k % 128 != 0 or k % 256 != 0:
++            raise ValueError("tile-major weights require n % 128 == 0 and k % 256 == 0")
++        self.tile_major_b = True
++        self.tm_n = n
++        self.tm_k = k
++        self.tm_k_tiles = k // 128
++        self.tm_gate_tiles = n // 128
++        self.tm_out_tiles = k // 128
++        self.tm_w13_rows = 2 * n * k // 128
++        self.tm_w2_rows = k * n // 128
++
+     def _thrfrg_SFA(self, sfa_tensor, tiled_mma):
+         return self._dense_cls._thrfrg_SFA(self, sfa_tensor, tiled_mma)
+ 
+@@ -2267,6 +2318,11 @@ class MoEDynamicKernelBackend:
+             )
+         else:
+             b_w13_sf_shape = b_w13.shape
++        if cutlass.const_expr(self.tile_major_b):
++            assert self.tm_n > 0, "configure_tile_major_b() must precede the launch"
++            assert b_w13.shape[0] == self.tm_w13_rows
++            assert b_w13.shape[1] == 128
++            b_w13_sf_shape = (2 * self.tm_n, self.tm_k, b_w13.shape[2])
+         sfb_w13_layout = blockscaled_utils.tile_atom_to_shape_SF(
+             b_w13_sf_shape, self.sf_vec_size
+         )
+@@ -2320,6 +2376,11 @@ class MoEDynamicKernelBackend:
+             )
+         else:
+             b_down_sf_shape = b_down.shape
++        if cutlass.const_expr(self.tile_major_b):
++            assert b_down.shape[0] == self.tm_w2_rows
++            assert b_down.shape[1] == 128
++            assert b_down.shape[2] == b_w13.shape[2]
++            b_down_sf_shape = (self.tm_k, self.tm_n, b_down.shape[2])
+         sfb_down_layout = blockscaled_utils.tile_atom_to_shape_SF(
+             b_down_sf_shape, self.sf_vec_size
+         )
+@@ -2368,6 +2429,8 @@ class MoEDynamicKernelBackend:
+             gate_tile_cnt = (n_int + Int32(self.tile_shape_mnk[1]) - Int32(1)) // Int32(
+                 self.tile_shape_mnk[1]
+             )
++        if cutlass.const_expr(self.tile_major_b):
++            gate_tile_cnt = Int32(self.tm_gate_tiles)
+         launch_params = DynamicLaunchParams(row_counts, gate_tile_cnt)
+         if cutlass.const_expr(self.is_w4a8):
+             assert sfb_w13_mx is not None and sfb_down_mx is not None, (
+@@ -4514,6 +4577,12 @@ class MoEDynamicKernelBackend:
+         if self.is_gated:
+             gate_tile_cnt = intermediate_tile_cnt // Int32(2)
+         output_tile_cnt = cute.size(gB_down, mode=[2])
++        if cutlass.const_expr(self.tile_major_b):
++            # Tile-major operands are [tiles*128, 128, E]: the tiled K extent
++            # is one box, so the logical counts come from the configuration.
++            intermediate_tile_cnt = 2 * self.tm_gate_tiles
++            gate_tile_cnt = intermediate_tile_cnt // Int32(2)
++            output_tile_cnt = self.tm_out_tiles
+         phase1_output_tile_cnt = output_tile_cnt
+         if cutlass.const_expr(self.materialize_intermediate):
+             # Phase A stops after activation quantization.  Phase B below owns
+@@ -9012,12 +9081,22 @@ class MoEDynamicKernelBackend:
+                             tAsSFA[(None, prod_state.index)],
+                             tma_bar_ptr=ml_pipeline.producer_get_barrier(prod_state),
+                         )
+-                        cute.copy(
+-                            tma_b_w13,
+-                            tBgB_w13_gate_nk[(None, k_tile)],
+-                            tBsB_w13[(None, prod_state.index)],
+-                            tma_bar_ptr=ml_pipeline.producer_get_barrier(prod_state),
+-                        )
++                        if cutlass.const_expr(self.tile_major_b):
++                            cute.copy(
++                                tma_b_w13,
++                                tBgB_w13[(None, intermediate_slice * Int32(2 * self.tm_k_tiles) + k_tile, None, task_expert_idx)][
++                                    (None, Int32(0))
++                                ],
++                                tBsB_w13[(None, prod_state.index)],
++                                tma_bar_ptr=ml_pipeline.producer_get_barrier(prod_state),
++                            )
++                        else:
++                            cute.copy(
++                                tma_b_w13,
++                                tBgB_w13_gate_nk[(None, k_tile)],
++                                tBsB_w13[(None, prod_state.index)],
++                                tma_bar_ptr=ml_pipeline.producer_get_barrier(prod_state),
++                            )
+                         cute.copy(
+                             tma_sfb_w13,
+                             tBgSFB_w13_gate_nk[(None, k_tile)],
+@@ -9080,14 +9159,26 @@ class MoEDynamicKernelBackend:
+                                     up_prod_state
+                                 ),
+                             )
+-                            cute.copy(
+-                                tma_b_w13,
+-                                tBgB_w13_up_nk[(None, k_tile)],
+-                                tBsB_w13_up[(None, up_prod_state.index)],
+-                                tma_bar_ptr=up_pipeline.producer_get_barrier(
+-                                    up_prod_state
+-                                ),
+-                            )
++                            if cutlass.const_expr(self.tile_major_b):
++                                cute.copy(
++                                    tma_b_w13,
++                                    tBgB_w13[(None, intermediate_slice * Int32(2 * self.tm_k_tiles) + Int32(self.tm_k_tiles) + k_tile, None, task_expert_idx)][
++                                        (None, Int32(0))
++                                    ],
++                                    tBsB_w13_up[(None, up_prod_state.index)],
++                                    tma_bar_ptr=up_pipeline.producer_get_barrier(
++                                        up_prod_state
++                                    ),
++                                )
++                            else:
++                                cute.copy(
++                                    tma_b_w13,
++                                    tBgB_w13_up_nk[(None, k_tile)],
++                                    tBsB_w13_up[(None, up_prod_state.index)],
++                                    tma_bar_ptr=up_pipeline.producer_get_barrier(
++                                        up_prod_state
++                                    ),
++                                )
+                             cute.copy(
+                                 tma_sfa,
+                                 tAgSFA_mk[(None, k_tile)],
+@@ -9122,21 +9213,33 @@ class MoEDynamicKernelBackend:
+                         unroll=4,
+                     ):
+                         phase2_pipeline.producer_acquire(phase2_prod_state)
+-                        cute.copy(
+-                            tma_b_down,
+-                            tBgB_down[
+-                                (
+-                                    None,
+-                                    output_tile_idx,
+-                                    intermediate_slice,
+-                                    task_expert_idx,
+-                                )
+-                            ],
+-                            tBsB_down[(None, phase2_prod_state.index)],
+-                            tma_bar_ptr=phase2_pipeline.producer_get_barrier(
+-                                phase2_prod_state
+-                            ),
+-                        )
++                        if cutlass.const_expr(self.tile_major_b):
++                            cute.copy(
++                                tma_b_down,
++                                tBgB_down[
++                                    (None, intermediate_slice * Int32(self.tm_out_tiles) + output_tile_idx, None, task_expert_idx)
++                                ][(None, Int32(0))],
++                                tBsB_down[(None, phase2_prod_state.index)],
++                                tma_bar_ptr=phase2_pipeline.producer_get_barrier(
++                                    phase2_prod_state
++                                ),
++                            )
++                        else:
++                            cute.copy(
++                                tma_b_down,
++                                tBgB_down[
++                                    (
++                                        None,
++                                        output_tile_idx,
++                                        intermediate_slice,
++                                        task_expert_idx,
++                                    )
++                                ],
++                                tBsB_down[(None, phase2_prod_state.index)],
++                                tma_bar_ptr=phase2_pipeline.producer_get_barrier(
++                                    phase2_prod_state
++                                ),
++                            )
+                         cute.copy(
+                             tma_sfb_down,
+                             tBgSFB_down[

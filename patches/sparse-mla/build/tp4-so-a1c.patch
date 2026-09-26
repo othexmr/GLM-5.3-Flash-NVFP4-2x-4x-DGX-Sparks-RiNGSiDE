@@ -1,0 +1,1375 @@
+Sparse-MLA serving extension build source, profile tp4
+Base:        Libertai/vllm-sparse-mla-blackwell b1f20638d7f82f880e4bcb2136ee2f19c06f38a4
+Change:      the lab sparse-MLA kernels (csrc/sparse_mla.cu), the serving build flags (setup.py) and
+             the image backend (glm53_sparse_mla/backend.py)
+Notices:     each of the three files carries this recipe's change notice (comments only)
+Build:       inside the base image, GLM53_ARCHS=120a,121a python3 setup.py build_ext --inplace (-DGLM53_M7E with the A1c index pipeline)
+Result tree: 442d83ded51b5a0226bd13fbb2e3711d45d64699 (git tree after applying to the base)
+Measured:    glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so sha256 1f940e75297105155cb0f253a351a4c62354054da63b39cd84628731feaf7b99,
+             built from tree acb5d5d07f8e47f69bea11bf071868e46190c0e8, which differs from this result tree only in comments
+             (rebuilt bytes may differ: the build records source line numbers, -lineinfo and TORCH_CHECK)
+Licence:     Apache-2.0 (plugin LICENSE retained)
+---
+diff --git a/csrc/sparse_mla.cu b/csrc/sparse_mla.cu
+index 8446f5dd25b20aa65331865789b6c86a1c825ebe..b3b567127afe3c8f4cf141956dfbfb2af6fea5d9 100644
+--- a/csrc/sparse_mla.cu
++++ b/csrc/sparse_mla.cu
+@@ -1,4 +1,20 @@
+ // glm53_sparse_mla -- sparse MLA (NoPE, tail_dim == 0) for sm_120 / sm_121.
++// Modified by the GLM-5.3 Switchless recipe (othexmr): M6/M7 kernels (pairwise fp8 tile publish, softmax on every
++// thread, opt-in split-KV, build-time M7 variants; -DGLM53_M7E picks M7c or M7d by row count) and an opt-in
++// index-pipelined kernel copy with a padded-column trim (GLM53_SPARSE_MLA_IDX_PIPE, GLM53_SPARSE_MLA_VALID_COLS).
++//
++// A1c (smla-tiles, 2026-09-24): an index pipeline, behind GLM53_SPARSE_MLA_IDX_PIPE=1 (default off). A1a's full-range
++// index scan also acted as an index prefetch, and A1a beat its own exact-length ceiling at long contexts; A1c keeps
++// that effect and nothing else. sparse_fwd_kernel is the M7e kernel, verbatim, and it is all the default path
++// launches. sparse_fwd_pipe_kernel is a copy in which each thread's index loads run one tile ahead of its KV loads
++// (load_idx for tile t + 2 is issued while tile t computes; load_kv for tile t + 1 then issues without waiting on an
++// index round trip), and tile 0's indices are requested before Q is staged. The same tiles are visited in the same
++// order with the same split boundaries, and the same bytes land in the tile buffer and the validity flags, so the
++// output is M7e's bit for bit for any input. Optional trim, GLM53_SPARSE_MLA_VALID_COLS=N: when the index row width
++// is N rounded up to 128 (the GLM-5.3 buffer: 2,048 + kpool 4 - 1 = 2,051 -> 2,176), columns >= N are padding the
++// indexer always fills with -1, so the loop stops after ceil(N / 32) tiles (65 of 68). A skipped all -1 tile is an
++// identity step (finite kNegBig start, p = 0, alpha = exp2f(0) = 1, zeros added), so the trim is exact whenever those
++// columns are -1. Only the fp8 KV path (serving) has the pipelined kernel; bf16 KV keeps M7e.
+ //
+ // Serves GLM-5.3-Flash's MLA geometry, which no vLLM backend supports on
+ // capability 12.x: kv_lora_rank=512, qk_rope_head_dim=0 (so pe_dim==0),
+@@ -12,6 +28,25 @@
+ // Derived from the M5 milestone -- see README.md for the measured evolution and
+ // for the two defects this fixes in the TileLang kernel it replaces.
+ //
++// M6 (2026-09-23, TP4 serving: 16 heads per rank, fp8 cache). A 13,824-row
++// prefill forward spent ~530 ms in this kernel (11 layers), and a C1 decode step
++// ran it on 8 of the GB10's 48 SMs. Three changes; the first two are bit-exact
++// against M5 (leaf: outputs/2026-09-23-sparse-mla-m6).
++//  1. The fp8 tile publish converts pairs (cvt e4m3x2 -> f16x2 is exact, then the
++//     same fp32 multiply and round-to-nearest bf16) and stores 16 B at a time,
++//     instead of one 2-byte shared store per element.
++//  2. The online softmax runs on every thread -- 8 per head, 4 columns each --
++//     instead of one owner thread per head looping over 32 columns while the rest
++//     of the block waits. The max is order-free, each p is the same exp2f
++//     expression, and the owner still adds the fp32 p values in column order, so
++//     sum_state is unchanged bit for bit. Row validity comes from a shared flag
++//     published with the tile rather than 32 global index loads per owner.
++//  3. Split-KV for small grids (decode), behind GLM53_SPARSE_MLA_SPLIT_KV=1: the
++//     top-k tiles of a token are split over several CTAs that each write an
++//     unnormalized fp32 partial (acc, running max, row sum), merged by a combine
++//     kernel. Not bit-exact against the single pass -- each split rounds P
++//     against its own running max -- so it is a tolerance change, off by default.
++//
+ //
+ // With M4 the gather is fully hidden -- ablation at T=2048: gather alone 1.01 ms
+ // of a 3.27 ms kernel, and the parts now sum to MORE than the whole, so the
+@@ -86,9 +121,61 @@
+ // cover 32 distinct banks. Remove the pad and every fragment load conflicts.
+ 
+ #include <cuda_bf16.h>
++#include <cuda_fp16.h>
+ #include <cuda_fp8.h>
+ #include <torch/all.h>
+ 
++#include <algorithm>
++#include <cstdint>
++#include <cstdio>
++#include <cstdlib>
++#include <type_traits>
++
++#if (defined(GLM53_M7B) || defined(GLM53_M7C)) && !defined(GLM53_M7A)
++#define GLM53_M7A 1
++#endif
++// Evaluated here, before M7d/M7e imply M7C below: a -DGLM53_M7D build therefore has no M7A tree-sum softmax (the M7d
++// serving .so c92bf665 and its campaign are that variant), a -DGLM53_M7C build has it (M7c, 47aa7f7b). M7e keeps each.
++#ifdef GLM53_M7A
++#define GLM53_M7A_ON 1
++#else
++#define GLM53_M7A_ON 0
++#endif
++#if defined(GLM53_M7E) && !defined(GLM53_M7D)
++#define GLM53_M7D 1
++#endif
++#if defined(GLM53_M7D) && !defined(GLM53_M7C)
++#define GLM53_M7C 1
++#endif
++#ifdef GLM53_M7C
++#define GLM53_M7C_ON 1
++#else
++#define GLM53_M7C_ON 0
++#endif
++// M7d: with Q held in registers (M7c) its shared-memory copy is dead after the prologue, so Q is staged through the
++// KV tile buffer instead of a region of its own: 16 heads then need ~44 KB, and two CTAs fit per SM.
++#ifdef GLM53_M7D
++#define GLM53_M7D_ON 1
++#else
++#define GLM53_M7D_ON 0
++#endif
++// M7e: both M7c and M7d instantiations are built; launches with T >= GLM53_SPARSE_MLA_M7D_MIN_ROWS (default 256) rows
++// take M7d (prefill chunks, where two CTAs per SM pay), smaller ones M7c (decode: at most 16 x 8 rows, where M7d's
++// residency gains nothing and its single pass measured slower in the leaf). A plain M7d build takes M7d everywhere.
++#ifdef GLM53_M7E
++#define GLM53_M7E_ON 1
++#else
++#define GLM53_M7E_ON 0
++#endif
++
++// The op namespace is a build parameter so a leaf can load this build next to
++// the installed one in one process; serving builds keep the default.
++#ifndef GLM53_SMLA_LIB
++#define GLM53_SMLA_LIB glm53_sparse_mla
++#endif
++#define GLM53_SMLA_TORCH_LIBRARY(ns, m) TORCH_LIBRARY(ns, m)
++#define GLM53_SMLA_TORCH_LIBRARY_IMPL(ns, k, m) TORCH_LIBRARY_IMPL(ns, k, m)
++
+ // c10 rather than ATen/cuda/CUDAContext.h: the latter pulls in
+ // CUDAContextLight.h -> cusparse.h, and the deployed vLLM image ships a CUDA
+ // toolkit without the cuSPARSE headers, so including it fails the build there.
+@@ -182,36 +269,89 @@ struct KvTraits<__nv_fp8_e4m3> {
+   static constexpr bool kQuantized = true;
+ };
+ 
++// valid_bits collects (index >= 0) per prefetched chunk, so the thread that
++// publishes a row's first chunk can publish the row's mask flag with the tile.
+ template <typename KVT, int THREADS>
+ __device__ __forceinline__ void load_tile(
+     uint4 (&pf)[kBI * (kDim / KvTraits<KVT>::kElemsPerChunk) / THREADS],
+     const KVT* __restrict__ KV, const int32_t* __restrict__ idx_row,
+-    int tile, int tid) {
++    int tile, int tid, uint32_t& valid_bits) {
+   constexpr int CPR = kDim / KvTraits<KVT>::kElemsPerChunk;
+   constexpr int NPF = kBI * CPR / THREADS;
++  static_assert(NPF <= 32, "valid_bits holds one bit per prefetched chunk");
++  valid_bits = 0;
+ #pragma unroll
+   for (int i = 0; i < NPF; ++i) {
+     const int c = tid + i * THREADS;
+     const int32_t raw = idx_row[tile * kBI + c / CPR];
+     const int64_t row = raw < 0 ? 0 : (int64_t)raw;   // clamp: KV[-1] is OOB
++    valid_bits |= (raw >= 0 ? 1u : 0u) << i;
+     pf[i] = *reinterpret_cast<const uint4*>(
+         KV + row * kDim + (c % CPR) * KvTraits<KVT>::kElemsPerChunk);
+   }
+ }
+ 
++// A1c: load_tile split in two, so the index loads can run a tile ahead of the KV loads. load_idx + load_kv on the
++// same tile read exactly what load_tile reads and leave the same pf and valid_bits.
++template <typename KVT, int THREADS>
++__device__ __forceinline__ void load_idx(int32_t (&ix)[kBI * (kDim / KvTraits<KVT>::kElemsPerChunk) / THREADS],
++                                         const int32_t* __restrict__ idx_row, int tile, int tid) {
++  constexpr int CPR = kDim / KvTraits<KVT>::kElemsPerChunk;
++  constexpr int NPF = kBI * CPR / THREADS;
++#pragma unroll
++  for (int i = 0; i < NPF; ++i) ix[i] = idx_row[tile * kBI + (tid + i * THREADS) / CPR];
++}
++
++template <typename KVT, int THREADS>
++__device__ __forceinline__ void load_kv(
++    uint4 (&pf)[kBI * (kDim / KvTraits<KVT>::kElemsPerChunk) / THREADS],
++    const KVT* __restrict__ KV, const int32_t (&ix)[kBI * (kDim / KvTraits<KVT>::kElemsPerChunk) / THREADS],
++    int tid, uint32_t& valid_bits) {
++  constexpr int CPR = kDim / KvTraits<KVT>::kElemsPerChunk;
++  constexpr int NPF = kBI * CPR / THREADS;
++  valid_bits = 0;
++#pragma unroll
++  for (int i = 0; i < NPF; ++i) {
++    const int c = tid + i * THREADS;
++    const int32_t raw = ix[i];
++    const int64_t row = raw < 0 ? 0 : (int64_t)raw;   // clamp: KV[-1] is OOB
++    valid_bits |= (raw >= 0 ? 1u : 0u) << i;
++    pf[i] = *reinterpret_cast<const uint4*>(
++        KV + row * kDim + (c % CPR) * KvTraits<KVT>::kElemsPerChunk);
++  }
++}
++
++// bf16_rn(float(fp8) * scale) for four fp8 values packed in one word, returned
++// as two bf16x2 words. The e4m3 -> f16 conversion is exact and so is f16 -> f32,
++// so this equals the per-element static_cast<float> path bit for bit.
++__device__ __forceinline__ void fp8x4_to_bf16x4(uint32_t w, float scale,
++                                                uint32_t& lo, uint32_t& hi) {
++  const __half2_raw h01 =
++      __nv_cvt_fp8x2_to_halfraw2(static_cast<__nv_fp8x2_storage_t>(w & 0xFFFFu), __NV_E4M3);
++  const __half2_raw h23 =
++      __nv_cvt_fp8x2_to_halfraw2(static_cast<__nv_fp8x2_storage_t>(w >> 16), __NV_E4M3);
++  const float2 f01 = __half22float2(__half2(h01));
++  const float2 f23 = __half22float2(__half2(h23));
++  const __nv_bfloat162 b01 = __floats2bfloat162_rn(f01.x * scale, f01.y * scale);
++  const __nv_bfloat162 b23 = __floats2bfloat162_rn(f23.x * scale, f23.y * scale);
++  lo = *reinterpret_cast<const uint32_t*>(&b01);
++  hi = *reinterpret_cast<const uint32_t*>(&b23);
++}
++
+ // Publish a prefetched tile into the bf16 shared tile, dequantizing on the way
+ // when the cache is fp8. kv_scale is the per-tensor scale vLLM stores alongside
+ // the cache; it is 1.0f on the bf16 path.
+ template <typename KVT, int THREADS>
+ __device__ __forceinline__ void store_tile(
+     const uint4 (&pf)[kBI * (kDim / KvTraits<KVT>::kElemsPerChunk) / THREADS],
+-    __nv_bfloat16* kv_s, int tid, float kv_scale) {
++    __nv_bfloat16* kv_s, int* valid_s, uint32_t valid_bits, int tid, float kv_scale) {
+   constexpr int CPR = kDim / KvTraits<KVT>::kElemsPerChunk;
+   constexpr int NPF = kBI * CPR / THREADS;
+   constexpr int EPC = KvTraits<KVT>::kElemsPerChunk;
+ #pragma unroll
+   for (int i = 0; i < NPF; ++i) {
+     const int c = tid + i * THREADS;
++    if (c % CPR == 0) valid_s[c / CPR] = (valid_bits >> i) & 1u;
+     __nv_bfloat16* dst = kv_s + (c / CPR) * kKS + (c % CPR) * EPC;
+     if constexpr (!KvTraits<KVT>::kQuantized) {
+       *reinterpret_cast<uint4*>(dst) = pf[i];
+@@ -221,15 +361,28 @@ __device__ __forceinline__ void store_tile(
+       // speedup (the path is not multiply-bound), and pushed two cases past the
+       // correctness tolerance because acc_o then accumulates unscaled values up
+       // to fp8 max. Not worth it.
+-      const __nv_fp8_e4m3* src = reinterpret_cast<const __nv_fp8_e4m3*>(&pf[i]);
+-#pragma unroll
+-      for (int e = 0; e < EPC; ++e)
+-        dst[e] = __float2bfloat16(static_cast<float>(src[e]) * kv_scale);
++      uint32_t o[8];
++      fp8x4_to_bf16x4(pf[i].x, kv_scale, o[0], o[1]);
++      fp8x4_to_bf16x4(pf[i].y, kv_scale, o[2], o[3]);
++      fp8x4_to_bf16x4(pf[i].z, kv_scale, o[4], o[5]);
++      fp8x4_to_bf16x4(pf[i].w, kv_scale, o[6], o[7]);
++      // A chunk is 32 B of bf16, so lanes l and l+4 of an 8-lane store phase
++      // would write the same four banks; they write their two halves in
++      // opposite order instead, which covers all 32 banks in both stores.
++      const uint4 first = make_uint4(o[0], o[1], o[2], o[3]);
++      const uint4 second = make_uint4(o[4], o[5], o[6], o[7]);
++      const int s = (tid >> 2) & 1;
++      uint4* d4 = reinterpret_cast<uint4*>(dst);
++      d4[s] = s ? second : first;
++      d4[s ^ 1] = s ? first : second;
+     }
+   }
+ }
+ 
+-template <int kHeads, typename KVT>
++// kSplit: blockIdx.y selects tiles [y * tiles_per_split, +tiles_per_split) of the
++// token's top-k, and the block writes its unnormalized fp32 accumulator, running
++// max and row sum to Opart / Mpart / Lpart for combine_kernel instead of O.
++template <int kHeads, typename KVT, bool kSplit, bool kQKV>
+ __global__ __launch_bounds__(threads_for(kHeads)) void sparse_fwd_kernel(
+     const __nv_bfloat16* __restrict__ Q,
+     const KVT* __restrict__ KV,
+@@ -237,18 +390,31 @@ __global__ __launch_bounds__(threads_for(kHeads)) void sparse_fwd_kernel(
+     __nv_bfloat16* __restrict__ O,
+     int topk,
+     float sm_scale,
+-    float kv_scale) {
++    float kv_scale,
++    int tiles_per_split,
++    float* __restrict__ Opart,
++    float* __restrict__ Mpart,
++    float* __restrict__ Lpart) {
+   constexpr int kPH = padded_heads(kHeads);      // rows the MMA actually covers
+   constexpr int kThreads = threads_for(kHeads);
+ 
+   extern __shared__ char smem_raw[];
++  // M7c (16 heads only): four per-warp partial S tiles instead of one.
++  constexpr bool kM7C = GLM53_M7C_ON && kHeads == 16;
++  constexpr bool kM7D = GLM53_M7D_ON && kQKV && kM7C;
++  // Softmax row sum: M7a's shuffle tree or the owner's in-order loop. An M7e build reproduces both measured kernels:
++  // the M7c instantiation (16 heads, kQKV false) with the tree, the M7d one (and 8/32 heads) in order, as built.
++  constexpr bool kTreeSum = (GLM53_M7E_ON && kHeads == 16) ? !kQKV : GLM53_M7A_ON;
++  static_assert(!kM7D || kPH * kQS <= kBI * kKS, "Q must fit in the KV tile buffer");
+   __nv_bfloat16* q_s = reinterpret_cast<__nv_bfloat16*>(smem_raw);
+-  __nv_bfloat16* kv_s = q_s + kPH * kQS;
++  __nv_bfloat16* kv_s = kM7D ? q_s : q_s + kPH * kQS;
++  constexpr int kSParts = kM7C ? 4 : 1;
+   float* s_s = reinterpret_cast<float*>(kv_s + kBI * kKS);
+-  __nv_bfloat16* p_s = reinterpret_cast<__nv_bfloat16*>(s_s + kPH * kSS);
++  __nv_bfloat16* p_s = reinterpret_cast<__nv_bfloat16*>(s_s + kSParts * kPH * kSS);
+   float* alpha = reinterpret_cast<float*>(p_s + kPH * kPS);
+   float* m_state = alpha + kPH;
+   float* sum_state = m_state + kPH;
++  int* valid_s = reinterpret_cast<int*>(sum_state + kPH);
+ 
+   const int tid = threadIdx.x;
+   const int warp = tid >> 5;
+@@ -290,26 +456,74 @@ __global__ __launch_bounds__(threads_for(kHeads)) void sparse_fwd_kernel(
+ #pragma unroll
+     for (int r = 0; r < 4; ++r) acc[j][r] = 0.f;
+ 
+-  const int32_t* idx_row = Indices + (int64_t)token * topk;
+-  const int num_tiles = topk / kBI;
++  // M7c: warp w owns dims [128w, 128w + 128) of GEMM1's contraction for all four n-tiles; its Q A-fragments for those
++  // eight 16-wide k-steps stay in registers for the whole kernel instead of being re-read from shared memory per tile.
++  uint32_t qreg[kM7C ? 8 : 1][4];
++  if constexpr (kM7C) {
++    __syncthreads();                     // Q staged
++    const __nv_bfloat16* qa = q_s + (lane & 15) * kQS + (lane >> 4) * 8 + warp * 128;
++#pragma unroll
++    for (int ks = 0; ks < 8; ++ks)
++      ldmatrix_x4(qreg[ks][0], qreg[ks][1], qreg[ks][2], qreg[ks][3], qa + ks * 16);
++  }
++
++  // The split path offsets the index row, so "tile" below counts from the
++  // split's first tile; the single pass is split 0 of 1.
++  const int split = kSplit ? blockIdx.y : 0;
++  const int tile_begin = kSplit ? split * tiles_per_split : 0;
++  const int32_t* idx_row = Indices + (int64_t)token * topk + tile_begin * kBI;
++  const int num_tiles =
++      kSplit ? min(tiles_per_split, topk / kBI - tile_begin) : topk / kBI;
+ 
+   constexpr int kCPR = kDim / KvTraits<KVT>::kElemsPerChunk;
+   constexpr int kNPF = kBI * kCPR / kThreads;
+   uint4 pf[kNPF];
+-  load_tile<KVT, kThreads>(pf, KV, idx_row, 0, tid);        // prime the pipeline
++  uint32_t valid_bits;
++  if (num_tiles > 0)
++    load_tile<KVT, kThreads>(pf, KV, idx_row, 0, tid, valid_bits);   // prime the pipeline
+ 
+   for (int tile = 0; tile < num_tiles; ++tile) {
+     // ---- gather the KV tile ----------------------------------------------
+     // publish the tile prefetched during the previous iteration
+     __syncthreads();                     // everyone finished reading kv_s
+-    store_tile<KVT, kThreads>(pf, kv_s, tid, kv_scale);
++#ifndef GLM53_ABLATE_STORE
++    store_tile<KVT, kThreads>(pf, kv_s, valid_s, valid_bits, tid, kv_scale);
++#else
++    if (tile == 0) store_tile<KVT, kThreads>(pf, kv_s, valid_s, valid_bits, tid, kv_scale);
++    else if (tid == 0) valid_s[0] = (int)(pf[0].x & 1u);   // keep the loads alive
++#endif
+     __syncthreads();
+ 
+     // issue the next tile's global loads now; GEMM1 + softmax + GEMM2 below hide
+     // the index->KV dependent latency.
+-    if (tile + 1 < num_tiles) load_tile<KVT, kThreads>(pf, KV, idx_row, tile + 1, tid);
++    if (tile + 1 < num_tiles)
++      load_tile<KVT, kThreads>(pf, KV, idx_row, tile + 1, tid, valid_bits);
+ 
+     // ---- GEMM1 ------------------------------------------------------------
++    if constexpr (kM7C) {
++      float sp[4][4];
++#pragma unroll
++      for (int n = 0; n < 4; ++n) sp[n][0] = sp[n][1] = sp[n][2] = sp[n][3] = 0.f;
++      const __nv_bfloat16* kb0 = kv_s + (lane & 7) * kKS + ((lane >> 3) & 1) * 8 + warp * 128;
++#pragma unroll
++      for (int ks = 0; ks < 8; ++ks) {
++#pragma unroll
++        for (int n = 0; n < 4; ++n) {
++          uint32_t b0, b1;
++          ldmatrix_x2(b0, b1, kb0 + n * 8 * kKS + ks * 16);
++          mma_m16n8k16(sp[n][0], sp[n][1], sp[n][2], sp[n][3],
++                       qreg[ks][0], qreg[ks][1], qreg[ks][2], qreg[ks][3], b0, b1);
++        }
++      }
++      float* part = s_s + warp * kPH * kSS;
++#pragma unroll
++      for (int n = 0; n < 4; ++n) {
++        part[lr * kSS + n * 8 + lc] = sp[n][0];
++        part[lr * kSS + n * 8 + lc + 1] = sp[n][1];
++        part[(lr + 8) * kSS + n * 8 + lc] = sp[n][2];
++        part[(lr + 8) * kSS + n * 8 + lc + 1] = sp[n][3];
++      }
++    } else {
+     float s0 = 0.f, s1 = 0.f, s2 = 0.f, s3 = 0.f;
+     {
+       // ldmatrix.x4: lane L supplies row (L & 15) of the 16x16 A tile, column
+@@ -320,6 +534,42 @@ __global__ __launch_bounds__(threads_for(kHeads)) void sparse_fwd_kernel(
+       // plain non-trans .x2 works: lanes 0-7 give k 0-7 and lanes 8-15 k 8-15
+       // for the same eight index rows.
+       const __nv_bfloat16* kb = kv_s + (nt * 8 + (lane & 7)) * kKS + ((lane >> 3) & 1) * 8;
++#ifndef GLM53_ABLATE_GEMM1
++#if defined(GLM53_M7B)
++      // M7b: four independent accumulator chains over the 16-wide k-steps (k mod 4), summed pairwise at the end.
++      float t0 = 0.f, t1 = 0.f, t2 = 0.f, t3 = 0.f, u0 = 0.f, u1 = 0.f, u2 = 0.f, u3 = 0.f;
++      float v0 = 0.f, v1 = 0.f, v2 = 0.f, v3 = 0.f;
++#pragma unroll 2
++      for (int k = 0; k < kDim; k += 64) {
++        uint32_t a0, a1, a2, a3, b0, b1, c0, c1, c2, c3, e0, e1;
++        uint32_t f0, f1, f2, f3, g0, g1, h0, h1, h2, h3, i0, i1;
++        ldmatrix_x4(a0, a1, a2, a3, qa + k);      ldmatrix_x2(b0, b1, kb + k);
++        ldmatrix_x4(c0, c1, c2, c3, qa + k + 16); ldmatrix_x2(e0, e1, kb + k + 16);
++        ldmatrix_x4(f0, f1, f2, f3, qa + k + 32); ldmatrix_x2(g0, g1, kb + k + 32);
++        ldmatrix_x4(h0, h1, h2, h3, qa + k + 48); ldmatrix_x2(i0, i1, kb + k + 48);
++        mma_m16n8k16(s0, s1, s2, s3, a0, a1, a2, a3, b0, b1);
++        mma_m16n8k16(t0, t1, t2, t3, c0, c1, c2, c3, e0, e1);
++        mma_m16n8k16(u0, u1, u2, u3, f0, f1, f2, f3, g0, g1);
++        mma_m16n8k16(v0, v1, v2, v3, h0, h1, h2, h3, i0, i1);
++      }
++      s0 = (s0 + t0) + (u0 + v0); s1 = (s1 + t1) + (u1 + v1);
++      s2 = (s2 + t2) + (u2 + v2); s3 = (s3 + t3) + (u3 + v3);
++#elif defined(GLM53_M7A)
++      // M7a: two independent accumulator chains (even / odd 16-wide k-steps), one add at the end. Halves the
++      // dependent MMA latency of the 32-step chain; reorders the fp32 contraction (tolerance, not bit-exact).
++      float t0 = 0.f, t1 = 0.f, t2 = 0.f, t3 = 0.f;
++#pragma unroll 4
++      for (int k = 0; k < kDim; k += 32) {
++        uint32_t a0, a1, a2, a3, b0, b1, c0, c1, c2, c3, e0, e1;
++        ldmatrix_x4(a0, a1, a2, a3, qa + k);
++        ldmatrix_x2(b0, b1, kb + k);
++        ldmatrix_x4(c0, c1, c2, c3, qa + k + 16);
++        ldmatrix_x2(e0, e1, kb + k + 16);
++        mma_m16n8k16(s0, s1, s2, s3, a0, a1, a2, a3, b0, b1);
++        mma_m16n8k16(t0, t1, t2, t3, c0, c1, c2, c3, e0, e1);
++      }
++      s0 += t0; s1 += t1; s2 += t2; s3 += t3;
++#else
+ #pragma unroll 4
+       for (int k = 0; k < kDim; k += 16) {
+         uint32_t a0, a1, a2, a3, b0, b1;
+@@ -327,40 +577,91 @@ __global__ __launch_bounds__(threads_for(kHeads)) void sparse_fwd_kernel(
+         ldmatrix_x2(b0, b1, kb + k);
+         mma_m16n8k16(s0, s1, s2, s3, a0, a1, a2, a3, b0, b1);
+       }
++#endif
++#else
++      { uint32_t a0, a1, a2, a3, b0, b1; ldmatrix_x4(a0, a1, a2, a3, qa); ldmatrix_x2(b0, b1, kb);
++        mma_m16n8k16(s0, s1, s2, s3, a0, a1, a2, a3, b0, b1); }
++#endif
+     }
+     s_s[(mt * 16 + lr) * kSS + nt * 8 + lc] = s0;
+     s_s[(mt * 16 + lr) * kSS + nt * 8 + lc + 1] = s1;
+     s_s[(mt * 16 + lr + 8) * kSS + nt * 8 + lc] = s2;
+     s_s[(mt * 16 + lr + 8) * kSS + nt * 8 + lc + 1] = s3;
++    }
+     __syncthreads();
+ 
+-    // ---- online softmax, one owner thread per head ------------------------
++#ifndef GLM53_ABLATE_SOFTMAX
++    // ---- online softmax, 8 threads per head, 4 columns each -----------------
+     // Identical arithmetic to M1: exp2(x*c - m*c), two multiplies, matching the
+-    // reference (tilelang_kernel.py:405-407) rather than exp2((x-m)*c).
+-    if (tid < kPH) {
+-      const int h = tid;
++    // reference (tilelang_kernel.py:405-407) rather than exp2((x-m)*c). M5 ran
++    // this on one owner thread per head (32 exp2f in a row while the other
++    // threads waited at the barrier); here every thread takes four columns. The
++    // row max is order-free (fmaxf), each p is the same expression, and the
++    // owner adds the 32 fp32 p values in column order exactly as M5 did.
++    {
++      constexpr int kTPH = kThreads / kPH;          // threads per head
++      constexpr int kCols = kBI / kTPH;             // columns per thread
++      static_assert(kTPH == 8 && kCols == 4, "softmax mapping assumes 8 x 4 per head");
++      const int h = tid / kTPH;                     // 8 consecutive lanes of one warp
++      const int sub = tid % kTPH;
+       const float m_prev = m_state[h];
+       float m_cur = m_prev;
+-      float row[kBI];
++      float row[kCols];
+ #pragma unroll
+-      for (int i = 0; i < kBI; ++i) {
+-        const bool valid = idx_row[tile * kBI + i] >= 0;
+-        row[i] = valid ? s_s[h * kSS + i] : -INFINITY;
+-        m_cur = fmaxf(m_cur, row[i]);   // reduce_max(clear=False)
++      for (int j = 0; j < kCols; ++j) {
++        const int i = sub * kCols + j;
++        float sc;
++        if constexpr (kM7C) {
++          const float* sp0 = s_s + h * kSS + i;
++          sc = (sp0[0] + sp0[kPH * kSS]) + (sp0[2 * kPH * kSS] + sp0[3 * kPH * kSS]);
++        } else {
++          sc = s_s[h * kSS + i];
++        }
++        row[j] = valid_s[i] ? sc : -INFINITY;
++        m_cur = fmaxf(m_cur, row[j]);   // reduce_max(clear=False)
+       }
++#pragma unroll
++      for (int off = 1; off < kTPH; off <<= 1)
++        m_cur = fmaxf(m_cur, __shfl_xor_sync(0xffffffffu, m_cur, off));
+       const float c = sm_scale * kLog2e;
+-      const float a = exp2f((m_prev - m_cur) * c);
+-      float ssum = 0.f;
++      float part = 0.f;                   // M7a: this thread's 4 p values, summed in registers
+ #pragma unroll
+-      for (int i = 0; i < kBI; ++i) {
+-        const float p = isinf(row[i]) ? 0.f : exp2f(row[i] * c - m_cur * c);
++      for (int j = 0; j < kCols; ++j) {
++        const int i = sub * kCols + j;
++        const float p = isinf(row[j]) ? 0.f : exp2f(row[j] * c - m_cur * c);
+         p_s[h * kPS + i] = __float2bfloat16(p);
+-        ssum += p;
++        if constexpr (kTreeSum) {
++          part += p;
++        } else {
++          s_s[h * kSS + i] = p;           // fp32 p for the owner's in-order sum
++        }
++      }
++      (void)part;
++      if constexpr (kTreeSum) {
++        // M7a: the row sum by a shuffle tree over the head's 8 threads (their 4 p values each), not the owner's
++        // 32 in-order adds; fp32 reorder only.
++#pragma unroll
++        for (int off = 1; off < kTPH; off <<= 1) part += __shfl_xor_sync(0xffffffffu, part, off);
++        if (sub == 0) {
++          const float a = exp2f((m_prev - m_cur) * c);
++          alpha[h] = a;
++          m_state[h] = m_cur;
++          sum_state[h] = sum_state[h] * a + part;
++        }
++      } else {
++        __syncwarp();
++        if (sub == 0) {
++          const float a = exp2f((m_prev - m_cur) * c);
++          float ssum = 0.f;
++#pragma unroll
++          for (int i = 0; i < kBI; ++i) ssum += s_s[h * kSS + i];
++          alpha[h] = a;
++          m_state[h] = m_cur;
++          sum_state[h] = sum_state[h] * a + ssum;
++        }
+       }
+-      alpha[h] = a;
+-      m_state[h] = m_cur;
+-      sum_state[h] = sum_state[h] * a + ssum;
+     }
++#endif
+     __syncthreads();
+ 
+     // ---- rescale, then GEMM2 ---------------------------------------------
+@@ -374,6 +675,7 @@ __global__ __launch_bounds__(threads_for(kHeads)) void sparse_fwd_kernel(
+ 
+     {
+       const __nv_bfloat16* pa = p_s + (mt * 16 + (lane & 15)) * kPS + (lane >> 4) * 8;
++#ifndef GLM53_ABLATE_GEMM2
+ #pragma unroll
+       for (int ks = 0; ks < 2; ++ks) {
+         const int i0 = ks * 16;
+@@ -391,17 +693,420 @@ __global__ __launch_bounds__(threads_for(kHeads)) void sparse_fwd_kernel(
+                        a0, a1, a2, a3, b0, b1);
+         }
+       }
++#endif
+     }
+   }
+ 
+   // ---- epilogue ----------------------------------------------------------
++  const bool row_lo_valid = (mt * 16 + lr) < kHeads;
++  const bool row_hi_valid = (mt * 16 + lr + 8) < kHeads;
++  if constexpr (kSplit) {
++    // Unnormalized partial; a split with no tiles leaves m = kNegBig, sum = 0,
++    // acc = 0, which the combine weights to exactly nothing.
++    __syncthreads();                     // m_state / sum_state of an empty split
++    const int64_t part = (int64_t)token * gridDim.y + split;
++    float* p_base = Opart + part * kHeads * kDim;
++#pragma unroll
++    for (int j = 0; j < 16; ++j) {
++      const int d = ((warp & 3) * 16 + j) * 8 + lc;
++      if (row_lo_valid)
++        *reinterpret_cast<float2*>(p_base + (int64_t)(mt * 16 + lr) * kDim + d) =
++            make_float2(acc[j][0], acc[j][1]);
++      if (row_hi_valid)
++        *reinterpret_cast<float2*>(p_base + (int64_t)(mt * 16 + lr + 8) * kDim + d) =
++            make_float2(acc[j][2], acc[j][3]);
++    }
++    if (tid < kHeads) {
++      Mpart[part * kHeads + tid] = m_state[tid];
++      Lpart[part * kHeads + tid] = sum_state[tid];
++    }
++    return;
++  }
+   // Fully masked token -> sumexp == 0 -> return exactly zero, not 0/0 = NaN.
+   const float dlo = sum_state[mt * 16 + lr];
+   const float dhi = sum_state[mt * 16 + lr + 8];
+   const float ilo = dlo > 0.f ? 1.f / dlo : 0.f;
+   const float ihi = dhi > 0.f ? 1.f / dhi : 0.f;
++  __nv_bfloat16* o_base = O + (int64_t)token * kHeads * kDim;
++#pragma unroll
++  for (int j = 0; j < 16; ++j) {
++    const int d = ((warp & 3) * 16 + j) * 8 + lc;
++    __nv_bfloat16* olo = o_base + (int64_t)(mt * 16 + lr) * kDim;
++    __nv_bfloat16* ohi = o_base + (int64_t)(mt * 16 + lr + 8) * kDim;
++    // acc[j][0]/[1] and [2]/[3] are adjacent in d, so pack each pair into one
++    // 32-bit store instead of four 16-bit ones.
++    if (row_lo_valid)
++      *reinterpret_cast<uint32_t*>(olo + d) =
++          pack2(__float2bfloat16(acc[j][0] * ilo), __float2bfloat16(acc[j][1] * ilo));
++    if (row_hi_valid)
++      *reinterpret_cast<uint32_t*>(ohi + d) =
++          pack2(__float2bfloat16(acc[j][2] * ihi), __float2bfloat16(acc[j][3] * ihi));
++  }
++}
++
++// A1c (smla-tiles, 2026-09-24): sparse_fwd_kernel above, verbatim, plus the blocks marked "A1c": the index loads run
++// one tile ahead of the KV gather (load_idx / load_kv), so every tile's KV loads issue with their indices already in
++// registers, and tile 0's indices are issued before Q is staged. Same tiles, same order, same data in pf and valid_s:
++// the output is sparse_fwd_kernel's bit for bit. live_tiles (<= topk / kBI) bounds the loop: topk / kBI, or with the
++// GLM53_SPARSE_MLA_VALID_COLS trim the tiles that can hold a valid column (host). Launched only when
++// GLM53_SPARSE_MLA_IDX_PIPE=1 (or by the leaf op), for fp8 KV; sparse_fwd_kernel stays the M7e kernel, unchanged.
++template <int kHeads, typename KVT, bool kSplit, bool kQKV>
++__global__ __launch_bounds__(threads_for(kHeads)) void sparse_fwd_pipe_kernel(
++    const __nv_bfloat16* __restrict__ Q,
++    const KVT* __restrict__ KV,
++    const int32_t* __restrict__ Indices,
++    __nv_bfloat16* __restrict__ O,
++    int topk,
++    float sm_scale,
++    float kv_scale,
++    int tiles_per_split,
++    float* __restrict__ Opart,
++    float* __restrict__ Mpart,
++    float* __restrict__ Lpart,
++    int live_tiles) {
++  constexpr int kPH = padded_heads(kHeads);      // rows the MMA actually covers
++  constexpr int kThreads = threads_for(kHeads);
++
++  extern __shared__ char smem_raw[];
++  // M7c (16 heads only): four per-warp partial S tiles instead of one.
++  constexpr bool kM7C = GLM53_M7C_ON && kHeads == 16;
++  constexpr bool kM7D = GLM53_M7D_ON && kQKV && kM7C;
++  // Softmax row sum: M7a's shuffle tree or the owner's in-order loop. An M7e build reproduces both measured kernels:
++  // the M7c instantiation (16 heads, kQKV false) with the tree, the M7d one (and 8/32 heads) in order, as built.
++  constexpr bool kTreeSum = (GLM53_M7E_ON && kHeads == 16) ? !kQKV : GLM53_M7A_ON;
++  static_assert(!kM7D || kPH * kQS <= kBI * kKS, "Q must fit in the KV tile buffer");
++  __nv_bfloat16* q_s = reinterpret_cast<__nv_bfloat16*>(smem_raw);
++  __nv_bfloat16* kv_s = kM7D ? q_s : q_s + kPH * kQS;
++  constexpr int kSParts = kM7C ? 4 : 1;
++  float* s_s = reinterpret_cast<float*>(kv_s + kBI * kKS);
++  __nv_bfloat16* p_s = reinterpret_cast<__nv_bfloat16*>(s_s + kSParts * kPH * kSS);
++  float* alpha = reinterpret_cast<float*>(p_s + kPH * kPS);
++  float* m_state = alpha + kPH;
++  float* sum_state = m_state + kPH;
++  int* valid_s = reinterpret_cast<int*>(sum_state + kPH);
++
++  const int tid = threadIdx.x;
++  const int warp = tid >> 5;
++  const int lane = tid & 31;
++  const int token = blockIdx.x;
++
++  const int mt = warp / n_tiles;     // GEMM1/GEMM2 m-tile: heads [mt*16, +16)
++  const int nt = warp % n_tiles;     // GEMM1 n-tile: indices [nt*8, +8)
++  const int lr = lane >> 2;          // fragment row within an 8-row group
++  const int lc = (lane & 3) * 2;     // fragment column pair
++
++  // A1c: the tile range first, so tile 0's indices are in flight while Q is staged.
++  // The split path offsets the index row, so "tile" below counts from the
++  // split's first tile; the single pass is split 0 of 1.
++  const int split = kSplit ? blockIdx.y : 0;
++  const int tile_begin = kSplit ? split * tiles_per_split : 0;
++  const int32_t* idx_row = Indices + (int64_t)token * topk + tile_begin * kBI;
++  const int num_tiles =
++      kSplit ? min(tiles_per_split, live_tiles - tile_begin) : live_tiles;
++  constexpr int kCPR = kDim / KvTraits<KVT>::kElemsPerChunk;
++  constexpr int kNPF = kBI * kCPR / kThreads;
++  int32_t ix[kNPF];                   // A1c: the indices of the next tile to gather
++  if (num_tiles > 0)
++    load_idx<KVT, kThreads>(ix, idx_row, 0, tid);
++
++  // ---- stage Q once; it is reused by every index tile ---------------------
++  {
++    constexpr int kQChunks = kDim / 8;
++    const __nv_bfloat16* q_base = Q + (int64_t)token * kHeads * kDim;
++#pragma unroll
++    for (int c = tid; c < kPH * kQChunks; c += kThreads) {
++      const int h = c / kQChunks, dc = c % kQChunks;
++      uint4* dst = reinterpret_cast<uint4*>(q_s + h * kQS + dc * 8);
++      if (h < kHeads) {
++        *dst = *reinterpret_cast<const uint4*>(q_base + (int64_t)h * kDim + dc * 8);
++      } else {
++        // Padding rows must be ZERO, not stale smem: the MMA reads all kPH rows
++        // and their scores would otherwise be garbage that perturbs nothing we
++        // keep, but could produce inf/NaN in the discarded lanes.
++        *dst = make_uint4(0, 0, 0, 0);
++      }
++    }
++  }
++  if (tid < kPH) {
++    m_state[tid] = kNegBig;
++    sum_state[tid] = 0.f;
++    alpha[tid] = 1.f;
++  }
++
++  float acc[16][4];
++#pragma unroll
++  for (int j = 0; j < 16; ++j)
++#pragma unroll
++    for (int r = 0; r < 4; ++r) acc[j][r] = 0.f;
++
++  // M7c: warp w owns dims [128w, 128w + 128) of GEMM1's contraction for all four n-tiles; its Q A-fragments for those
++  // eight 16-wide k-steps stay in registers for the whole kernel instead of being re-read from shared memory per tile.
++  uint32_t qreg[kM7C ? 8 : 1][4];
++  if constexpr (kM7C) {
++    __syncthreads();                     // Q staged
++    const __nv_bfloat16* qa = q_s + (lane & 15) * kQS + (lane >> 4) * 8 + warp * 128;
++#pragma unroll
++    for (int ks = 0; ks < 8; ++ks)
++      ldmatrix_x4(qreg[ks][0], qreg[ks][1], qreg[ks][2], qreg[ks][3], qa + ks * 16);
++  }
++
++  uint4 pf[kNPF];
++  uint32_t valid_bits;
++  if (num_tiles > 0)
++    load_kv<KVT, kThreads>(pf, KV, ix, tid, valid_bits);   // prime the pipeline (A1c: indices already loaded)
++  if (num_tiles > 1)
++    load_idx<KVT, kThreads>(ix, idx_row, 1, tid);          // A1c: tile 1's indices, one tile ahead
++
++  for (int tile = 0; tile < num_tiles; ++tile) {
++    // ---- gather the KV tile ----------------------------------------------
++    // publish the tile prefetched during the previous iteration
++    __syncthreads();                     // everyone finished reading kv_s
++#ifndef GLM53_ABLATE_STORE
++    store_tile<KVT, kThreads>(pf, kv_s, valid_s, valid_bits, tid, kv_scale);
++#else
++    if (tile == 0) store_tile<KVT, kThreads>(pf, kv_s, valid_s, valid_bits, tid, kv_scale);
++    else if (tid == 0) valid_s[0] = (int)(pf[0].x & 1u);   // keep the loads alive
++#endif
++    __syncthreads();
++
++    // issue the next tile's global loads now; GEMM1 + softmax + GEMM2 below hide
++    // the index->KV dependent latency.
++    // A1c: tile + 1's indices arrived during the previous tile, so its KV loads issue at once; tile + 2's indices
++    // are requested now and have this whole tile to arrive.
++    if (tile + 1 < num_tiles) {
++      load_kv<KVT, kThreads>(pf, KV, ix, tid, valid_bits);
++      if (tile + 2 < num_tiles)
++        load_idx<KVT, kThreads>(ix, idx_row, tile + 2, tid);
++    }
++
++    // ---- GEMM1 ------------------------------------------------------------
++    if constexpr (kM7C) {
++      float sp[4][4];
++#pragma unroll
++      for (int n = 0; n < 4; ++n) sp[n][0] = sp[n][1] = sp[n][2] = sp[n][3] = 0.f;
++      const __nv_bfloat16* kb0 = kv_s + (lane & 7) * kKS + ((lane >> 3) & 1) * 8 + warp * 128;
++#pragma unroll
++      for (int ks = 0; ks < 8; ++ks) {
++#pragma unroll
++        for (int n = 0; n < 4; ++n) {
++          uint32_t b0, b1;
++          ldmatrix_x2(b0, b1, kb0 + n * 8 * kKS + ks * 16);
++          mma_m16n8k16(sp[n][0], sp[n][1], sp[n][2], sp[n][3],
++                       qreg[ks][0], qreg[ks][1], qreg[ks][2], qreg[ks][3], b0, b1);
++        }
++      }
++      float* part = s_s + warp * kPH * kSS;
++#pragma unroll
++      for (int n = 0; n < 4; ++n) {
++        part[lr * kSS + n * 8 + lc] = sp[n][0];
++        part[lr * kSS + n * 8 + lc + 1] = sp[n][1];
++        part[(lr + 8) * kSS + n * 8 + lc] = sp[n][2];
++        part[(lr + 8) * kSS + n * 8 + lc + 1] = sp[n][3];
++      }
++    } else {
++    float s0 = 0.f, s1 = 0.f, s2 = 0.f, s3 = 0.f;
++    {
++      // ldmatrix.x4: lane L supplies row (L & 15) of the 16x16 A tile, column
++      // block (L >> 4) * 8, which returns r0..r3 in exactly the a0..a3 order
++      // mma.m16n8k16 expects (rows 0-7/8-15 x cols 0-7/8-15).
++      const __nv_bfloat16* qa = q_s + (mt * 16 + (lane & 15)) * kQS + (lane >> 4) * 8;
++      // B is [n = index][k = dim], already the fragment's (row, col) order, so
++      // plain non-trans .x2 works: lanes 0-7 give k 0-7 and lanes 8-15 k 8-15
++      // for the same eight index rows.
++      const __nv_bfloat16* kb = kv_s + (nt * 8 + (lane & 7)) * kKS + ((lane >> 3) & 1) * 8;
++#ifndef GLM53_ABLATE_GEMM1
++#if defined(GLM53_M7B)
++      // M7b: four independent accumulator chains over the 16-wide k-steps (k mod 4), summed pairwise at the end.
++      float t0 = 0.f, t1 = 0.f, t2 = 0.f, t3 = 0.f, u0 = 0.f, u1 = 0.f, u2 = 0.f, u3 = 0.f;
++      float v0 = 0.f, v1 = 0.f, v2 = 0.f, v3 = 0.f;
++#pragma unroll 2
++      for (int k = 0; k < kDim; k += 64) {
++        uint32_t a0, a1, a2, a3, b0, b1, c0, c1, c2, c3, e0, e1;
++        uint32_t f0, f1, f2, f3, g0, g1, h0, h1, h2, h3, i0, i1;
++        ldmatrix_x4(a0, a1, a2, a3, qa + k);      ldmatrix_x2(b0, b1, kb + k);
++        ldmatrix_x4(c0, c1, c2, c3, qa + k + 16); ldmatrix_x2(e0, e1, kb + k + 16);
++        ldmatrix_x4(f0, f1, f2, f3, qa + k + 32); ldmatrix_x2(g0, g1, kb + k + 32);
++        ldmatrix_x4(h0, h1, h2, h3, qa + k + 48); ldmatrix_x2(i0, i1, kb + k + 48);
++        mma_m16n8k16(s0, s1, s2, s3, a0, a1, a2, a3, b0, b1);
++        mma_m16n8k16(t0, t1, t2, t3, c0, c1, c2, c3, e0, e1);
++        mma_m16n8k16(u0, u1, u2, u3, f0, f1, f2, f3, g0, g1);
++        mma_m16n8k16(v0, v1, v2, v3, h0, h1, h2, h3, i0, i1);
++      }
++      s0 = (s0 + t0) + (u0 + v0); s1 = (s1 + t1) + (u1 + v1);
++      s2 = (s2 + t2) + (u2 + v2); s3 = (s3 + t3) + (u3 + v3);
++#elif defined(GLM53_M7A)
++      // M7a: two independent accumulator chains (even / odd 16-wide k-steps), one add at the end. Halves the
++      // dependent MMA latency of the 32-step chain; reorders the fp32 contraction (tolerance, not bit-exact).
++      float t0 = 0.f, t1 = 0.f, t2 = 0.f, t3 = 0.f;
++#pragma unroll 4
++      for (int k = 0; k < kDim; k += 32) {
++        uint32_t a0, a1, a2, a3, b0, b1, c0, c1, c2, c3, e0, e1;
++        ldmatrix_x4(a0, a1, a2, a3, qa + k);
++        ldmatrix_x2(b0, b1, kb + k);
++        ldmatrix_x4(c0, c1, c2, c3, qa + k + 16);
++        ldmatrix_x2(e0, e1, kb + k + 16);
++        mma_m16n8k16(s0, s1, s2, s3, a0, a1, a2, a3, b0, b1);
++        mma_m16n8k16(t0, t1, t2, t3, c0, c1, c2, c3, e0, e1);
++      }
++      s0 += t0; s1 += t1; s2 += t2; s3 += t3;
++#else
++#pragma unroll 4
++      for (int k = 0; k < kDim; k += 16) {
++        uint32_t a0, a1, a2, a3, b0, b1;
++        ldmatrix_x4(a0, a1, a2, a3, qa + k);
++        ldmatrix_x2(b0, b1, kb + k);
++        mma_m16n8k16(s0, s1, s2, s3, a0, a1, a2, a3, b0, b1);
++      }
++#endif
++#else
++      { uint32_t a0, a1, a2, a3, b0, b1; ldmatrix_x4(a0, a1, a2, a3, qa); ldmatrix_x2(b0, b1, kb);
++        mma_m16n8k16(s0, s1, s2, s3, a0, a1, a2, a3, b0, b1); }
++#endif
++    }
++    s_s[(mt * 16 + lr) * kSS + nt * 8 + lc] = s0;
++    s_s[(mt * 16 + lr) * kSS + nt * 8 + lc + 1] = s1;
++    s_s[(mt * 16 + lr + 8) * kSS + nt * 8 + lc] = s2;
++    s_s[(mt * 16 + lr + 8) * kSS + nt * 8 + lc + 1] = s3;
++    }
++    __syncthreads();
++
++#ifndef GLM53_ABLATE_SOFTMAX
++    // ---- online softmax, 8 threads per head, 4 columns each -----------------
++    // Identical arithmetic to M1: exp2(x*c - m*c), two multiplies, matching the
++    // reference (tilelang_kernel.py:405-407) rather than exp2((x-m)*c). M5 ran
++    // this on one owner thread per head (32 exp2f in a row while the other
++    // threads waited at the barrier); here every thread takes four columns. The
++    // row max is order-free (fmaxf), each p is the same expression, and the
++    // owner adds the 32 fp32 p values in column order exactly as M5 did.
++    {
++      constexpr int kTPH = kThreads / kPH;          // threads per head
++      constexpr int kCols = kBI / kTPH;             // columns per thread
++      static_assert(kTPH == 8 && kCols == 4, "softmax mapping assumes 8 x 4 per head");
++      const int h = tid / kTPH;                     // 8 consecutive lanes of one warp
++      const int sub = tid % kTPH;
++      const float m_prev = m_state[h];
++      float m_cur = m_prev;
++      float row[kCols];
++#pragma unroll
++      for (int j = 0; j < kCols; ++j) {
++        const int i = sub * kCols + j;
++        float sc;
++        if constexpr (kM7C) {
++          const float* sp0 = s_s + h * kSS + i;
++          sc = (sp0[0] + sp0[kPH * kSS]) + (sp0[2 * kPH * kSS] + sp0[3 * kPH * kSS]);
++        } else {
++          sc = s_s[h * kSS + i];
++        }
++        row[j] = valid_s[i] ? sc : -INFINITY;
++        m_cur = fmaxf(m_cur, row[j]);   // reduce_max(clear=False)
++      }
++#pragma unroll
++      for (int off = 1; off < kTPH; off <<= 1)
++        m_cur = fmaxf(m_cur, __shfl_xor_sync(0xffffffffu, m_cur, off));
++      const float c = sm_scale * kLog2e;
++      float part = 0.f;                   // M7a: this thread's 4 p values, summed in registers
++#pragma unroll
++      for (int j = 0; j < kCols; ++j) {
++        const int i = sub * kCols + j;
++        const float p = isinf(row[j]) ? 0.f : exp2f(row[j] * c - m_cur * c);
++        p_s[h * kPS + i] = __float2bfloat16(p);
++        if constexpr (kTreeSum) {
++          part += p;
++        } else {
++          s_s[h * kSS + i] = p;           // fp32 p for the owner's in-order sum
++        }
++      }
++      (void)part;
++      if constexpr (kTreeSum) {
++        // M7a: the row sum by a shuffle tree over the head's 8 threads (their 4 p values each), not the owner's
++        // 32 in-order adds; fp32 reorder only.
++#pragma unroll
++        for (int off = 1; off < kTPH; off <<= 1) part += __shfl_xor_sync(0xffffffffu, part, off);
++        if (sub == 0) {
++          const float a = exp2f((m_prev - m_cur) * c);
++          alpha[h] = a;
++          m_state[h] = m_cur;
++          sum_state[h] = sum_state[h] * a + part;
++        }
++      } else {
++        __syncwarp();
++        if (sub == 0) {
++          const float a = exp2f((m_prev - m_cur) * c);
++          float ssum = 0.f;
++#pragma unroll
++          for (int i = 0; i < kBI; ++i) ssum += s_s[h * kSS + i];
++          alpha[h] = a;
++          m_state[h] = m_cur;
++          sum_state[h] = sum_state[h] * a + ssum;
++        }
++      }
++    }
++#endif
++    __syncthreads();
++
++    // ---- rescale, then GEMM2 ---------------------------------------------
++    const float a_lo = alpha[mt * 16 + lr];
++    const float a_hi = alpha[mt * 16 + lr + 8];
++#pragma unroll
++    for (int j = 0; j < 16; ++j) {
++      acc[j][0] *= a_lo; acc[j][1] *= a_lo;
++      acc[j][2] *= a_hi; acc[j][3] *= a_hi;
++    }
++
++    {
++      const __nv_bfloat16* pa = p_s + (mt * 16 + (lane & 15)) * kPS + (lane >> 4) * 8;
++#ifndef GLM53_ABLATE_GEMM2
++#pragma unroll
++      for (int ks = 0; ks < 2; ++ks) {
++        const int i0 = ks * 16;
++        uint32_t a0, a1, a2, a3;
++        ldmatrix_x4(a0, a1, a2, a3, pa + i0);
++        // B wants KV[k = index][n = dim] with n as the fragment row -- the
++        // transpose of the [index][dim] smem layout, which is exactly what
++        // ldmatrix.trans does. One instruction replaces eight 16-bit loads.
++#pragma unroll
++        for (int j = 0; j < 16; ++j) {
++          const int d0 = ((warp & 3) * 16 + j) * 8;
++          uint32_t b0, b1;
++          ldmatrix_x2_trans(b0, b1, kv_s + (i0 + (lane & 15)) * kKS + d0);
++          mma_m16n8k16(acc[j][0], acc[j][1], acc[j][2], acc[j][3],
++                       a0, a1, a2, a3, b0, b1);
++        }
++      }
++#endif
++    }
++  }
++
++  // ---- epilogue ----------------------------------------------------------
+   const bool row_lo_valid = (mt * 16 + lr) < kHeads;
+   const bool row_hi_valid = (mt * 16 + lr + 8) < kHeads;
++  if constexpr (kSplit) {
++    // Unnormalized partial; a split with no tiles leaves m = kNegBig, sum = 0,
++    // acc = 0, which the combine weights to exactly nothing.
++    __syncthreads();                     // m_state / sum_state of an empty split
++    const int64_t part = (int64_t)token * gridDim.y + split;
++    float* p_base = Opart + part * kHeads * kDim;
++#pragma unroll
++    for (int j = 0; j < 16; ++j) {
++      const int d = ((warp & 3) * 16 + j) * 8 + lc;
++      if (row_lo_valid)
++        *reinterpret_cast<float2*>(p_base + (int64_t)(mt * 16 + lr) * kDim + d) =
++            make_float2(acc[j][0], acc[j][1]);
++      if (row_hi_valid)
++        *reinterpret_cast<float2*>(p_base + (int64_t)(mt * 16 + lr + 8) * kDim + d) =
++            make_float2(acc[j][2], acc[j][3]);
++    }
++    if (tid < kHeads) {
++      Mpart[part * kHeads + tid] = m_state[tid];
++      Lpart[part * kHeads + tid] = sum_state[tid];
++    }
++    return;
++  }
++  // Fully masked token -> sumexp == 0 -> return exactly zero, not 0/0 = NaN.
++  const float dlo = sum_state[mt * 16 + lr];
++  const float dhi = sum_state[mt * 16 + lr + 8];
++  const float ilo = dlo > 0.f ? 1.f / dlo : 0.f;
++  const float ihi = dhi > 0.f ? 1.f / dhi : 0.f;
+   __nv_bfloat16* o_base = O + (int64_t)token * kHeads * kDim;
+ #pragma unroll
+   for (int j = 0; j < 16; ++j) {
+@@ -419,41 +1124,228 @@ __global__ __launch_bounds__(threads_for(kHeads)) void sparse_fwd_kernel(
+   }
+ }
+ 
++// Merge the split partials of one (token, head): the exp2 rescale the single pass
++// applies between tiles, applied between splits, then the single-pass epilogue.
++// 128 threads x 4 dims = 512.
++template <int kHeads>
++__global__ __launch_bounds__(128) void combine_kernel(
++    const float* __restrict__ Opart, const float* __restrict__ Mpart,
++    const float* __restrict__ Lpart, __nv_bfloat16* __restrict__ O,
++    int num_splits, float sm_scale) {
++  const int token = blockIdx.x;
++  const int h = blockIdx.y;
++  const float c = sm_scale * kLog2e;
++  const int64_t base = (int64_t)token * num_splits;
++  float m = kNegBig;
++  for (int s = 0; s < num_splits; ++s) m = fmaxf(m, Mpart[(base + s) * kHeads + h]);
++  float l = 0.f;
++  float4 o = make_float4(0.f, 0.f, 0.f, 0.f);
++  const int d = threadIdx.x * 4;
++  for (int s = 0; s < num_splits; ++s) {
++    const float w = exp2f((Mpart[(base + s) * kHeads + h] - m) * c);
++    l += Lpart[(base + s) * kHeads + h] * w;
++    const float4 v =
++        *reinterpret_cast<const float4*>(Opart + ((base + s) * kHeads + h) * kDim + d);
++    o.x += v.x * w; o.y += v.y * w; o.z += v.z * w; o.w += v.w * w;
++  }
++  // Fully masked token -> every split has sum 0 -> exactly zero, as in the single pass.
++  const float inv = l > 0.f ? 1.f / l : 0.f;
++  __nv_bfloat16* out = O + ((int64_t)token * kHeads + h) * kDim + d;
++  *reinterpret_cast<uint32_t*>(out) =
++      pack2(__float2bfloat16(o.x * inv), __float2bfloat16(o.y * inv));
++  *reinterpret_cast<uint32_t*>(out + 2) =
++      pack2(__float2bfloat16(o.z * inv), __float2bfloat16(o.w * inv));
++}
++
+ }  // namespace
+ 
+ // One launch helper per KV dtype. The shared-memory opt-in is raised once per
+ // specialization via a function-local static: cudaFuncSetAttribute is not
+ // stream-ordered and must not be issued inside a CUDA graph capture.
+-template <int H>
++template <int H, bool QKV>
+ static constexpr size_t smem_bytes() {
+   constexpr int PH = padded_heads(H);
+-  return sizeof(__nv_bfloat16) * (PH * kQS + kBI * kKS + PH * kPS)
+-       + sizeof(float) * (PH * kSS + 3 * PH);
++  return sizeof(__nv_bfloat16) * ((GLM53_M7D_ON && QKV && H == 16 ? 0 : PH * kQS) + kBI * kKS + PH * kPS)
++       + sizeof(float) * ((GLM53_M7C_ON && H == 16 ? 4 : 1) * PH * kSS + 3 * PH) + sizeof(int) * kBI;
+ }
+ 
+-template <int H, typename KVT>
+-static void launch(const torch::Tensor& q, const torch::Tensor& kv,
+-                   const torch::Tensor& indices, torch::Tensor& out,
+-                   int T, int topk, float sm_scale, float kv_scale) {
+-  constexpr size_t smem = smem_bytes<H>();
++static int env_int(const char* name, int fallback) {
++  const char* e = std::getenv(name);
++  return (e != nullptr && *e != '\0') ? std::atoi(e) : fallback;
++}
++
++static int sm_count() {
++  static const int n = [] {
++    int dev = 0, v = 0;
++    C10_CUDA_CHECK(cudaGetDevice(&dev));
++    C10_CUDA_CHECK(cudaDeviceGetAttribute(&v, cudaDevAttrMultiProcessorCount, dev));
++    return v;
++  }();
++  return n;
++}
++
++// Splits per token. 1 (the single pass, M5-identical output) unless
++// GLM53_SPARSE_MLA_SPLIT_KV=1; GLM53_SPARSE_MLA_SPLITS=n forces n (leaf tuning).
++// Otherwise the count minimises a tile-unit model of one CTA per SM (the block's
++// ~53 KB of shared memory admits one): waves x (tiles per split + 7) + 6 when
++// split. The two constants are a least-squares fit to the leaf's T 8-128 x S 1-12
++// grid (outputs/2026-09-23-sparse-mla-m6/leaf-1: ~1.9 us per tile, ~13 us per wave,
++// ~11 us for the partial round trip and combine; median error 3 %), and the model
++// picks the measured best S at every T there. Large T keeps one split.
++static int choose_splits(int T, int num_tiles) {
++  static const bool enabled = env_int("GLM53_SPARSE_MLA_SPLIT_KV", 0) == 1;
++  static const int forced = env_int("GLM53_SPARSE_MLA_SPLITS", 0);
++  if (!enabled || num_tiles < 2) return 1;
++  if (forced > 0) return std::min(forced, num_tiles);
++  const int sms = sm_count();
++  auto cost = [&](int s) {
++    const int tps = (num_tiles + s - 1) / s;
++    const int waves = (T * s + sms - 1) / sms;
++    return waves * (tps + 7) + (s > 1 ? 6 : 0);
++  };
++  int best = 1, best_cost = cost(1);
++  for (int s = 2; s <= std::min(num_tiles, 16); ++s) {
++    const int c = cost(s);
++    if (c < best_cost) { best = s; best_cost = c; }
++  }
++  return best;
++}
++
++// Rows from which an M7e build takes the M7d instantiation (M7d builds: every launch; others: none).
++static int m7d_min_rows() {
++  static const int n = GLM53_M7E_ON ? env_int("GLM53_SPARSE_MLA_M7D_MIN_ROWS", 256) : (GLM53_M7D_ON ? 0 : 1 << 30);
++  return n;
++}
++
++// A1c selector. GLM53_SPARSE_MLA_IDX_PIPE=1 launches the index-pipelined kernels (same output bits); unset or 0
++// launches the M7e kernels. GLM53_SPARSE_MLA_VALID_COLS=N (pipelined kernels only) trims the loop to ceil(N / 32)
++// tiles when the index row is N rounded up to 128 wide. Read once per process; one marker line on stderr when on.
++static int valid_cols_env() {
++  static const int n = env_int("GLM53_SPARSE_MLA_VALID_COLS", 0);
++  return n;
++}
++static int pipe_mode_env() {   // 0: M7e, 1: pipelined, 2: pipelined + trim
++  static const int mode = [] {
++    const int on = env_int("GLM53_SPARSE_MLA_IDX_PIPE", 0) == 1;
++    const int m = on ? (valid_cols_env() > 0 ? 2 : 1) : 0;
++    if (on)
++      std::fprintf(stderr, "glm53_sparse_mla: A1c index pipeline ON (GLM53_SPARSE_MLA_IDX_PIPE=1, valid cols %d)\n",
++                   valid_cols_env());
++    return m;
++  }();
++  return mode;
++}
++// Tiles a pipelined launch iterates: all of them, or with the trim only those that can hold a valid column.
++static int live_tiles_for(int topk, int mode) {
++  const int vc = valid_cols_env();
++  if (mode == 2 && vc > 0 && (vc + 127) / 128 * 128 == topk) return (vc + kBI - 1) / kBI;
++  return topk / kBI;
++}
++
++// The pipelined kernels exist for fp8 KV only (serving); bf16 KV always runs M7e.
++template <typename KVT> struct HasPipe : std::false_type {};
++template <> struct HasPipe<__nv_fp8_e4m3> : std::true_type {};
++
++template <int H, typename KVT, bool QKV>
++static void set_attributes(size_t smem) {
++  auto one = [&](auto* fn) {
++    C10_CUDA_CHECK(cudaFuncSetAttribute(fn, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem));
++    if (GLM53_M7D_ON && QKV)   // M7d: ask for the full shared-memory carveout so two ~44 KB blocks are resident per SM.
++      C10_CUDA_CHECK(cudaFuncSetAttribute(fn, cudaFuncAttributePreferredSharedMemoryCarveout, 100));
++  };
++  one(&sparse_fwd_kernel<H, KVT, false, QKV>);
++  one(&sparse_fwd_kernel<H, KVT, true, QKV>);
++  if constexpr (HasPipe<KVT>::value) {
++    one(&sparse_fwd_pipe_kernel<H, KVT, false, QKV>);
++    one(&sparse_fwd_pipe_kernel<H, KVT, true, QKV>);
++  }
++}
++
++template <int H, typename KVT, bool QKV>
++static void launch_variant(const torch::Tensor& q, const torch::Tensor& kv,
++                           const torch::Tensor& indices, torch::Tensor& out,
++                           int T, int topk, float sm_scale, float kv_scale, int splits, int mode) {
++  constexpr size_t smem = smem_bytes<H, QKV>();
+   static_assert(smem <= 101376, "tile exceeds the sm_12x opt-in shared-memory ceiling");
+   static const bool smem_configured = [&] {
+-    C10_CUDA_CHECK(cudaFuncSetAttribute(
+-        sparse_fwd_kernel<H, KVT>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem));
++    set_attributes<H, KVT, QKV>(smem);
+     return true;
+   }();
+   (void)smem_configured;
+-  sparse_fwd_kernel<H, KVT><<<T, threads_for(H), smem, c10::cuda::getCurrentCUDAStream()>>>(
+-      reinterpret_cast<const __nv_bfloat16*>(q.data_ptr()),
+-      reinterpret_cast<const KVT*>(kv.data_ptr()),
+-      indices.data_ptr<int32_t>(),
+-      reinterpret_cast<__nv_bfloat16*>(out.data_ptr()),
+-      topk, sm_scale, kv_scale);
++  const cudaStream_t stream = c10::cuda::getCurrentCUDAStream();
++  const int num_tiles = topk / kBI;
++  const bool pipe = HasPipe<KVT>::value && mode > 0;
++  const int live_tiles = live_tiles_for(topk, mode);
++  if (splits <= 1 || num_tiles < 2) {
++    if constexpr (HasPipe<KVT>::value) {
++      if (pipe) {
++        sparse_fwd_pipe_kernel<H, KVT, false, QKV><<<T, threads_for(H), smem, stream>>>(
++            reinterpret_cast<const __nv_bfloat16*>(q.data_ptr()),
++            reinterpret_cast<const KVT*>(kv.data_ptr()),
++            indices.data_ptr<int32_t>(),
++            reinterpret_cast<__nv_bfloat16*>(out.data_ptr()),
++            topk, sm_scale, kv_scale, 0, nullptr, nullptr, nullptr, live_tiles);
++        C10_CUDA_KERNEL_LAUNCH_CHECK();
++        return;
++      }
++    }
++    sparse_fwd_kernel<H, KVT, false, QKV><<<T, threads_for(H), smem, stream>>>(
++        reinterpret_cast<const __nv_bfloat16*>(q.data_ptr()),
++        reinterpret_cast<const KVT*>(kv.data_ptr()),
++        indices.data_ptr<int32_t>(),
++        reinterpret_cast<__nv_bfloat16*>(out.data_ptr()),
++        topk, sm_scale, kv_scale, 0, nullptr, nullptr, nullptr);
++    C10_CUDA_KERNEL_LAUNCH_CHECK();
++    return;
++  }
++  const int tps = (num_tiles + std::min(splits, num_tiles) - 1) / std::min(splits, num_tiles);
++  const int nsplit = (num_tiles + tps - 1) / tps;          // no empty trailing split
++  const int64_t parts = (int64_t)T * nsplit * H;
++  // Allocated per call from the caching allocator (its graph pool under CUDA
++  // graph capture), so the op keeps its signature and needs no persistent buffer.
++  torch::Tensor ws = torch::empty({parts * (kDim + 2)}, q.options().dtype(torch::kFloat));
++  float* opart = ws.data_ptr<float>();
++  float* mpart = opart + parts * kDim;
++  float* lpart = mpart + parts;
++  bool launched = false;
++  if constexpr (HasPipe<KVT>::value) {
++    if (pipe) {
++      sparse_fwd_pipe_kernel<H, KVT, true, QKV><<<dim3(T, nsplit), threads_for(H), smem, stream>>>(
++          reinterpret_cast<const __nv_bfloat16*>(q.data_ptr()),
++          reinterpret_cast<const KVT*>(kv.data_ptr()),
++          indices.data_ptr<int32_t>(),
++          nullptr, topk, sm_scale, kv_scale, tps, opart, mpart, lpart, live_tiles);
++      launched = true;
++    }
++  }
++  if (!launched)
++    sparse_fwd_kernel<H, KVT, true, QKV><<<dim3(T, nsplit), threads_for(H), smem, stream>>>(
++        reinterpret_cast<const __nv_bfloat16*>(q.data_ptr()),
++        reinterpret_cast<const KVT*>(kv.data_ptr()),
++        indices.data_ptr<int32_t>(),
++        nullptr, topk, sm_scale, kv_scale, tps, opart, mpart, lpart);
++  C10_CUDA_KERNEL_LAUNCH_CHECK();
++  combine_kernel<H><<<dim3(T, H), 128, 0, stream>>>(
++      opart, mpart, lpart, reinterpret_cast<__nv_bfloat16*>(out.data_ptr()), nsplit, sm_scale);
+   C10_CUDA_KERNEL_LAUNCH_CHECK();
+ }
+ 
+-void sparse_fwd(torch::Tensor q, torch::Tensor kv, torch::Tensor indices,
+-                double sm_scale, double kv_scale, torch::Tensor out) {
++template <int H, typename KVT>
++static void launch(const torch::Tensor& q, const torch::Tensor& kv,
++                   const torch::Tensor& indices, torch::Tensor& out,
++                   int T, int topk, float sm_scale, float kv_scale, int splits, int mode) {
++  if (GLM53_M7D_ON && T >= m7d_min_rows())
++    launch_variant<H, KVT, true>(q, kv, indices, out, T, topk, sm_scale, kv_scale, splits, mode);
++  else
++    launch_variant<H, KVT, false>(q, kv, indices, out, T, topk, sm_scale, kv_scale, splits, mode);
++}
++
++// splits < 0: choose_splits (the serving op); otherwise that many (leaf op).
++// mode_arg < 0: GLM53_SPARSE_MLA_IDX_PIPE / _VALID_COLS (the serving op); 0 / 1 / 2: M7e / pipelined / pipelined +
++// trim (leaf ops; the trim still needs GLM53_SPARSE_MLA_VALID_COLS and a matching width, else it is mode 1).
++static void sparse_fwd_impl(torch::Tensor q, torch::Tensor kv, torch::Tensor indices,
++                            double sm_scale, double kv_scale, torch::Tensor out,
++                            int64_t forced_splits, int mode_arg) {
+   TORCH_CHECK(q.is_cuda() && kv.is_cuda() && indices.is_cuda() && out.is_cuda());
+   TORCH_CHECK(q.dim() == 3 && kv.dim() == 2 && indices.dim() == 2);
+   TORCH_CHECK(q.scalar_type() == torch::kBFloat16);
+@@ -470,15 +1362,17 @@ void sparse_fwd(torch::Tensor q, torch::Tensor kv, torch::Tensor indices,
+   TORCH_CHECK(indices.size(0) == T && out.sizes() == q.sizes());
+ 
+   if (T == 0) return;
++  const int splits = forced_splits < 0 ? choose_splits(T, topk / kBI) : (int)forced_splits;
++  const int mode = mode_arg < 0 ? pipe_mode_env() : mode_arg;
+ 
+ #define GLM53_DISPATCH(H)                                                       \
+   do {                                                                          \
+     if (kv.scalar_type() == torch::kBFloat16)                                    \
+       launch<H, __nv_bfloat16>(q, kv, indices, out, T, topk, (float)sm_scale,    \
+-                               1.0f);                                            \
++                               1.0f, splits, mode);                              \
+     else if (kv.scalar_type() == torch::kFloat8_e4m3fn)                          \
+       launch<H, __nv_fp8_e4m3>(q, kv, indices, out, T, topk, (float)sm_scale,    \
+-                               (float)kv_scale);                                 \
++                               (float)kv_scale, splits, mode);                   \
+     else                                                                         \
+       TORCH_CHECK(false, "kv must be bfloat16 or float8_e4m3fn, got ",           \
+                   kv.scalar_type());                                             \
+@@ -497,9 +1391,35 @@ void sparse_fwd(torch::Tensor q, torch::Tensor kv, torch::Tensor indices,
+ #undef GLM53_DISPATCH
+ }
+ 
+-TORCH_LIBRARY(glm53_sparse_mla, m) {
++static void sparse_fwd(torch::Tensor q, torch::Tensor kv, torch::Tensor indices,
++                double sm_scale, double kv_scale, torch::Tensor out) {
++  sparse_fwd_impl(q, kv, indices, sm_scale, kv_scale, out, -1, -1);
++}
++
++// Leaf-only: an explicit split count (1 = the single pass), independent of the
++// environment; always the M7e kernels. Serving never calls it.
++static void sparse_fwd_splits(torch::Tensor q, torch::Tensor kv, torch::Tensor indices,
++                       double sm_scale, double kv_scale, int64_t splits, torch::Tensor out) {
++  TORCH_CHECK(splits >= 1, "splits must be >= 1");
++  sparse_fwd_impl(q, kv, indices, sm_scale, kv_scale, out, splits, 0);
++}
++
++// Leaf-only (A1c): splits < 0 = the serving choice (GLM53_SPARSE_MLA_SPLIT_KV), else that many; mode 0 / 1 / 2 =
++// M7e / pipelined / pipelined + trim, independent of GLM53_SPARSE_MLA_IDX_PIPE. Serving never calls it.
++static void sparse_fwd_opts(torch::Tensor q, torch::Tensor kv, torch::Tensor indices,
++                            double sm_scale, double kv_scale, int64_t splits, int64_t mode, torch::Tensor out) {
++  TORCH_CHECK(splits != 0, "splits must be < 0 (serving choice) or >= 1");
++  TORCH_CHECK(mode >= 0 && mode <= 2, "mode must be 0, 1 or 2");
++  sparse_fwd_impl(q, kv, indices, sm_scale, kv_scale, out, splits, (int)mode);
++}
++
++GLM53_SMLA_TORCH_LIBRARY(GLM53_SMLA_LIB, m) {
+   m.def("sparse_fwd(Tensor q, Tensor kv, Tensor indices, float sm_scale, float kv_scale, Tensor(a!) out) -> ()");
++  m.def("sparse_fwd_splits(Tensor q, Tensor kv, Tensor indices, float sm_scale, float kv_scale, int splits, Tensor(a!) out) -> ()");
++  m.def("sparse_fwd_opts(Tensor q, Tensor kv, Tensor indices, float sm_scale, float kv_scale, int splits, int mode, Tensor(a!) out) -> ()");
+ }
+-TORCH_LIBRARY_IMPL(glm53_sparse_mla, CUDA, m) {
++GLM53_SMLA_TORCH_LIBRARY_IMPL(GLM53_SMLA_LIB, CUDA, m) {
+   m.impl("sparse_fwd", &sparse_fwd);
++  m.impl("sparse_fwd_splits", &sparse_fwd_splits);
++  m.impl("sparse_fwd_opts", &sparse_fwd_opts);
+ }
+diff --git a/glm53_sparse_mla/backend.py b/glm53_sparse_mla/backend.py
+index 5960c24e4ac5bb7224eb0d18f9b89e94e76776dc..e928035949ebbc9b02d69d1a42616c8a1df0cb97 100644
+--- a/glm53_sparse_mla/backend.py
++++ b/glm53_sparse_mla/backend.py
+@@ -1,4 +1,6 @@
+ # SPDX-License-Identifier: Apache-2.0
++# Modified by the GLM-5.3 Switchless recipe (othexmr): an all-prefill scheduler-phase marker for the MoE atomic-prefill
++# policy, a request-id buffer sized for CUDA-graph capture, and the full KPool tail kept in the top-k indices.
+ """vLLM attention backend for NoPE sparse MLA on sm_120 / sm_121.
+ 
+ Fills the gap that stops GLM-5.3-Flash from running under vLLM on GB10: the
+@@ -200,6 +202,24 @@ class Glm53SparseMLAMetadata(AttentionMetadata):
+     num_prefills: int = 0
+     num_decode_tokens: int = 0
+ 
++    # Actual scheduler phase; independent of the all-MQA attention convention.
++    glm53_moe_all_prefill: bool = False
++
++
++def _glm53_all_requests_prefilling(common: CommonAttentionMetadata) -> bool:
++    """Read CPU scheduler phase only; absent/device metadata stays deterministic."""
++    flags = common.is_prefilling
++    n = common.num_reqs
++    return bool(
++        flags is not None
++        and flags.device.type == "cpu"
++        and flags.dtype == torch.bool
++        and flags.ndim == 1
++        and n > 0
++        and flags.numel() >= n
++        and flags[:n].all().item()
++    )
++
+ 
+ @dataclass
+ class Glm53SparseMLAMetadataBuilder(
+@@ -229,8 +249,10 @@ class Glm53SparseMLAMetadataBuilder(
+         self.device = device
+         self.topk_tokens = vllm_config.model_config.hf_config.index_topk
+         max_num_batched_tokens = vllm_config.scheduler_config.max_num_batched_tokens
++        capture_sizes = vllm_config.compilation_config.cudagraph_capture_sizes or []
++        capacity = max(max_num_batched_tokens, max(capture_sizes, default=0))
+         self.req_id_per_token_buffer = torch.empty(
+-            (max_num_batched_tokens,), dtype=torch.int32, device=device
++            (capacity,), dtype=torch.int32, device=device
+         )
+ 
+     def build(
+@@ -245,8 +267,16 @@ class Glm53SparseMLAMetadataBuilder(
+         req_id_per_token = np.repeat(
+             np.arange(seg_lengths.shape[0], dtype=np.int32), seg_lengths
+         )
+-        self.req_id_per_token_buffer.fill_(0)
+-        self.req_id_per_token_buffer[: req_id_per_token.shape[0]].copy_(
++        # Captured graphs retain this allocation's address. Oversized eager
++        # prefill gets a separate buffer; never replace the capture allocation.
++        req_id_buffer = self.req_id_per_token_buffer
++        required = max(num_tokens, req_id_per_token.shape[0])
++        if required > req_id_buffer.shape[0]:
++            req_id_buffer = torch.empty(
++                (required,), dtype=torch.int32, device=self.device
++            )
++        req_id_buffer.fill_(0)
++        req_id_buffer[: req_id_per_token.shape[0]].copy_(
+             torch.from_numpy(req_id_per_token), non_blocking=True
+         )
+ 
+@@ -258,12 +288,16 @@ class Glm53SparseMLAMetadataBuilder(
+             query_start_loc=common_attn_metadata.query_start_loc,
+             slot_mapping=common_attn_metadata.slot_mapping,
+             block_table=common_attn_metadata.block_table_tensor,
+-            req_id_per_token=self.req_id_per_token_buffer[:num_tokens],
++            req_id_per_token=req_id_buffer[:num_tokens],
+             block_size=self.kv_cache_spec.block_size,
+             topk_tokens=self.topk_tokens,
+             num_decodes=common_attn_metadata.num_reqs,
+             num_prefills=0,
+             num_decode_tokens=num_tokens,
++            glm53_moe_all_prefill=(
++                os.environ.get("B12X_GLM53_ATOMIC_PREFILL", "0") == "1"
++                and _glm53_all_requests_prefilling(common_attn_metadata)
++            ),
+         )
+ 
+ 
+@@ -338,14 +372,9 @@ class Glm53SparseMLAImpl(MLAAttentionImpl[Glm53SparseMLAMetadata]):
+         assert self.topk_indices_buffer is not None
+         topk_indices = self.topk_indices_buffer[:num_actual_toks]
+ 
+-        # The kpool indexer emits topk + (kpool - 1) columns, which vLLM rounds up
+-        # to a multiple of 128 (2048 -> 2176). Narrow at the call site rather than
+-        # resizing the indexer's buffer: touching what the indexer writes risks it
+-        # selecting nothing, and an all--1 row makes MLA return zeros, which
+-        # presents as the model copying its prompt verbatim.
+-        cap = int(attn_metadata.topk_tokens)
+-        if topk_indices.shape[1] > cap:
+-            topk_indices = topk_indices[:, :cap].contiguous()
++        # Keep pooled selections and the latest uncompressed KPool tail.
++        # The indexer pads this full support to 128 columns; -1 entries remain
++        # masked by the converter and CUDA kernel. Truncation drops recent KV.
+ 
+         head_dim = kv_c_and_k_pe_cache.shape[-1]
+         conv_kwargs = {}
+diff --git a/setup.py b/setup.py
+index b3843eafdbb5894f35384430aeed3c585d437a2d..4efca69831832dbd17274f26f1acd0902a4a321b 100644
+--- a/setup.py
++++ b/setup.py
+@@ -1,3 +1,4 @@
++# Modified by the GLM-5.3 Switchless recipe (othexmr): the serving build adds -DGLM53_M7E.
+ """AOT build for glm53_sparse_mla.
+ 
+ Built INSIDE the target container (the .so is libtorch- and Python-ABI-tagged),
+@@ -41,6 +42,10 @@ setup(
+                     "--ptxas-options=-v,--warn-on-spills",
+                     "-lineinfo",
+                     "-DNDEBUG",
++                    # M7e (2026-09-23): M7c (split-K GEMM1 with Q fragments in registers + tree-sum softmax at
++                    # 16 heads) for launches below GLM53_SPARSE_MLA_M7D_MIN_ROWS (256) rows, M7d (Q staged through the
++                    # KV buffer, ~44 KB per block, two blocks per SM) from there.
++                    "-DGLM53_M7E",
+                 ] + gencode,
+             },
+         )

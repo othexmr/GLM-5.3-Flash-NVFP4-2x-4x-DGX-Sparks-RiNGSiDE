@@ -1,0 +1,106 @@
+--- a/vllm/v1/core/kv_cache_utils.py
++++ b/vllm/v1/core/kv_cache_utils.py
+@@ -1177,10 +1177,20 @@
+         for name, spec in kv_cache_spec.items()
+         if isinstance(spec, KpoolTailSpec)
+     }
++    # DFlash drafter layers are plain sliding-window attention (exactly that type:
++    # the KpoolTailSpec and SlidingWindowMLASpec subclasses belong to the target).
++    # They are set aside, so the target layers alone decide whether this path
++    # applies, and they get their own group below.
++    drafter_specs = {
++        name: spec
++        for name, spec in kv_cache_spec.items()
++        if type(spec) is SlidingWindowSpec
++    }
+     attn_specs = {
+         name: spec
+         for name, spec in kv_cache_spec.items()
+         if not isinstance(spec, (MambaSpec, KpoolTailSpec))
++        if name not in drafter_specs
+     }
+     if not mamba_specs or not all(
+         type(spec) is MLAAttentionSpec for spec in attn_specs.values()
+@@ -1237,10 +1247,82 @@
+     for index, name in enumerate(mamba_specs):
+         mamba_grouped_names[index % num_groups].append(name)
+ 
++    # The drafter group overlays the MLA slots the way the Mamba groups do: drafter
++    # layer i uses the pages of MLA layer i, which is sound because the block pool
++    # hands a block id to one group at a time. Its block size is the exact fit:
++    # the number of drafter tokens whose KV bytes fill one MLA page, so a drafter
++    # page is exactly one MLA page, dense and unpadded.
++    drafter_groups: list[KVCacheGroupSpec] = []
++    if drafter_specs:
++        drafter_spec = next(iter(drafter_specs.values()))
++        if any(spec != drafter_spec for spec in drafter_specs.values()):
++            raise ValueError(
++                "the DFlash drafter layers have different KV cache specs; the "
++                "GLM-5.3 drafter group needs one spec for all of them"
++            )
++        # Unpadded bytes: an incoming padded page must not change the fit.
++        page_bytes = drafter_spec.unpadded_page_size_bytes
++        page_tokens = drafter_spec.block_size
++        if page_bytes % page_tokens:
++            raise ValueError(
++                f"the DFlash drafter page ({page_bytes} bytes for {page_tokens} "
++                "tokens) is not a whole number of bytes per token"
++            )
++        token_bytes = page_bytes // page_tokens
++        if mla_page % token_bytes:
++            raise ValueError(
++                f"the MLA page ({mla_page} bytes) is not a whole number of DFlash "
++                f"drafter tokens ({token_bytes} bytes each)"
++            )
++        drafter_block_size = mla_page // token_bytes
++        # Every FlashInfer kernel block size (16, 32, 64) must divide the block.
++        if drafter_block_size % 64:
++            raise ValueError(
++                f"the DFlash drafter block ({drafter_block_size} tokens, the exact "
++                "fit of one MLA page) is not a multiple of 64 tokens"
++            )
++        # Keeps the scheduler block (LCM) at the larger and the hash block (GCD)
++        # at the smaller of the two.
++        target_block_size = uniform_spec.block_size
++        if (
++            target_block_size % drafter_block_size
++            and drafter_block_size % target_block_size
++        ):
++            raise ValueError(
++                f"the DFlash drafter block ({drafter_block_size} tokens) and the "
++                f"target block ({target_block_size} tokens) do not divide one another"
++            )
++        if len(drafter_specs) > len(mla_names):
++            raise ValueError(
++                f"{len(drafter_specs)} DFlash drafter layers exceed the "
++                f"{len(mla_names)} MLA slots they share"
++            )
++        fitted_specs: dict[str, KVCacheSpec] = {
++            name: replace(spec, block_size=drafter_block_size, page_size_padded=None)
++            for name, spec in drafter_specs.items()
++        }
++        assert all(spec.page_size_bytes == mla_page for spec in fitted_specs.values())
++        drafter_uniform = UniformTypeKVCacheSpecs.from_specs(fitted_specs)
++        assert drafter_uniform is not None
++        drafter_groups.append(
++            KVCacheGroupSpec(list(fitted_specs), drafter_uniform, is_eagle_group=True)
++        )
++        logger.info(
++            "GLM-5.3 DFlash drafter group: %d layers, block size %d tokens "
++            "(exact fit of the %d-byte MLA page at %d bytes per token; "
++            "incoming block size %d)",
++            len(fitted_specs),
++            drafter_block_size,
++            mla_page,
++            token_bytes,
++            page_tokens,
++        )
++
+     return (
+         [KVCacheGroupSpec(list(attn_specs), uniform_spec)]
+         + ([tail_group] if tail_group is not None else [])
+         + create_kv_cache_group_specs(padded_specs, mamba_grouped_names)
++        + drafter_groups
+     )
+ 
+ 

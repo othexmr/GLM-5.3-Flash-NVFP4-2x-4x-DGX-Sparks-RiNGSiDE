@@ -1,0 +1,69 @@
+{
+  "status": "Pinned source transforms and focused parser/API regressions; service qualification is recorded separately.",
+  "files": [
+    {
+      "path": "vllm/parser/glm53_moe.py",
+      "before": null,
+      "after": "40f752a3f575db5978bff4080f0064bb3c83c52fa978fdea2f93aa3d43085cd9"
+    },
+    {
+      "path": "vllm/reasoning/glm53_moe_reasoning_parser.py",
+      "before": null,
+      "after": "8818280d49f33a850d3ca1ea3e570d27582d6df831cdc5c54a792b8b95e88bc0"
+    },
+    {
+      "path": "vllm/tool_parsers/glm53_moe_tool_parser.py",
+      "before": null,
+      "after": "6a1ca7b73621ac75e8f1cff4424f1373b9070576aa8589dce086993a304e5941"
+    },
+    {
+      "path": "vllm/reasoning/__init__.py",
+      "before": "70f908468213316e99f1d955f003610513b210f16d793487e5fb5160ca5f9180",
+      "after": "8eb8d0e78b2a9da8c899f8435f549ff18078afe5ba4add94e3e9aec33dcc91ad"
+    },
+    {
+      "path": "vllm/tool_parsers/__init__.py",
+      "before": "1012080535ff4b10adf0b218a4216899ccff27c008b37c6fb1ecdc9ad6bad04f",
+      "after": "52c443cb28c351eb0c333791a9687ee8a870377cff49c470420189273847d7c0"
+    },
+    {
+      "path": "vllm/parser/abstract_parser.py",
+      "before": "0c4ced748197a21d2344dedb4d4e4bb571335d618e84649b8ecb231667f569c6",
+      "after": "594127127793f5505fa13c5adcce46439a3a6eefcf849f71a8115d5f20ef11b2",
+      "transform": "required_tool_stream_state"
+    },
+    {
+      "path": "vllm/tool_parsers/streaming.py",
+      "before": "70569e1a7584e67d483c78b6e6dcc054cb05a69bab400d0926eec1ad924722f5",
+      "after": "32b4730b437a2ba469e7c940377b3349d086ab256ded1ec922984e242bc3bab6",
+      "transform": "required_tool_complete_objects"
+    },
+    {
+      "path": "vllm/entrypoints/openai/responses/streaming_events.py",
+      "before": "f2681d82bdb1d041b3d78535db90b556d29c6474f790b783079c7ea156319017",
+      "after": "978d10897e7e140a9f448339d1bfb1c32bdce23b3b527e21df3ac9a308be5388",
+      "transform": "responses_streaming_order"
+    },
+    {
+      "path": "vllm/entrypoints/openai/responses/serving.py",
+      "before": "b22caeb63277843bca3547b1334034896f1fc397ba45e3efd188af33f2b64df0",
+      "after": "4a0305323d00fa808fc339898f33c69bea08ddb1800872527f81a7dd4b0a97d5",
+      "transform": "responses_streamed_identity"
+    },
+    {
+      "path": "vllm/entrypoints/openai/responses/utils.py",
+      "before": "4a07bb382fb22ca79516db24a7269491ac949e1171d059479179ed1407024632",
+      "after": "d00915ec05950d59cec1f07274a4c7edf577c8e35eed08cf85b476d9e7373371",
+      "transform": "responses_stored_tool_history"
+    }
+  ],
+  "template_sha256": "0c4099f3382d6c92700dfb99725025360966fd73032f0ecf32377c0d9e6309c5",
+  "requires": "both parsers glm53 and always-open template",
+  "required_tool_fix": {
+    "upstream": "https://github.com/vllm-project/vllm/pull/49228",
+    "head": "349165a736e183b8666e180ead0c31005057b1e9",
+    "scope": "Local narrow adaptation; accumulate required-tool content from tool-phase entry only.",
+    "status": "CPU/live qualification pending"
+  },
+  "parser_alias_contract": "Launcher fixes both aliases to glm53; mixed aliases are outside this recipe and are not selectable."
+}

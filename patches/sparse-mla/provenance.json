@@ -1,0 +1,20 @@
+{
+ "schema": 2,
+ "kind": "file-overlay",
+ "upstream": "https://github.com/Libertai/vllm-sparse-mla-blackwell.git",
+ "reference_base": "b1f20638d7f82f880e4bcb2136ee2f19c06f38a4",
+ "authors": "the GLM-5.3 RiNGSiDE recipe lab (othexmr), except the third-party changes named in each patch header and in NOTICE",
+ "licence": "upstream licence of each file (Apache-2.0); see licenses/README.md",
+ "patches": [
+  {
+   "path": "tp2/backend.py.patch",
+   "profile": "tp2",
+   "target": "glm53_sparse_mla/backend.py"
+  },
+  {
+   "path": "tp4/backend.py.patch",
+   "profile": "tp4",
+   "target": "glm53_sparse_mla/backend.py"
+  }
+ ]
+}

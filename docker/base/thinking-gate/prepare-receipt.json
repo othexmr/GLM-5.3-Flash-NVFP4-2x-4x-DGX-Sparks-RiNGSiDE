@@ -1,0 +1,39 @@
+{
+  "status": "PREPARED_GPU_UNQUALIFIED",
+  "required_base_image_id": "sha256:fbbbe381e2ecf93fc061588f5b0f7555d0ab74390e64eedce5612e16d1291fec",
+  "image_tests": [
+    "test_parser.py",
+    "test_required_ids.py",
+    "test_required_stream.py",
+    "test_required_stream_extended.py",
+    "test_required_stream_multi.py",
+    "test_responses_boundary.py",
+    "test_responses_identity.py",
+    "test_strict_auto.py"
+  ],
+  "image_tests_gated": [
+    "test_parser.py",
+    "test_required_ids.py",
+    "test_required_stream.py",
+    "test_required_stream_extended.py",
+    "test_required_stream_multi.py",
+    "test_responses_boundary.py",
+    "test_responses_identity.py",
+    "test_strict_auto.py"
+  ],
+  "files": {
+    "Dockerfile": "1321889903c07a3602a3050a5e4cb7cd5583ccb68bc4e4c89fab5bffa2e08cd8",
+    "chat_template_mm.jinja": "7a5a0dda1331a7c40d930961cc1cb3b57c3b52625250c13372fe006ba2e9dfdb",
+    "check_preimage.py": "3ea4904d59673e8be8ab3ede63d076227b0019c9da6b9a0bfce85b8e68a2fdde",
+    "glm53_moe.py": "a0d5d6e9830d1d77e1bed96f6daa738cee9df9ba93332706b1eb9cdb8cfdfe81",
+    "test_parser.py": "4f88eac60d7c2a2c9ff8b55b960062f4b93f6f1bbe892384b88659451c879dcf",
+    "test_required_ids.py": "75343c7d01572ad7321df0bd67f9d9f0ab36498e234e3277c794f922f78cdb08",
+    "test_required_stream.py": "ad2a810f11f2982d73991c986b1cbb7ec6ed86a14ff8ac0efd895201ac875876",
+    "test_required_stream_extended.py": "0997c001cf1f65e2524dc95709cfdebc1e74fa116f1ae63541458c218381ac4c",
+    "test_required_stream_multi.py": "cc074c8df4d36395c128dab175d9a708ab58398b2e6597646b1efbf8c579a49a",
+    "test_responses_boundary.py": "82ed2d5cf9f65d946dd1b4f1951d8b392a5a574a5a92b2d9a9941f438be2d14c",
+    "test_responses_identity.py": "061f36806a24d0de36998c0462675e3bde8184390d09000468b4934ac072411c",
+    "test_strict_auto.py": "328eb4590e999f74d1f3864ffabdf90ab4c3b45bdd283a3a7274a675f9302cfa",
+    "thinking_contract.py": "457295428b77298715b8b3907dc9ab5b4020b81f691566ef0309aa738a348f09"
+  }
+}

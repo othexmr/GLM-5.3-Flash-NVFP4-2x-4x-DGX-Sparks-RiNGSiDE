@@ -1,0 +1,4 @@
+# Single-file overlay patches against files of the base image, one directory per profile.
+# Each patch is independent; sources/apply.py applies them and checks pre- and postimage sha256.
+tp2/backend.py.patch
+tp4/backend.py.patch

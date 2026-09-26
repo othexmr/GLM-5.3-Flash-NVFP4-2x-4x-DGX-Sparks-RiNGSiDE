@@ -1,0 +1,9 @@
+{
+  "files": {
+    "vllm/model_executor/layers/sparse_attn_indexer_kpool.py": {
+      "before": "631ae1cce792c18f2922af7763264c486317cb6f4318823b1482e55bec5d7f59",
+      "after": "dcc6ee328105710056e7187197abd648e170fcae92f250ae22779dc2d02e8ef2"
+    }
+  },
+  "patch_sha256": "77c7c3e4f3c2b7f48092329cd1b75ecccd7b74713bbca0a502107f494506eb30"
+}

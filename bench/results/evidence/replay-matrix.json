@@ -1,0 +1,996 @@
+{
+ "client": {
+  "branch": "feat/serving-interference-and-replay",
+  "commit": "c1b26ecf0724563dcf8a20009b6e169aa87215fd",
+  "measured_commit": "78759b10f836c2a08b158cba997b8bf96775efcb",
+  "note": "the public commit, with the identical tree to the measured commit that every window's replay report records (the branch was rebuilt with the same trees, authors and dates)",
+  "protocol": [
+   "rigmark-application-replay.1"
+  ],
+  "relation_to_headline": "a separate client commit from the one behind the headline RigMark cells and staggered arrivals (headline_client)",
+  "repository": "othexmr/rigmark",
+  "snapshot_tree_sha256": [
+   "27ab32c3dde949c6ae7d911f2f08d57be9c5035c307c4ecb3c58646fda464165"
+  ],
+  "tree": "bf3ce13b312da3ed563edf6f749785961ded41f3",
+  "upstream_parent": "alexellis/rigmark e748928d"
+ },
+ "commands": {
+  "placeholders": {
+   "${API_URL}": "the server base URL",
+   "${CODE}": "the code input file",
+   "${CTX1}": "long-context file 1",
+   "${CTX2}": "long-context file 2",
+   "${CTX3}": "long-context file 3",
+   "${DIRECTION}": "short-first, long-first or sessions",
+   "${DOC}": "the document input file",
+   "${MODEL}": "the served model id, read from /v1/models",
+   "${NS}": "a fresh run namespace (arm key + random suffix)",
+   "${OUT}": "a fresh output directory",
+   "${RATES}": "0.05,0.1,0.15,0.2,0.3,0.4 (final matrix) or 0.05,0.1,0.15 (TP2 promotion windows)",
+   "${RIGMARK}": "checkout of the replay client commit",
+   "${RUN}": "one run directory"
+  },
+  "sequence": [
+   {
+    "argv": "${RIGMARK}/rigmark replay --trace ${RIGMARK}/examples/replay/quality-16.json --output ${OUT}/quality-16 --run-id ${NS}-quality --delivery-tokens usage --base-url ${API_URL} --model ${MODEL} --identity ${OUT}/identity.json --extra-body '{\"chat_template_kwargs\": {\"reasoning_effort\": \"low\"}}' --timeout 900 --run",
+    "step": "quality set"
+   },
+   {
+    "argv": "${RIGMARK}/rigmark prepare-replay --code ${CODE} --document ${DOC} --context ${CTX1} --context ${CTX2} --context ${CTX3} --users 6 --direction ${DIRECTION} --delay 1 --max-tokens 4096 --long-max-tokens 8192 --followup-max-tokens 2048 --output ${OUT}/${DIRECTION}.json",
+    "step": "prepare one directional trace (DIRECTION = short-first, long-first, sessions)"
+   },
+   {
+    "argv": "${RIGMARK}/rigmark replay --trace ${OUT}/${DIRECTION}.json --output ${OUT}/${DIRECTION} --run-id ${NS}-${DIRECTION} --delivery-tokens usage --base-url ${API_URL} --model ${MODEL} --identity ${OUT}/identity.json --extra-body '{\"chat_template_kwargs\": {\"reasoning_effort\": \"low\"}}' --timeout 900 --run",
+    "step": "run it"
+   },
+   {
+    "argv": "${RIGMARK}/rigmark replay-sweep --code ${CODE} --document ${DOC} --context ${CTX1} --context ${CTX2} --context ${CTX3} --rates ${RATES} --duration 120 --seed 1 --output ${OUT}/sweep --max-tokens 4096 --long-max-tokens 8192 --base-url ${API_URL} --model ${MODEL} --identity ${OUT}/identity.json --extra-body '{\"chat_template_kwargs\": {\"reasoning_effort\": \"low\"}}' --timeout 900 --delivery-tokens usage --slo-visible 15 --slo-gap 3 --slo-total 300 --slo-basis output --target 0.9",
+    "step": "arrival-rate sweep"
+   },
+   {
+    "argv": "${RIGMARK}/rigmark compare-replay ${RUN} ${RUN}",
+    "step": "re-verify every run directory from its receipts"
+   }
+  ],
+  "source": "the campaign script that ran them (lab), parameters asserted against its source and against every run manifest (trace hashes, timeout, extra body, SLO, target)"
+ },
+ "dates": {
+  "timezone": "UTC+7",
+  "windows": {
+   "2026-09-24-final-replay-ours-tp2-1": [
+    "2026-09-24T10:19:23+07:00",
+    "2026-09-24T11:28:28+07:00"
+   ],
+   "2026-09-24-final-replay-ours-tp4-1": [
+    "2026-09-24T09:11:34+07:00",
+    "2026-09-24T09:44:49+07:00"
+   ],
+   "2026-09-24-final-replay-ours-tp4-weightless-1": [
+    "2026-09-24T11:55:46+07:00",
+    "2026-09-24T12:34:35+07:00"
+   ],
+   "2026-09-24-tp2ws-cand-1": [
+    "2026-09-24T15:59:56+07:00",
+    "2026-09-24T16:28:11+07:00"
+   ],
+   "2026-09-24-tp2ws-ref-1": [
+    "2026-09-24T14:55:53+07:00",
+    "2026-09-24T15:24:36+07:00"
+   ]
+  }
+ },
+ "directional_runs": {
+  "delay_s": 1,
+  "long_first": "the long-context review starts first; five short tasks arrive 1 s later",
+  "sessions": "six users with staggered starts, each with two follow-up turns after 2-6 s think time (18 requests)",
+  "short_first": "five short tasks start at once; the long-context review arrives 1 s later",
+  "use": "information only; not part of the page cell",
+  "users": 6
+ },
+ "fixture": {
+  "first_turn_max_tokens": {
+   "long-first": [
+    4096,
+    4096,
+    4096,
+    4096,
+    4096,
+    8192
+   ],
+   "sessions": [
+    4096,
+    4096,
+    4096,
+    4096,
+    4096,
+    8192
+   ],
+   "short-first": [
+    4096,
+    4096,
+    4096,
+    4096,
+    4096,
+    8192
+   ]
+  },
+  "identical_in_every_window": true,
+  "kind": "authored application scenarios, not recorded production traffic (trace provenance: authored_application_scenario_not_production_trace)",
+  "output_budgets": {
+   "first_turn": 4096,
+   "follow_up": 2048,
+   "long_review": 8192
+  },
+  "quality_16": {
+   "arrival_offsets_s": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0,
+    1.25,
+    1.5,
+    1.75,
+    2.0,
+    2.25,
+    2.5,
+    2.75,
+    3.0,
+    3.25,
+    3.5,
+    3.75
+   ],
+   "file": "examples/replay/quality-16.json of the replay client commit",
+   "max_tokens": 2048,
+   "task_ids": [
+    "q01",
+    "q02",
+    "q03",
+    "q04",
+    "q05",
+    "q06",
+    "q07",
+    "q08",
+    "q09",
+    "q10",
+    "q11",
+    "q12",
+    "q13",
+    "q14",
+    "q15",
+    "q16"
+   ],
+   "tasks": 16,
+   "trace_sha256": "5a32f113bc7bb00a688bf18eb596c7399944a9adcc6a42cb5fc4b3d493324b91",
+   "what": "16 deterministic-answer tasks (arithmetic, code tracing, conversions, counting); each answer must end with one exact \"ANSWER: <value>\" line"
+  },
+  "runner_sha256": [
+   "76e49cc308a985fab15c4ee4d51c1e39ea5040fd14e414e1bc580281cc6b8bd8"
+  ],
+  "source_material": {
+   "inputs": [
+    {
+     "bytes": 22440,
+     "name": "mhc_prefill_pipeline.py",
+     "role": "code",
+     "sha256": "feb8e7b9aa900df46b6da5bd2b838a075e7247137bdd4605d224b8eea80151aa"
+    },
+    {
+     "bytes": 10244,
+     "name": "README.md",
+     "role": "document",
+     "sha256": "d5cba53f74209f2720edccfb9451284e4743f9b601fb4ff87f502d01f28ecaf6"
+    },
+    {
+     "bytes": 50715,
+     "name": "model.py",
+     "role": "context",
+     "sha256": "467dc36110df71b7da69274ad58e81b02f1c6f04666191199f1812d79f3378e0"
+    },
+    {
+     "bytes": 49478,
+     "name": "kda.py",
+     "role": "context",
+     "sha256": "e574b6b4c0357a16fc8ea300344bde6cb19b5f81ab01b82ce0d4ce1f2982a505"
+    },
+    {
+     "bytes": 37876,
+     "name": "recoverssm.py",
+     "role": "context",
+     "sha256": "58ad39dcd449f06e1ed91c8a4ddeae0689ce2cbf75f0cca7acec641569d401af"
+    }
+   ],
+   "padding": "none",
+   "token_lengths": "measured from server usage, not assumed",
+   "what": "five lab files selected as the request context: one code file, one document and three long-context files; the lab files are not published, their hashes identify them"
+  },
+  "traces": {
+   "long-first": {
+    "requests": 6,
+    "sessions": 6,
+    "trace_sha256": "fa1d1c21f38a0f76bffa3659369428b0fa60de900aed335e0491d1790941f226"
+   },
+   "quality-16": {
+    "requests": 16,
+    "sessions": 16,
+    "trace_sha256": "5a32f113bc7bb00a688bf18eb596c7399944a9adcc6a42cb5fc4b3d493324b91"
+   },
+   "sessions": {
+    "requests": 18,
+    "sessions": 6,
+    "trace_sha256": "6fb7176be5f771dcb50b3f1cf6d560d8d53d87d6b152ad0291d373900f504f75"
+   },
+   "short-first": {
+    "requests": 6,
+    "sessions": 6,
+    "trace_sha256": "59dfefc59fba74d99bb21009e83907e211fa974e6bb838eea520852dccc9cf0b"
+   },
+   "sweep/rate-0.05": {
+    "requests": 6,
+    "sessions": 6,
+    "trace_sha256": "96bbb6f9c3bc9562cbbc866f212c0ef3502de3547efbfefbcde6ba82c770745b"
+   },
+   "sweep/rate-0.1": {
+    "requests": 14,
+    "sessions": 14,
+    "trace_sha256": "c3b482347e0f99da3df6d7dd4052d6f1269aca752fae5402b018c332b58f793d"
+   },
+   "sweep/rate-0.15": {
+    "requests": 18,
+    "sessions": 18,
+    "trace_sha256": "b19939f3a4c161dc1d3a848c61c40bb1f5522598f03e684e431b54ea17366ed2"
+   },
+   "sweep/rate-0.2": {
+    "requests": 27,
+    "sessions": 27,
+    "trace_sha256": "801292e939c6513e7fad9e27a0875855dfc353edb63d5c3c8dc07211d7085a0f"
+   },
+   "sweep/rate-0.3": {
+    "requests": 41,
+    "sessions": 41,
+    "trace_sha256": "1ec43dfa46647bd4529fcd8b1c5ebbcfad30b91fd207682ae323abab2a3147b6"
+   },
+   "sweep/rate-0.4": {
+    "requests": 51,
+    "sessions": 51,
+    "trace_sha256": "b4e1a23ae69ad20f470d27ee568c53078af8414e2970c6ff868418cd26775920"
+   }
+  }
+ },
+ "headline_client": {
+  "branch": "feat/staggered-arrival",
+  "commit": "40fabcaf6e963ac27ab347f61d54a225dbd07419",
+  "measured_revision": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+  "note": "the public commit, published with the identical tree to the measured revision recorded in the windows",
+  "repository": "othexmr/rigmark",
+  "tree": "3ba4ae72a548bc72df66933163106829b0644e15"
+ },
+ "lab_plans": {
+  "2026-09-24-final-replay-ours-tp2-1": "f1771e0a",
+  "2026-09-24-final-replay-ours-tp4-1": "9e4f793a",
+  "2026-09-24-final-replay-ours-tp4-weightless-1": "13ec0d86",
+  "2026-09-24-tp2ws-cand-1": "32dd2ab8",
+  "2026-09-24-tp2ws-ref-1": "f1771e0a"
+ },
+ "lab_receipts": [
+  "2026-09-24-final-replay-ours-tp4-1",
+  "2026-09-24-final-replay-ours-tp4-weightless-1",
+  "2026-09-24-final-replay-ours-tp2-1",
+  "2026-09-24-tp2ws-ref-1",
+  "2026-09-24-tp2ws-cand-1"
+ ],
+ "latency_target": {
+  "attainment": "passing requests / all planned requests at that rate (failed, truncated and errored requests stay in the denominator)",
+  "basis": "output (reasoning deltas count as output, the same for every server)",
+  "per_request": "a request meets the target only if it completed, its first output of any kind (reasoning or answer text) arrived within 15 s of its scheduled arrival (client dispatch lag included), no gap between two output deltas exceeded 3 s, and it finished within 300 s of its scheduled arrival",
+  "percentile": "none: a per-request pass/fail, not a percentile",
+  "target": 0.9
+ },
+ "measurement_kind": "measured (single runs)",
+ "negative_findings": [
+  "The TP4 replay window scored quality 15/16: task q05 invalid_answer (expected value present: True, ANSWER line present: False).",
+  "No swept rate meets the latency target in any TP2 window (f1771e0a: attainment 0.33 at 0.05 req/s; 32dd2ab8: 0.83).",
+  "The TP2 32dd2ab8 window swept 0.05-0.15 req/s only, the final matrix 0.05-0.4 req/s.",
+  "The replay matrix was run on the RiNGSiDE profiles only; the comparison recipes have no replay cells.",
+  "The TP4 row shows the replay matrix of the previous base 9e4f793a, not of the final profile 594faefb."
+ ],
+ "quality_set": {
+  "checks": "16 tasks with one known answer each; a task passes only if the request completed and its final line is exactly \"ANSWER: <value>\" (surrounding whitespace ignored); duplicate or conflicting ANSWER lines, truncated, failed or blocked requests count as misses",
+  "page_value": "passed/planned (the page prints \"quality n/16\")",
+  "purpose": "catch gross output breakage between matched runs; not an accuracy benchmark"
+ },
+ "record": "replay-matrix",
+ "schema": "switchless-evidence/1",
+ "sources": [
+  "outputs/2026-09-23-final-replay-matrix/README.md",
+  "outputs/2026-09-23-final-replay-matrix/campaign_replay_final.py",
+  "outputs/2026-09-24-final-replay-ours-tp2-1/replay/report.json",
+  "outputs/2026-09-24-final-replay-ours-tp4-1/replay/report.json",
+  "outputs/2026-09-24-final-replay-ours-tp4-weightless-1/replay/report.json",
+  "outputs/2026-09-24-tp2-weakspots/replay_tp2ws.py",
+  "outputs/2026-09-24-tp2ws-cand-1/replay/report.json",
+  "outputs/2026-09-24-tp2ws-ref-1/replay/report.json"
+ ],
+ "sweep": {
+  "arrival_process": "open loop, seeded Poisson: one unit-rate exponential sequence (seed 1) scaled by 1/rate over a 120 s window, so every rate replays the same prompts in the same order with the clock compressed",
+  "cache_policy": "run-isolated: a fresh prefix namespace per campaign and run (not proof of coldness)",
+  "capacity": "the highest swept rate that meets the target with every lower rate also meeting it (max_rate_meeting_target_per_s); a non-monotone curve is flagged, not smoothed",
+  "meets_target": "SLO attainment >= 0.9 with a valid measurement (execution valid, identity file unchanged, client schedule valid)",
+  "order": "ascending; the sweep stops after a rate whose completion fraction is below 0.5 (none stopped)",
+  "rates_final_matrix": [
+   0.05,
+   0.1,
+   0.15,
+   0.2,
+   0.3,
+   0.4
+  ],
+  "rates_tp2_promotion_windows": [
+   0.05,
+   0.1,
+   0.15
+  ],
+  "request_mix": "single-turn arrivals cycling through four first-turn tasks (two on the code file, two on the document); every 6th arrival is the long-context review over the three context files",
+  "requests_per_rate": {
+   "0.05": 6,
+   "0.1": 14,
+   "0.15": 18,
+   "0.2": 27,
+   "0.3": 41,
+   "0.4": 51
+  }
+ },
+ "validity": {
+  "definition": "\"valid\" = all three hold for every run of the window: exact_token_delivery (every finished stream delivered exactly the completion tokens the server reported), client_schedule_valid (every request was dispatched within 0.05 s of its scheduled time) and receipts_reverify (compare-replay re-verified every run directory from its receipts)",
+  "speed_comparison": "speed figures are compared only between valid runs"
+ },
+ "what": "The replay matrix (modified RigMark application replay) run on the RiNGSiDE profiles: protocol, fixture, commands, latency target, sweep, quality set, validity, and the per-window results.",
+ "windows": [
+  {
+   "arm": "TP4 previous base (lab plan 9e4f793a); the page shows it for the TP4 rows",
+   "budget_adequacy": {
+    "first_turns": 18,
+    "truncated": 0
+   },
+   "directional_runs": {
+    "long-first": {
+     "client_schedule_valid": true,
+     "completed": 6,
+     "e2e_median_s": 40.068,
+     "output_ttft_median_s": 12.338,
+     "planned": 6,
+     "token_delivery_exact": 6
+    },
+    "sessions": {
+     "client_schedule_valid": true,
+     "completed": 18,
+     "e2e_median_s": 23.374,
+     "output_ttft_median_s": 1.107,
+     "planned": 18,
+     "token_delivery_exact": 18
+    },
+    "short-first": {
+     "client_schedule_valid": true,
+     "completed": 6,
+     "e2e_median_s": 43.786,
+     "output_ttft_median_s": 9.587,
+     "planned": 6,
+     "token_delivery_exact": 6
+    }
+   },
+   "finished": "2026-09-24T09:44:49+07:00",
+   "lab_plan": "9e4f793a",
+   "page_cell": "valid, quality 15/16, meets the latency target up to 0.2 req/s",
+   "quality_16": {
+    "failed_tasks": [
+     {
+      "answer_line_present": false,
+      "expected_value_present": true,
+      "finish_reason": "stop",
+      "status": "invalid_answer",
+      "task": "q05"
+     }
+    ],
+    "pass_fraction": 0.9375,
+    "passed": 15,
+    "planned": 16
+   },
+   "receipts_reverified": {
+    "long-first": "OK",
+    "quality-16": "OK",
+    "rate-0.05": "OK",
+    "rate-0.1": "OK",
+    "rate-0.15": "OK",
+    "rate-0.2": "OK",
+    "rate-0.3": "OK",
+    "rate-0.4": "OK",
+    "sessions": "OK",
+    "short-first": "OK"
+   },
+   "started": "2026-09-24T09:11:34+07:00",
+   "sweep": {
+    "max_rate_meeting_target_per_s": 0.2,
+    "monotone": true,
+    "rates": [
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 17.356,
+      "measurement_valid": true,
+      "output_ttft_median_s": 1.18,
+      "planned": 6,
+      "rate_per_s": 0.05,
+      "slo_attainment": 1.0,
+      "status": "COMPLETED",
+      "target_met": true
+     },
+     {
+      "completion_fraction": 0.9286,
+      "e2e_median_s": 33.015,
+      "measurement_valid": true,
+      "output_ttft_median_s": 1.428,
+      "planned": 14,
+      "rate_per_s": 0.1,
+      "slo_attainment": 0.9286,
+      "status": "COMPLETED_WITH_FAILURES_NO_RETRY",
+      "target_met": true
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 43.468,
+      "measurement_valid": true,
+      "output_ttft_median_s": 1.339,
+      "planned": 18,
+      "rate_per_s": 0.15,
+      "slo_attainment": 1.0,
+      "status": "COMPLETED",
+      "target_met": true
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 55.146,
+      "measurement_valid": true,
+      "output_ttft_median_s": 1.341,
+      "planned": 27,
+      "rate_per_s": 0.2,
+      "slo_attainment": 1.0,
+      "status": "COMPLETED",
+      "target_met": true
+     },
+     {
+      "completion_fraction": 0.9756,
+      "e2e_median_s": 89.804,
+      "measurement_valid": true,
+      "output_ttft_median_s": 3.532,
+      "planned": 41,
+      "rate_per_s": 0.3,
+      "slo_attainment": 0.6098,
+      "status": "COMPLETED_WITH_FAILURES_NO_RETRY",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 0.9608,
+      "e2e_median_s": 120.331,
+      "measurement_valid": true,
+      "output_ttft_median_s": 29.079,
+      "planned": 51,
+      "rate_per_s": 0.4,
+      "slo_attainment": 0.3529,
+      "status": "COMPLETED_WITH_FAILURES_NO_RETRY",
+      "target_met": false
+     }
+    ],
+    "swept_rates_per_s": [
+     0.05,
+     0.1,
+     0.15,
+     0.2,
+     0.3,
+     0.4
+    ]
+   },
+   "tensor_parallel": 4,
+   "valid": true,
+   "validity": {
+    "client_schedule_valid": true,
+    "exact_token_delivery": true,
+    "receipts_reverify": true
+   },
+   "window": "2026-09-24-final-replay-ours-tp4-1"
+  },
+  {
+   "arm": "TP4 previous base with the optional weightless GLP-44 steering",
+   "budget_adequacy": {
+    "first_turns": 18,
+    "truncated": 1
+   },
+   "directional_runs": {
+    "long-first": {
+     "client_schedule_valid": true,
+     "completed": 6,
+     "e2e_median_s": 38.826,
+     "output_ttft_median_s": 12.863,
+     "planned": 6,
+     "token_delivery_exact": 6
+    },
+    "sessions": {
+     "client_schedule_valid": true,
+     "completed": 18,
+     "e2e_median_s": 26.635,
+     "output_ttft_median_s": 1.306,
+     "planned": 18,
+     "token_delivery_exact": 18
+    },
+    "short-first": {
+     "client_schedule_valid": true,
+     "completed": 5,
+     "e2e_median_s": 40.966,
+     "output_ttft_median_s": 10.07,
+     "planned": 6,
+     "token_delivery_exact": 6
+    }
+   },
+   "finished": "2026-09-24T12:34:35+07:00",
+   "lab_plan": "13ec0d86",
+   "page_cell": "valid, quality 16/16, meets the latency target up to 0.2 req/s",
+   "quality_16": {
+    "failed_tasks": [],
+    "pass_fraction": 1.0,
+    "passed": 16,
+    "planned": 16
+   },
+   "receipts_reverified": {
+    "long-first": "OK",
+    "quality-16": "OK",
+    "rate-0.05": "OK",
+    "rate-0.1": "OK",
+    "rate-0.15": "OK",
+    "rate-0.2": "OK",
+    "rate-0.3": "OK",
+    "rate-0.4": "OK",
+    "sessions": "OK",
+    "short-first": "OK"
+   },
+   "started": "2026-09-24T11:55:46+07:00",
+   "sweep": {
+    "max_rate_meeting_target_per_s": 0.2,
+    "monotone": true,
+    "rates": [
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 14.254,
+      "measurement_valid": true,
+      "output_ttft_median_s": 1.241,
+      "planned": 6,
+      "rate_per_s": 0.05,
+      "slo_attainment": 1.0,
+      "status": "COMPLETED",
+      "target_met": true
+     },
+     {
+      "completion_fraction": 0.9286,
+      "e2e_median_s": 32.672,
+      "measurement_valid": true,
+      "output_ttft_median_s": 1.531,
+      "planned": 14,
+      "rate_per_s": 0.1,
+      "slo_attainment": 0.9286,
+      "status": "COMPLETED_WITH_FAILURES_NO_RETRY",
+      "target_met": true
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 43.797,
+      "measurement_valid": true,
+      "output_ttft_median_s": 1.355,
+      "planned": 18,
+      "rate_per_s": 0.15,
+      "slo_attainment": 1.0,
+      "status": "COMPLETED",
+      "target_met": true
+     },
+     {
+      "completion_fraction": 0.963,
+      "e2e_median_s": 52.562,
+      "measurement_valid": true,
+      "output_ttft_median_s": 1.415,
+      "planned": 27,
+      "rate_per_s": 0.2,
+      "slo_attainment": 0.963,
+      "status": "COMPLETED_WITH_FAILURES_NO_RETRY",
+      "target_met": true
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 91.705,
+      "measurement_valid": true,
+      "output_ttft_median_s": 5.016,
+      "planned": 41,
+      "rate_per_s": 0.3,
+      "slo_attainment": 0.6341,
+      "status": "COMPLETED",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 0.9412,
+      "e2e_median_s": 121.293,
+      "measurement_valid": true,
+      "output_ttft_median_s": 27.012,
+      "planned": 51,
+      "rate_per_s": 0.4,
+      "slo_attainment": 0.3137,
+      "status": "COMPLETED_WITH_FAILURES_NO_RETRY",
+      "target_met": false
+     }
+    ],
+    "swept_rates_per_s": [
+     0.05,
+     0.1,
+     0.15,
+     0.2,
+     0.3,
+     0.4
+    ]
+   },
+   "tensor_parallel": 4,
+   "valid": true,
+   "validity": {
+    "client_schedule_valid": true,
+    "exact_token_delivery": true,
+    "receipts_reverify": true
+   },
+   "window": "2026-09-24-final-replay-ours-tp4-weightless-1"
+  },
+  {
+   "arm": "TP2 profile f1771e0a (the TP2 row until 2026-09-24 16:3x)",
+   "budget_adequacy": {
+    "first_turns": 18,
+    "truncated": 0
+   },
+   "directional_runs": {
+    "long-first": {
+     "client_schedule_valid": true,
+     "completed": 6,
+     "e2e_median_s": 81.553,
+     "output_ttft_median_s": 28.467,
+     "planned": 6,
+     "token_delivery_exact": 6
+    },
+    "sessions": {
+     "client_schedule_valid": true,
+     "completed": 18,
+     "e2e_median_s": 53.333,
+     "output_ttft_median_s": 6.08,
+     "planned": 18,
+     "token_delivery_exact": 18
+    },
+    "short-first": {
+     "client_schedule_valid": true,
+     "completed": 6,
+     "e2e_median_s": 97.558,
+     "output_ttft_median_s": 33.604,
+     "planned": 6,
+     "token_delivery_exact": 6
+    }
+   },
+   "finished": "2026-09-24T11:28:28+07:00",
+   "lab_plan": "f1771e0a",
+   "page_cell": "valid, quality 16/16, no swept rate meets the latency target",
+   "quality_16": {
+    "failed_tasks": [],
+    "pass_fraction": 1.0,
+    "passed": 16,
+    "planned": 16
+   },
+   "receipts_reverified": {
+    "long-first": "OK",
+    "quality-16": "OK",
+    "rate-0.05": "OK",
+    "rate-0.1": "OK",
+    "rate-0.15": "OK",
+    "rate-0.2": "OK",
+    "rate-0.3": "OK",
+    "rate-0.4": "OK",
+    "sessions": "OK",
+    "short-first": "OK"
+   },
+   "started": "2026-09-24T10:19:23+07:00",
+   "sweep": {
+    "max_rate_meeting_target_per_s": null,
+    "monotone": true,
+    "rates": [
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 60.242,
+      "measurement_valid": true,
+      "output_ttft_median_s": 3.277,
+      "planned": 6,
+      "rate_per_s": 0.05,
+      "slo_attainment": 0.3333,
+      "status": "COMPLETED",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 129.09,
+      "measurement_valid": true,
+      "output_ttft_median_s": 18.716,
+      "planned": 14,
+      "rate_per_s": 0.1,
+      "slo_attainment": 0.0714,
+      "status": "COMPLETED",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 172.402,
+      "measurement_valid": true,
+      "output_ttft_median_s": 67.95,
+      "planned": 18,
+      "rate_per_s": 0.15,
+      "slo_attainment": 0.0556,
+      "status": "COMPLETED",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 237.621,
+      "measurement_valid": true,
+      "output_ttft_median_s": 133.675,
+      "planned": 27,
+      "rate_per_s": 0.2,
+      "slo_attainment": 0.0,
+      "status": "COMPLETED",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 427.688,
+      "measurement_valid": true,
+      "output_ttft_median_s": 281.488,
+      "planned": 41,
+      "rate_per_s": 0.3,
+      "slo_attainment": 0.0,
+      "status": "COMPLETED",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 0.8824,
+      "e2e_median_s": 561.968,
+      "measurement_valid": true,
+      "output_ttft_median_s": 381.763,
+      "planned": 51,
+      "rate_per_s": 0.4,
+      "slo_attainment": 0.0,
+      "status": "COMPLETED_WITH_FAILURES_NO_RETRY",
+      "target_met": false
+     }
+    ],
+    "swept_rates_per_s": [
+     0.05,
+     0.1,
+     0.15,
+     0.2,
+     0.3,
+     0.4
+    ]
+   },
+   "tensor_parallel": 2,
+   "valid": true,
+   "validity": {
+    "client_schedule_valid": true,
+    "exact_token_delivery": true,
+    "receipts_reverify": true
+   },
+   "window": "2026-09-24-final-replay-ours-tp2-1"
+  },
+  {
+   "arm": "TP2 profile f1771e0a, fresh reference of the 32dd2ab8 promotion (sweep 0.05-0.15 only)",
+   "budget_adequacy": {
+    "first_turns": 18,
+    "truncated": 0
+   },
+   "directional_runs": {
+    "long-first": {
+     "client_schedule_valid": true,
+     "completed": 6,
+     "e2e_median_s": 81.718,
+     "output_ttft_median_s": 29.352,
+     "planned": 6,
+     "token_delivery_exact": 6
+    },
+    "sessions": {
+     "client_schedule_valid": true,
+     "completed": 18,
+     "e2e_median_s": 48.056,
+     "output_ttft_median_s": 9.237,
+     "planned": 18,
+     "token_delivery_exact": 18
+    },
+    "short-first": {
+     "client_schedule_valid": true,
+     "completed": 6,
+     "e2e_median_s": 92.755,
+     "output_ttft_median_s": 31.106,
+     "planned": 6,
+     "token_delivery_exact": 6
+    }
+   },
+   "finished": "2026-09-24T15:24:36+07:00",
+   "lab_plan": "f1771e0a",
+   "page_cell": "valid, quality 16/16, no swept rate meets the latency target",
+   "quality_16": {
+    "failed_tasks": [],
+    "pass_fraction": 1.0,
+    "passed": 16,
+    "planned": 16
+   },
+   "receipts_reverified": {
+    "long-first": "OK",
+    "quality-16": "OK",
+    "rate-0.05": "OK",
+    "rate-0.1": "OK",
+    "rate-0.15": "OK",
+    "sessions": "OK",
+    "short-first": "OK"
+   },
+   "started": "2026-09-24T14:55:53+07:00",
+   "sweep": {
+    "max_rate_meeting_target_per_s": null,
+    "monotone": true,
+    "rates": [
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 64.414,
+      "measurement_valid": true,
+      "output_ttft_median_s": 5.007,
+      "planned": 6,
+      "rate_per_s": 0.05,
+      "slo_attainment": 0.3333,
+      "status": "COMPLETED",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 115.826,
+      "measurement_valid": true,
+      "output_ttft_median_s": 22.581,
+      "planned": 14,
+      "rate_per_s": 0.1,
+      "slo_attainment": 0.0714,
+      "status": "COMPLETED",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 166.61,
+      "measurement_valid": true,
+      "output_ttft_median_s": 75.552,
+      "planned": 18,
+      "rate_per_s": 0.15,
+      "slo_attainment": 0.0556,
+      "status": "COMPLETED",
+      "target_met": false
+     }
+    ],
+    "swept_rates_per_s": [
+     0.05,
+     0.1,
+     0.15
+    ]
+   },
+   "tensor_parallel": 2,
+   "valid": true,
+   "validity": {
+    "client_schedule_valid": true,
+    "exact_token_delivery": true,
+    "receipts_reverify": true
+   },
+   "window": "2026-09-24-tp2ws-ref-1"
+  },
+  {
+   "arm": "TP2 profile 32dd2ab8 (sweep 0.05-0.15 only)",
+   "budget_adequacy": {
+    "first_turns": 18,
+    "truncated": 0
+   },
+   "directional_runs": {
+    "long-first": {
+     "client_schedule_valid": true,
+     "completed": 6,
+     "e2e_median_s": 75.373,
+     "output_ttft_median_s": 24.047,
+     "planned": 6,
+     "token_delivery_exact": 6
+    },
+    "sessions": {
+     "client_schedule_valid": true,
+     "completed": 18,
+     "e2e_median_s": 53.193,
+     "output_ttft_median_s": 2.656,
+     "planned": 18,
+     "token_delivery_exact": 18
+    },
+    "short-first": {
+     "client_schedule_valid": true,
+     "completed": 6,
+     "e2e_median_s": 75.925,
+     "output_ttft_median_s": 18.757,
+     "planned": 6,
+     "token_delivery_exact": 6
+    }
+   },
+   "finished": "2026-09-24T16:28:11+07:00",
+   "lab_plan": "32dd2ab8",
+   "page_cell": "valid, quality 16/16, no swept rate meets the latency target",
+   "quality_16": {
+    "failed_tasks": [],
+    "pass_fraction": 1.0,
+    "passed": 16,
+    "planned": 16
+   },
+   "receipts_reverified": {
+    "long-first": "OK",
+    "quality-16": "OK",
+    "rate-0.05": "OK",
+    "rate-0.1": "OK",
+    "rate-0.15": "OK",
+    "sessions": "OK",
+    "short-first": "OK"
+   },
+   "started": "2026-09-24T15:59:56+07:00",
+   "sweep": {
+    "max_rate_meeting_target_per_s": null,
+    "monotone": true,
+    "rates": [
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 55.939,
+      "measurement_valid": true,
+      "output_ttft_median_s": 2.247,
+      "planned": 6,
+      "rate_per_s": 0.05,
+      "slo_attainment": 0.8333,
+      "status": "COMPLETED",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 93.492,
+      "measurement_valid": true,
+      "output_ttft_median_s": 11.462,
+      "planned": 14,
+      "rate_per_s": 0.1,
+      "slo_attainment": 0.5,
+      "status": "COMPLETED",
+      "target_met": false
+     },
+     {
+      "completion_fraction": 1.0,
+      "e2e_median_s": 130.856,
+      "measurement_valid": true,
+      "output_ttft_median_s": 53.569,
+      "planned": 18,
+      "rate_per_s": 0.15,
+      "slo_attainment": 0.3333,
+      "status": "COMPLETED",
+      "target_met": false
+     }
+    ],
+    "swept_rates_per_s": [
+     0.05,
+     0.1,
+     0.15
+    ]
+   },
+   "tensor_parallel": 2,
+   "valid": true,
+   "validity": {
+    "client_schedule_valid": true,
+    "exact_token_delivery": true,
+    "receipts_reverify": true
+   },
+   "window": "2026-09-24-tp2ws-cand-1"
+  }
+ ]
+}

@@ -1,0 +1,84 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py
+Preimage:    sha256 635282a1a5dfdf3fa70a7d8f9b0f120abe9142ca921bac24f3037832158c2091
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)
+Postimage:   sha256 042cd308f43cd2e70723d4da79c7048a84fd630a449cd2d5563db91453637aed (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Attribution: sparkring-mhc (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/model_executor/layers/fused_moe/runner/moe_runner.py b/vllm/model_executor/layers/fused_moe/runner/moe_runner.py
+index 2f072d14b480babe8e2a2e474763db21a5a5c9fd..d728fd03a727c792c9cf09e8f9e1f9f5af0b4399 100644
+--- a/vllm/model_executor/layers/fused_moe/runner/moe_runner.py
++++ b/vllm/model_executor/layers/fused_moe/runner/moe_runner.py
+@@ -1,5 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): forward can skip the final MoE all-reduce (defer_tp_reduction) for
++# the token-sharded mHC prefill.
+ from collections.abc import Callable, Iterable
+ from contextlib import nullcontext
+ from typing import TYPE_CHECKING, cast
+@@ -479,6 +481,8 @@ class MoERunner(MoERunnerInterface):
+         states: torch.Tensor,
+         trunc_size: int | None,
+         output_is_reduced: bool | None = None,
++        *,
++        defer_tp_reduction: bool = False,
+     ) -> torch.Tensor:
+         """All-reduce the combined output if needed.
+ 
+@@ -500,8 +504,11 @@ class MoERunner(MoERunnerInterface):
+         if output_is_reduced is None:
+             output_is_reduced = self._fused_output_is_reduced
+ 
++        if defer_tp_reduction and (output_is_reduced or self.moe_config.skip_final_all_reduce):
++            raise RuntimeError("Cannot defer an already reduced or disabled MoE reduction")
+         if (
+-            not self.moe_config.is_sequence_parallel
++            not defer_tp_reduction
++            and not self.moe_config.is_sequence_parallel
+             and not self.moe_config.skip_final_all_reduce
+             and (self.moe_config.tp_size > 1 or self.moe_config.ep_size > 1)
+             and not output_is_reduced
+@@ -681,6 +688,8 @@ class MoERunner(MoERunnerInterface):
+         router_logits: torch.Tensor,
+         input_ids: torch.Tensor | None = None,
+         shared_experts_input: torch.Tensor | None = None,
++        *,
++        defer_tp_reduction: bool = False,
+     ) -> torch.Tensor:
+         """Invoke the fused moe layer.
+ 
+@@ -702,6 +711,10 @@ class MoERunner(MoERunnerInterface):
+            _moe_forward and _moe_forward_shared must be split.
+         """
+ 
++        if defer_tp_reduction:
++            from vllm.models.glm5next.nvidia.mhc_prefill_sharding import validate_moe_deferral
++            validate_moe_deferral(self)
++
+         # Apply transform for routed experts (e.g., latent projection for
+         # latent MoE). When the caller pre-applies the routed input transform
+         # outside the runner (e.g. to overlap it on a separate stream), it
+@@ -781,9 +794,15 @@ class MoERunner(MoERunnerInterface):
+         else:
+             result = fused_output
+ 
+-        result = self._maybe_reduce_final_output(
+-            result, og_hidden_dim_post_xform, fused_output_is_reduced
+-        )
++        if defer_tp_reduction:
++            result = self._maybe_reduce_final_output(
++                result, og_hidden_dim_post_xform, fused_output_is_reduced,
++                defer_tp_reduction=True,
++            )
++        else:
++            result = self._maybe_reduce_final_output(
++                result, og_hidden_dim_post_xform, fused_output_is_reduced
++            )
+ 
+         return self._maybe_add_zero_expert_output(result)
+ 

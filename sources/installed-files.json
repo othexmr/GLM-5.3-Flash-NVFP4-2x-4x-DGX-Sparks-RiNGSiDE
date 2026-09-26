@@ -1,0 +1,1913 @@
+{
+ "schema": 2,
+ "install_root": "/usr/local/lib/python3.12/dist-packages/",
+ "profiles": {
+  "tp2": {
+   "image": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
+   "files": [
+    {
+     "target": "/chat_template_mm.jinja",
+     "sha256": "7a5a0dda1331a7c40d930961cc1cb3b57c3b52625250c13372fe006ba2e9dfdb",
+     "bytes": 11276,
+     "kind": "template",
+     "licence": "MIT (zai-org/GLM-5.3-Flash chat template, revision 690b705, with Raymond Lucke's thinking gate from MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks eaf90d0, 2026-08-27, MIT period)",
+     "attribution": [
+      "glm-template",
+      "miaai-lab-chat-template"
+     ],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "launch/profiles/tp2/chat_template_mm.jinja",
+     "derived_from_sha256": "0c4099f3382d6c92700dfb99725025360966fd73032f0ecf32377c0d9e6309c5"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/_shared/kernels/dynamic.py",
+     "sha256": "9d65bb84560650928114a81128cc9a3bc4c5dd30ca6c3f357ecceca9998709fe",
+     "bytes": 499238,
+     "kind": "patch",
+     "licence": "Apache-2.0 (b12x file)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/b12x/tp2/moe-_shared-kernels-dynamic.py.patch",
+     "preimage_sha256": "2ebe82bd221aacf915b4d2cc0b50e52dc77c7b7b73aea720ad17941a85d1a060",
+     "preimage_evidence": "pinned as the image file by the lab tile-major work (runtime image 017fd0ba)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_impl.py",
+     "sha256": "5d1f2b027e2c916dca63ad3c80ac4ff44a429153e82cbaa38a0bc2bf1a9bbe68",
+     "bytes": 470544,
+     "kind": "patch",
+     "licence": "Apache-2.0 (b12x file)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/b12x/tp2/moe-fused_moe-_impl.py.patch",
+     "preimage_sha256": "6984ff84435121222490e776022365158bdee1ee1ed5bbf0a61007424fda24ee",
+     "preimage_evidence": "pinned as the image file by the lab tile-major work (runtime image 017fd0ba)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp2_cluster.py",
+     "sha256": "6ba7721244713b5f4df3050654002c186f7e761334d1915b7ff6160598faeb4e",
+     "bytes": 1643,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/b12x/moe/fused_moe/_tp2_cluster.py",
+     "lab_served_sha256": "3f23f8b44a2443212bdce9966f89b7155baa8d942b0e8254e2023dda5b083cb7",
+     "recipe_change": "the lab plan serves this file with the SPDX line of the recipe's earlier licence (sha256 3f23f8b44a2443212bdce9966f89b7155baa8d942b0e8254e2023dda5b083cb7); the recipe serves it with the line \"SPDX-License-Identifier: Apache-2.0\", the repository licence since 2026-09-26: a change of that comment line only, so its Python tokens without comments equal the lab plan's file"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_cluster_candidate.py",
+     "sha256": "1d00b1bb7fc7e90dc84dd95f0c73a615070f76d6611fc90ba85a1dd382858450",
+     "bytes": 1275,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/b12x/moe/fused_moe/_tp4_cluster_candidate.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_tile_major.py",
+     "sha256": "532c9d26fbb3ba8c0d810dacaf6266887375f699ab2cca4b4b6dd099a408a712",
+     "bytes": 9953,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/b12x/moe/fused_moe/_tp4_tile_major.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/deterministic_sparse_topk.py",
+     "sha256": "9d1e7acb060afe228470c61235c35b1238472924c712090dab49afbfcd93d2bc",
+     "bytes": 6040,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/deterministic_sparse_topk.py",
+     "replaces_image_sha256": "268a4923adbbfe82549f2bf2a65caa0041c03f4afeb53f2d41ae7b43cd09e095"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_replay_boundary.py",
+     "sha256": "87d2d19adfe5455082ef4a5fa956a4e18d1d3f9f68176bbbc4b8ac81910a7813",
+     "bytes": 21369,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/glm53_replay_boundary.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/backend.py",
+     "sha256": "d88307d733afd7979ea892c266f4118dfb66a628e53a60c2950b45400df509f6",
+     "bytes": 21950,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/sparse-mla/tp2/backend.py.patch",
+     "preimage_sha256": "8bb063484493ab998278e0f19883c0263b67dc8e299f4cad86402e5685f403a0",
+     "preimage_evidence": "sha256 read inside the image by the lab mixed-batch work preflight"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/adaptive_chunk.py",
+     "sha256": "e605fa56cca09d15bb68b409d6614ed5162dff0c3e73a6ae70b6ba3dcac71015",
+     "bytes": 974,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/glm53_speedup/adaptive_chunk.py",
+     "lab_served_sha256": "d41634ef35ba3ca1275bd71d9a73ae46711cc2390c123bcf38b9f17223e06bca",
+     "recipe_change": "the lab plan serves this file with the SPDX line of the recipe's earlier licence (sha256 d41634ef35ba3ca1275bd71d9a73ae46711cc2390c123bcf38b9f17223e06bca); the recipe serves it with the line \"SPDX-License-Identifier: Apache-2.0\", the repository licence since 2026-09-26: a change of that comment line only, so its Python tokens without comments equal the lab plan's file"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/cadence.py",
+     "sha256": "e5414f2fd2f0707b1e739fbd64b96a896dfa4aae2295d2b4e4de0b50d504bff0",
+     "bytes": 9838,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/glm53_speedup/cadence.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/fair_prefill.py",
+     "sha256": "b2404a7caaf51339046ec186cb5884a76eb20530547efa0358c874cc9fac3a8c",
+     "bytes": 7383,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/glm53_speedup/fair_prefill.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/geometry.py",
+     "sha256": "dde985a2c26e606c59a2454e4df88d41aed7330fdf88b596479d28df36304371",
+     "bytes": 2589,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/glm53_speedup/geometry.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/graphs.py",
+     "sha256": "fd1f932e1763089db5d21bff20fb1687faea5f589a412d885dad1c7d7f398674",
+     "bytes": 5913,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/glm53_speedup/graphs.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/policy.py",
+     "sha256": "aa8812349d047ba1ea2021307870690ea11c3f17c0d04e8e4ad521699b74947a",
+     "bytes": 23924,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/glm53_speedup/policy.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/scheduler.py",
+     "sha256": "9fb122e7df113c1a44ca96d84df9f735103185b6f8fe20874ee8bd62a95224d2",
+     "bytes": 28822,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/glm53_speedup/scheduler.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/telemetry.py",
+     "sha256": "30cbed5467e7ed2817670feeceecdc88284c934fce08502cf13b7d9e6ef9f0ab",
+     "bytes": 2088,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/glm53_speedup/telemetry.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_utf8_guard.py",
+     "sha256": "f28343910ea2a839edbe023a5e19ec36264b696dc7cc521dacfcfcca7378e33b",
+     "bytes": 20306,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/glm53_utf8_guard.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/config/vllm.py",
+     "sha256": "3351141f82067c9ed37b274bc954c8a6d982d0869a1cc43d799e630842c9932d",
+     "bytes": 134824,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/config-vllm.py.patch",
+     "preimage_sha256": "3b2032e46fe6839bbbf64a48d32dc6d3f97a0b6e20b40aa4a550c3096ca4ed08",
+     "preimage_evidence": "recorded as the image file (3b2032e4) by the lab RecoverSSM work; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py",
+     "sha256": "a0dbfb2b5252a12f1155632988bf1057f9aa1817dca1e7d2f861745fc83222ce",
+     "bytes": 12658,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/entrypoints-launchers-api_server-entry.py.patch",
+     "preimage_sha256": "db689f8486e5d2c9eb59d347e03a27ce837d014f8d3d7f84d55a0e382813ca84",
+     "preimage_evidence": "sha256 read inside a container of the image on two nodes before the warm-up leaf"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tilelang.py",
+     "sha256": "a02ce5e6836de40a5ead235b21d19d050c81f31bb9637d3e4669c3938dd26ebb",
+     "bytes": 23973,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/model_executor-kernels-mhc-tilelang.py.patch",
+     "preimage_sha256": "c8ce81539c779436eb2b9fbba84738f3114bf3ac0a149f2b606f7d38bd1067ce",
+     "preimage_evidence": "image manifest hash checked by an executed leaf (image source closure, 2026-09-21)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tp2_geometry.py",
+     "sha256": "4024e07446723b5d37e78dcbd5dd322d53aad3ce78b527caf82bef50e0cd47a0",
+     "bytes": 1673,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/vllm/model_executor/kernels/mhc/tp2_geometry.py",
+     "lab_served_sha256": "d0ae5254f4b45106bea0052cd225dc643734a3f943974cfc68180f39e49e2eb6",
+     "recipe_change": "the lab plan serves this file with the SPDX line of the recipe's earlier licence (sha256 d0ae5254f4b45106bea0052cd225dc643734a3f943974cfc68180f39e49e2eb6); the recipe serves it with the line \"SPDX-License-Identifier: Apache-2.0\", the repository licence since 2026-09-26: a change of that comment line only, so its Python tokens without comments equal the lab plan's file"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/attention/mla_attention.py",
+     "sha256": "a32b1b3e38b76797e8f7246382a855aa625826d0eb557af52266c1ff474d88b3",
+     "bytes": 125705,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/model_executor-layers-attention-mla_attention.py.patch",
+     "preimage_sha256": "b8c5386de3aa37461571f974f262f417dab28a708456e686f3cd02a576986faf",
+     "preimage_evidence": "recorded as the image file (b8c5386d) by the lab TP2 port; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/b12x.py",
+     "sha256": "b8e046fe5c48fc297ae07da786d68edd645baf0a80e771770a86d8a463d78e10",
+     "bytes": 36268,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/model_executor-layers-fused_moe-b12x.py.patch",
+     "preimage_sha256": "445dfa61c627b4c2baf9c3e47927b8c98c382309102f40fda85df5654d9cbc3e",
+     "preimage_evidence": "sha256 read inside the image by the lab mixed-batch work preflight (atomic-prefill adapter baked into the image)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py",
+     "sha256": "4e9c12fb110b3eb56e7b4e8d090c8d4df395235ce773f290062c87b1d0b9fe9e",
+     "bytes": 24781,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py",
+     "replaces_image_sha256": "9906dad83b70ee61c3d8f760dfb35c37f14dccad1d63cc6d6bfd0da9e2d4eb4d"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/attention.py",
+     "sha256": "87956e9198ee06076b4d9fb5a6d5fd235fe0fc9ec52bba96b7082c0e6b95f3df",
+     "bytes": 27248,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its kpool tail ring size is a port of vllm-project/vllm#58454 (mmastrac) as Morrowmake/vllm-cmp170hx 1d4b59e ported it)",
+     "attribution": [
+      "sparkring-mhc",
+      "vllm-pr-58454",
+      "morrowmake-vllm-cmp170hx"
+     ],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/models-glm5next-nvidia-attention.py.patch",
+     "preimage_sha256": "400d7063db2aa27314c79dce688060710f5ef7bdbafbddfc6698eaaaea3b3a8f",
+     "preimage_evidence": "matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda.py",
+     "sha256": "80c08afcd843e5543d8e0a25d3d1fc8534fc712c155f4c3993de567a4e89e8df",
+     "bytes": 51562,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [
+      "sparkring-mhc"
+     ],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/models-glm5next-nvidia-kda.py.patch",
+     "preimage_sha256": "6601dffb13ed76caebf4b4156cb1f0cfdaea1369e4924c6a4d433149b3e9d9d4",
+     "preimage_evidence": "matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/model.py",
+     "sha256": "d7ca512317535bfa5eeba0a3a8d66c13aee5cb12c96e6a83b2cffa0859f5accd",
+     "bytes": 48523,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its DFlash2 auxiliary hidden-state capture is adapted from vLLM's DeepseekV4Model.forward in vllm/models/deepseek_v4/nvidia/model.py)",
+     "attribution": [
+      "vllm"
+     ],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/models-glm5next-nvidia-model.py.patch",
+     "preimage_sha256": "031439712aa46203846e1df03de95d7e38c42578c59c2f556d540ab09f26bf8c",
+     "preimage_evidence": "the file of the rebuilt base: the v0.29.0 port patch of docker/base, applied to the v0.29.0 source and checked by docker/tools/verify_port.py on a CPU (not built on a DGX Spark yet); the measured image 017fd0ba has 7cddb9d1 here, which differs only in the DFlash2 auxiliary hidden-state capture"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/kpool_compress.py",
+     "sha256": "f50edff2e0fd9d2807a85682383cb616867e58c5516db9df026fa661d6e371a6",
+     "bytes": 33595,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its kpool tail ring is a port of vllm-project/vllm#58454 (mmastrac) as Morrowmake/vllm-cmp170hx 1d4b59e ported it)",
+     "attribution": [
+      "vllm-pr-58454",
+      "morrowmake-vllm-cmp170hx"
+     ],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/models-glm5next-nvidia-ops-kpool_compress.py.patch",
+     "preimage_sha256": "6e19b31c50de43f7dfa9c7d9b7a3d7b856939f49bd4a3c031d2b50d28fe04f68",
+     "preimage_evidence": "recorded as the image file by the lab upstream-metadata work; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/recoverssm.py",
+     "sha256": "823f27dd99fec2197a63abda3a9d44677c72becf8656a2cdb743f2348e2a8cb7",
+     "bytes": 38755,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header; adapted from vLLM's Kimi-K3 RecoverSSM)",
+     "attribution": [
+      "vllm"
+     ],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "source": "src/tp2/vllm/models/glm5next/nvidia/ops/recoverssm.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/third_party/kda/fused_recurrent.py",
+     "sha256": "d110dd8b502bbf5b0b8e1869500014deeaae634b5d2408182bc98bf39c41660a",
+     "bytes": 23231,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/models-glm5next-nvidia-ops-third_party-kda-fused_recurrent.py.patch",
+     "preimage_sha256": "fe79ad1547aa5a255070af83029a4d1043dd2b225ce1baf9ffb3d8dd62298ef0",
+     "preimage_evidence": "exported from the image by the lab replay work; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/kv_cache_utils.py",
+     "sha256": "2a69fdf7b0738e75caa47be8344180a309e3fe68476618219eae3eceaf29aaab",
+     "bytes": 122287,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its DFlash2 drafter KV-cache group is built on vLLM's own KV-cache group mechanisms: is_eagle_group, UniformTypeKVCacheSpecs and the shared KV-cache tensors of the hybrid allocator)",
+     "attribution": [
+      "vllm"
+     ],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-core-kv_cache_utils.py.patch",
+     "preimage_sha256": "2614f957b21863ac7f028d0c104c9a4d913f41b81733f2d36ac0ec05df882712",
+     "preimage_evidence": "the file of the rebuilt base: the v0.29.0 port patch of docker/base, applied to the v0.29.0 source and checked by docker/tools/verify_port.py on a CPU (not built on a DGX Spark yet); the measured image 017fd0ba has 7ef72953 here, which differs only in the DFlash2 drafter KV-cache group"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/sched/scheduler.py",
+     "sha256": "05fba9702e9f4ddf69f25ffd6f3293eda2917c40338c813dd63a0622fe860bba",
+     "bytes": 150547,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-core-sched-scheduler.py.patch",
+     "preimage_sha256": "db8796f984d2d8a1b77e8f809d5e45b7d06904fc624490badcb0df133186952e",
+     "preimage_evidence": "baked by the image build layer 017fd0ba (installed hash paired with the image on both ranks; image source closure, 2026-09-21)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/single_type_kv_cache_manager.py",
+     "sha256": "3bd43799abc7564261f5f103d18fb852b8d26fb9ec54994e78facf550221d39c",
+     "bytes": 99884,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-core-single_type_kv_cache_manager.py.patch",
+     "preimage_sha256": "0b238ffd65d65a462dedea640928713a6e0452091c75642cf7dbb15514d56261",
+     "preimage_evidence": "sha256 read inside a container of the image on four nodes by the KDA-checkpoint staging job (2026-09-24)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/sample/ops/topk_topp_triton.py",
+     "sha256": "6d7a945290ebb64e59a43e6b6c3d64f2aa4c953cea2e47bd5232422850d6490c",
+     "bytes": 68793,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-sample-ops-topk_topp_triton.py.patch",
+     "preimage_sha256": "255619f699898ddaaac959d9bef4494294c76d730abb8e90549afac83a9bcbe9",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/async_utils.py",
+     "sha256": "019aefd848e47ca4d6d916113e5b4672b632460ed1ce6a3426b53def291e394f",
+     "bytes": 10944,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-worker-gpu-async_utils.py.patch",
+     "preimage_sha256": "36bd876f1c2cf648ed9436c66205db39df7bd4f9b0da90f507fed8b3159840c5",
+     "preimage_evidence": "installed hash recorded from the image by the lab (2026-09-13 source-control manifest); equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py",
+     "sha256": "fb93f06a693815f6f376ec8727b641a26b6dcca77b6767d114d0ef986fd642ab",
+     "bytes": 94341,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-worker-gpu-model_runner.py.patch",
+     "preimage_sha256": "f01ae09c799799c8949778588d4e5e43f8c4c2dc4fd531a0eb7a553eb5d45c5e",
+     "preimage_evidence": "read from a running container of the image (2026-09-17, no overlay on this path); equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/gumbel.py",
+     "sha256": "8793f30567609af00d8c8c8026558f00ddf90a000a0444068128edded0fd2919",
+     "bytes": 10521,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its vocabulary clamp is a port of vllm-project/vllm#50843 (alexbi29))",
+     "attribution": [
+      "vllm-pr-50843"
+     ],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-worker-gpu-sample-gumbel.py.patch",
+     "preimage_sha256": "3ec1df510bdad13e8b0a457b5b67c98affdf6e57369e56cb471246cc8f40dd34",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/sampler.py",
+     "sha256": "77e22ab8419a5fc1235c65ae5824c34c9750e93730b4f2c6b2bc3ea80e64d49c",
+     "bytes": 16573,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-worker-gpu-sample-sampler.py.patch",
+     "preimage_sha256": "408b08c4ac66de271f476460490f360ef2a9b73528a346d132a22326e1674369",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py",
+     "sha256": "d59cb83ce11a92d2ee5fa8822988abc38cde0baeb6a2d14db36c953ce1f6c693",
+     "bytes": 14069,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-worker-gpu-spec_decode-rejection_sampler.py.patch",
+     "preimage_sha256": "e20adc9b6c8a62a5be232bae15a1e361e898142966a68ea3ef244b39ffc5ce44",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py",
+     "sha256": "d1d5ba7ab39b9404bbd2a8f7b322f473f9d921f1095f766368c854b67741f8ec",
+     "bytes": 41645,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its vocabulary clamp is a port of vllm-project/vllm#50843 (alexbi29))",
+     "attribution": [
+      "vllm-pr-50843"
+     ],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-worker-gpu-spec_decode-rejection_sampler_utils.py.patch",
+     "preimage_sha256": "20ca2e5ac34e9ef93dca388bed72a00d4ff67d569ec6ec2393b21a92d74a1fae",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py",
+     "sha256": "d383b345621226ab6c0896444e5047c675f74d0e6263db68d23b4f2d7b1c571e",
+     "bytes": 64098,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)",
+     "patch": "patches/vllm/tp2/v1-worker-gpu_worker.py.patch",
+     "preimage_sha256": "b0f39124f31ead3d2d20f1c6ac8696393c0ed6fed585ba8d31a4f7673e390407",
+     "preimage_evidence": "sha256 read inside a container of the image on two nodes before the warm-up leaf"
+    },
+    {
+     "target": "/opt/glm53-speedup/runtime",
+     "kind": "config-dir",
+     "files": {
+      "override.json": {
+       "sha256": "60b3ac3b5e835d62916d8f9c54c39cf5da72a9af65801a37348f31b62a338904",
+       "source": "launch/profiles/tp2/override.json"
+      }
+     },
+     "licence": "Apache-2.0 (repository licence)",
+     "attribution": []
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so",
+     "kind": "binary",
+     "sha256": "221fdbaa6a25d377118093d30761322c22db7105312b396d2aecd8262e2c002b",
+     "bytes": 5825912,
+     "artefact": "sparse-mla-m7e",
+     "evidence": "lab staging read-back on both hosts (receipt of the plan b80911ec, 2026-09-26 03:20)"
+    }
+   ],
+   "artefacts": [
+    {
+     "name": "sparse-mla-m7e",
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so",
+     "sha256": "221fdbaa6a25d377118093d30761322c22db7105312b396d2aecd8262e2c002b"
+    }
+   ]
+  },
+  "tp4": {
+   "image": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
+   "files": [
+    {
+     "target": "/chat_template_mm.jinja",
+     "sha256": "7a5a0dda1331a7c40d930961cc1cb3b57c3b52625250c13372fe006ba2e9dfdb",
+     "bytes": 11276,
+     "kind": "template",
+     "licence": "MIT (zai-org/GLM-5.3-Flash chat template, revision 690b705, with Raymond Lucke's thinking gate from MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks eaf90d0, 2026-08-27, MIT period)",
+     "attribution": [
+      "glm-template",
+      "miaai-lab-chat-template"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "launch/profiles/tp4/chat_template_mm.jinja",
+     "derived_from_sha256": "0c4099f3382d6c92700dfb99725025360966fd73032f0ecf32377c0d9e6309c5"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/_shared/kernels/dynamic.py",
+     "sha256": "48986ac2f49593fe64f05ef12eac3c20d14483d4d1971f25dc1b9ba921783c84",
+     "bytes": 506296,
+     "kind": "patch",
+     "licence": "Apache-2.0 (b12x file)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/b12x/tp4/moe-_shared-kernels-dynamic.py.patch",
+     "preimage_sha256": "2ebe82bd221aacf915b4d2cc0b50e52dc77c7b7b73aea720ad17941a85d1a060",
+     "preimage_evidence": "pinned as the image file by the lab tile-major work (runtime image 017fd0ba)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_impl.py",
+     "sha256": "d10f854f350388ba8adb87743640a1a38d04e2fd734d4a4770167ff08a867809",
+     "bytes": 471445,
+     "kind": "patch",
+     "licence": "Apache-2.0 (b12x file)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/b12x/tp4/moe-fused_moe-_impl.py.patch",
+     "preimage_sha256": "6984ff84435121222490e776022365158bdee1ee1ed5bbf0a61007424fda24ee",
+     "preimage_evidence": "pinned as the image file by the lab tile-major work (runtime image 017fd0ba)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_cluster_candidate.py",
+     "sha256": "1d00b1bb7fc7e90dc84dd95f0c73a615070f76d6611fc90ba85a1dd382858450",
+     "bytes": 1275,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/b12x/moe/fused_moe/_tp4_cluster_candidate.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_tile_major.py",
+     "sha256": "532c9d26fbb3ba8c0d810dacaf6266887375f699ab2cca4b4b6dd099a408a712",
+     "bytes": 9953,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/b12x/moe/fused_moe/_tp4_tile_major.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/deterministic_sparse_topk.py",
+     "sha256": "17ad4ea60ff4eb4e69c4eaa566b97191e4e5916d494ed7b86f27a98264b1872f",
+     "bytes": 9548,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/deterministic_sparse_topk.py",
+     "replaces_image_sha256": "268a4923adbbfe82549f2bf2a65caa0041c03f4afeb53f2d41ae7b43cd09e095"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_greedy_verify.py",
+     "sha256": "22d6e272f60040fdff5a5f630020b5e732bb8fa9ced25167501560ba31b85a93",
+     "bytes": 11914,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_greedy_verify.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_indexer_rowsplit.py",
+     "sha256": "9245ebfa28680f6a7c9512086ccacb4f8a17706aa94e3fc4a1a4edbd13a419d1",
+     "bytes": 11779,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_indexer_rowsplit.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_kda_ckpt.py",
+     "sha256": "cc92e8f6bba2721c840e0dd552dd50185cb2f9659834a5009e1d939dd8e409d2",
+     "bytes": 64095,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header with the vLLM copyright line; contains b12x code)",
+     "attribution": [
+      "b12x",
+      "vllm",
+      "sparkring-kda-ckpt"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_kda_ckpt.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_kda_ckpt_plan.py",
+     "sha256": "c5850eec06e32ce2f9577643ecf30cc3211f941d2a9bf378645d6859f0940e3f",
+     "bytes": 5782,
+     "kind": "src",
+     "licence": "Apache-2.0 (declared by the lab work that wrote it)",
+     "attribution": [
+      "sparkring-kda-ckpt"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_kda_ckpt_plan.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_kda_conv.py",
+     "sha256": "58f29c4e9cedd0e1bf371d831ff4566db8735793230fcc806d29f0d4e74b1513",
+     "bytes": 40696,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header with the vLLM copyright line; contains b12x's KDA prefill prepare kernel)",
+     "attribution": [
+      "b12x",
+      "vllm"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_kda_conv.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_replay_boundary.py",
+     "sha256": "87d2d19adfe5455082ef4a5fa956a4e18d1d3f9f68176bbbc4b8ac81910a7813",
+     "bytes": 21369,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_replay_boundary.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/backend.py",
+     "sha256": "d88307d733afd7979ea892c266f4118dfb66a628e53a60c2950b45400df509f6",
+     "bytes": 21950,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/sparse-mla/tp4/backend.py.patch",
+     "preimage_sha256": "8bb063484493ab998278e0f19883c0263b67dc8e299f4cad86402e5685f403a0",
+     "preimage_evidence": "sha256 read inside the image by the lab mixed-batch work preflight"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/adaptive_chunk.py",
+     "sha256": "39016c7d8bfb6aeb640e73f97d6e88152a50a46c85c9723e29f891d20606befc",
+     "bytes": 775,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_speedup/adaptive_chunk.py",
+     "lab_served_sha256": "883595e5acfb715fd8fe6d594cf74a73f971b40fbd46f20021b487a2f1577b6a",
+     "recipe_change": "the lab plan serves this file with the SPDX line of the recipe's earlier licence (sha256 883595e5acfb715fd8fe6d594cf74a73f971b40fbd46f20021b487a2f1577b6a); the recipe serves it with the line \"SPDX-License-Identifier: Apache-2.0\", the repository licence since 2026-09-26: a change of that comment line only, so its Python tokens without comments equal the lab plan's file"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/cadence.py",
+     "sha256": "e5414f2fd2f0707b1e739fbd64b96a896dfa4aae2295d2b4e4de0b50d504bff0",
+     "bytes": 9838,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_speedup/cadence.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/fair_prefill.py",
+     "sha256": "b2404a7caaf51339046ec186cb5884a76eb20530547efa0358c874cc9fac3a8c",
+     "bytes": 7383,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_speedup/fair_prefill.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/geometry.py",
+     "sha256": "dde985a2c26e606c59a2454e4df88d41aed7330fdf88b596479d28df36304371",
+     "bytes": 2589,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_speedup/geometry.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/graphs.py",
+     "sha256": "fd1f932e1763089db5d21bff20fb1687faea5f589a412d885dad1c7d7f398674",
+     "bytes": 5913,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_speedup/graphs.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/policy.py",
+     "sha256": "aa8812349d047ba1ea2021307870690ea11c3f17c0d04e8e4ad521699b74947a",
+     "bytes": 23924,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_speedup/policy.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/scheduler.py",
+     "sha256": "975c53b478372bbc8c0fab222a9040391b385f356955422fb37d9ebd41157f36",
+     "bytes": 27787,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_speedup/scheduler.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_speedup/telemetry.py",
+     "sha256": "30cbed5467e7ed2817670feeceecdc88284c934fce08502cf13b7d9e6ef9f0ab",
+     "bytes": 2088,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_speedup/telemetry.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_utf8_guard.py",
+     "sha256": "f28343910ea2a839edbe023a5e19ec36264b696dc7cc521dacfcfcca7378e33b",
+     "bytes": 20306,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/glm53_utf8_guard.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/config/vllm.py",
+     "sha256": "3351141f82067c9ed37b274bc954c8a6d982d0869a1cc43d799e630842c9932d",
+     "bytes": 134824,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/config-vllm.py.patch",
+     "preimage_sha256": "3b2032e46fe6839bbbf64a48d32dc6d3f97a0b6e20b40aa4a550c3096ca4ed08",
+     "preimage_evidence": "recorded as the image file (3b2032e4) by the lab RecoverSSM work; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/distributed/device_communicators/cuda_communicator.py",
+     "sha256": "939507b1332e44dd4d5136e0aff318733738ef81be5006cecef6a2decdbbdd99",
+     "bytes": 41657,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/distributed-device_communicators-cuda_communicator.py.patch",
+     "preimage_sha256": "18e9748d77a0eb173cfd9d8591a3b6ed37b46fb60fc3199d3ff0c8b593a01a40",
+     "preimage_evidence": "the running image communicator was recorded as 18e9748d by the lab lean all-reduce work; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py",
+     "sha256": "a0dbfb2b5252a12f1155632988bf1057f9aa1817dca1e7d2f861745fc83222ce",
+     "bytes": 12658,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/entrypoints-launchers-api_server-entry.py.patch",
+     "preimage_sha256": "db689f8486e5d2c9eb59d347e03a27ce837d014f8d3d7f84d55a0e382813ca84",
+     "preimage_evidence": "sha256 read inside a container of the image on two nodes before the warm-up leaf"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/linear/nvfp4/b12x.py",
+     "sha256": "01f9c0789dec7e731707c2398d362ba2a104202166fc53d8f4e18063761849ea",
+     "bytes": 8292,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/model_executor-kernels-linear-nvfp4-b12x.py.patch",
+     "preimage_sha256": "4c59ca2067e78a731598a47d146b9e8ddb1b8270f54f6ab19b72c30561f9d53d",
+     "preimage_evidence": "recorded as the image file (4c59ca20) by the lab dense-prefill work; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tilelang.py",
+     "sha256": "29c22daf9dc316a625ee6337a464682bd5666f653ee1753a8b01c9b0c5f0a85a",
+     "bytes": 33262,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/model_executor-kernels-mhc-tilelang.py.patch",
+     "preimage_sha256": "c8ce81539c779436eb2b9fbba84738f3114bf3ac0a149f2b606f7d38bd1067ce",
+     "preimage_evidence": "image manifest hash checked by an executed leaf (image source closure, 2026-09-21)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/attention/mla_attention.py",
+     "sha256": "a32b1b3e38b76797e8f7246382a855aa625826d0eb557af52266c1ff474d88b3",
+     "bytes": 125705,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/model_executor-layers-attention-mla_attention.py.patch",
+     "preimage_sha256": "b8c5386de3aa37461571f974f262f417dab28a708456e686f3cd02a576986faf",
+     "preimage_evidence": "recorded as the image file (b8c5386d) by the lab TP2 port; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/b12x.py",
+     "sha256": "f0b2511291270610a493c0886bd15db2243911b7e54397fec961d65e4757779d",
+     "bytes": 38350,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/model_executor-layers-fused_moe-b12x.py.patch",
+     "preimage_sha256": "445dfa61c627b4c2baf9c3e47927b8c98c382309102f40fda85df5654d9cbc3e",
+     "preimage_evidence": "sha256 read inside the image by the lab mixed-batch work preflight (atomic-prefill adapter baked into the image)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py",
+     "sha256": "042cd308f43cd2e70723d4da79c7048a84fd630a449cd2d5563db91453637aed",
+     "bytes": 40389,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [
+      "sparkring-mhc"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/model_executor-layers-fused_moe-runner-moe_runner.py.patch",
+     "preimage_sha256": "635282a1a5dfdf3fa70a7d8f9b0f120abe9142ca921bac24f3037832158c2091",
+     "preimage_evidence": "matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py",
+     "sha256": "5c21039d7b96225d0d84f3181a37178663af01c2b41d99774b199401dbd408ad",
+     "bytes": 3963,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [
+      "sparkring-mhc"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/model_executor-layers-fused_moe-runner-moe_runner_interface.py.patch",
+     "preimage_sha256": "189cad01611124eb44594713cbf5918d16fc70196dc81a525ae0a7a97a5fcc51",
+     "preimage_evidence": "matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/linear.py",
+     "sha256": "6361ac6ace4f474c303e9c15d297f5c9409b749d2be16c30989bc89a38e43ab0",
+     "bytes": 71277,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [
+      "sparkring-mhc"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/model_executor-layers-linear.py.patch",
+     "preimage_sha256": "40cc7ebbb2a34785995e3a497637e337a8536bef2d8dd55eeb0c270f51d619e1",
+     "preimage_evidence": "sha256 read from the image top layer on a node (mHC prefill base manifest, 2026-09-23)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/mla.py",
+     "sha256": "097d18096e86b7904c0c6f9e310e650b25bdcef0eaf08398ba857c3d4580a25e",
+     "bytes": 16110,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [
+      "sparkring-mhc"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/model_executor-layers-mla.py.patch",
+     "preimage_sha256": "936b06c4671d52fce52ae85bb24b986db17855f32740bf55b226053fc385c4b4",
+     "preimage_evidence": "matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py",
+     "sha256": "9488e4fba9238d27a4d508e385e5b5aba54678d3a4c1dd3d06b4d4814340f96d",
+     "bytes": 38722,
+     "kind": "src",
+     "licence": "Apache-2.0 (repository licence; the file carries no SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py",
+     "replaces_image_sha256": "9906dad83b70ee61c3d8f760dfb35c37f14dccad1d63cc6d6bfd0da9e2d4eb4d"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/sparse_attn_indexer_kpool.py",
+     "sha256": "e57a899a7eeb9bf436560bce293a7ffedf604e43848309f50cc527860a69cbf6",
+     "bytes": 49386,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/model_executor-layers-sparse_attn_indexer_kpool.py.patch",
+     "preimage_sha256": "6bafcd75ba4ab75b91278fc73669e012e99cda5bd33071258d11e02c1edc98fb",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/common/ops/glm53_qnorm_fp8.py",
+     "sha256": "3d0e67d58c0c92fc53466290a2b43b6c33907a2b99b5889ad9b95d8b07ea57c5",
+     "bytes": 7234,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header with the vLLM copyright line; adapted from vLLM's fused q/kv RMSNorm kernel, vllm/models/common/ops/fused_qk_rmsnorm.py)",
+     "attribution": [
+      "vllm"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/vllm/models/common/ops/glm53_qnorm_fp8.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/attention.py",
+     "sha256": "b8ab6330836abafa58781cc0e9de5c25054182d93bb0efe942d47bf55d19a003",
+     "bytes": 31143,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its kpool tail ring size is a port of vllm-project/vllm#58454 (mmastrac) as Morrowmake/vllm-cmp170hx 1d4b59e ported it)",
+     "attribution": [
+      "sparkring-mhc",
+      "vllm-pr-58454",
+      "morrowmake-vllm-cmp170hx"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/models-glm5next-nvidia-attention.py.patch",
+     "preimage_sha256": "400d7063db2aa27314c79dce688060710f5ef7bdbafbddfc6698eaaaea3b3a8f",
+     "preimage_evidence": "matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda.py",
+     "sha256": "e8fe4b82417b20ae3148a8fcde10bbdb81e5ff110d77873c842073849303bad1",
+     "bytes": 102196,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [
+      "sparkring-mhc",
+      "sparkring-kda-ckpt"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/models-glm5next-nvidia-kda.py.patch",
+     "preimage_sha256": "6601dffb13ed76caebf4b4156cb1f0cfdaea1369e4924c6a4d433149b3e9d9d4",
+     "preimage_evidence": "matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda_fp8_handoff.py",
+     "sha256": "4eb92a16844f40243c37291f271e3f28eeb243378c9df8300955ee0ad33e4c3b",
+     "bytes": 16263,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/vllm/models/glm5next/nvidia/kda_fp8_handoff.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda_state_store.py",
+     "sha256": "446044008d8d9b5f888803742d3b35f4fe8ecc143e8b6ac92e7a70abf4c87c9a",
+     "bytes": 28913,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header with the vLLM project copyright line)",
+     "attribution": [
+      "vllm"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/vllm/models/glm5next/nvidia/kda_state_store.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/mhc_prefill_sharding.py",
+     "sha256": "e18648f5a5bbce78d45ae46bf4de5e348cc67c449ef484e6070ec26830f57fcb",
+     "bytes": 17517,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header)",
+     "attribution": [
+      "sparkring-mhc"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/vllm/models/glm5next/nvidia/mhc_prefill_sharding.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/model.py",
+     "sha256": "f826b4311615eb56c16dd1dea69cd0dbaf45df48f5d18dce05749a93b47d09c5",
+     "bytes": 55617,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its DFlash2 auxiliary hidden-state capture is adapted from vLLM's DeepseekV4Model.forward in vllm/models/deepseek_v4/nvidia/model.py)",
+     "attribution": [
+      "sparkring-mhc",
+      "vllm"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/models-glm5next-nvidia-model.py.patch",
+     "preimage_sha256": "031439712aa46203846e1df03de95d7e38c42578c59c2f556d540ab09f26bf8c",
+     "preimage_evidence": "the file of the rebuilt base: the v0.29.0 port patch of docker/base, applied to the v0.29.0 source and checked by docker/tools/verify_port.py on a CPU (not built on a DGX Spark yet); the measured image 017fd0ba has 7cddb9d1 here, which differs only in the DFlash2 auxiliary hidden-state capture"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py",
+     "sha256": "ed063fba23f18abb00f619e142e110075e868c67c3e6fd468ca38bab3d977691",
+     "bytes": 6076,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header; contains code copied from flash-linear-attention, MIT, with its notice)",
+     "attribution": [
+      "vllm",
+      "flash-linear-attention"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/kpool_compress.py",
+     "sha256": "f50edff2e0fd9d2807a85682383cb616867e58c5516db9df026fa661d6e371a6",
+     "bytes": 33595,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its kpool tail ring is a port of vllm-project/vllm#58454 (mmastrac) as Morrowmake/vllm-cmp170hx 1d4b59e ported it)",
+     "attribution": [
+      "vllm-pr-58454",
+      "morrowmake-vllm-cmp170hx"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/models-glm5next-nvidia-ops-kpool_compress.py.patch",
+     "preimage_sha256": "6e19b31c50de43f7dfa9c7d9b7a3d7b856939f49bd4a3c031d2b50d28fe04f68",
+     "preimage_evidence": "recorded as the image file by the lab upstream-metadata work; equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/recoverssm.py",
+     "sha256": "e731edda44e3e61d461fa54330db8312485b8d13beecd6d1648697505afa5cf0",
+     "bytes": 74394,
+     "kind": "src",
+     "licence": "Apache-2.0 (SPDX header; adapted from vLLM's Kimi-K3 RecoverSSM)",
+     "attribution": [
+      "vllm"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "source": "src/tp4/vllm/models/glm5next/nvidia/ops/recoverssm.py"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/kv_cache_utils.py",
+     "sha256": "2a69fdf7b0738e75caa47be8344180a309e3fe68476618219eae3eceaf29aaab",
+     "bytes": 122287,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its DFlash2 drafter KV-cache group is built on vLLM's own KV-cache group mechanisms: is_eagle_group, UniformTypeKVCacheSpecs and the shared KV-cache tensors of the hybrid allocator)",
+     "attribution": [
+      "vllm"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-core-kv_cache_utils.py.patch",
+     "preimage_sha256": "2614f957b21863ac7f028d0c104c9a4d913f41b81733f2d36ac0ec05df882712",
+     "preimage_evidence": "the file of the rebuilt base: the v0.29.0 port patch of docker/base, applied to the v0.29.0 source and checked by docker/tools/verify_port.py on a CPU (not built on a DGX Spark yet); the measured image 017fd0ba has 7ef72953 here, which differs only in the DFlash2 drafter KV-cache group"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/sched/scheduler.py",
+     "sha256": "851b7cc0d3af0b13242b6520dc951eeb9010ff67a41ec654703e5132f69bb628",
+     "bytes": 156175,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [
+      "sparkring-kda-ckpt"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-core-sched-scheduler.py.patch",
+     "preimage_sha256": "db8796f984d2d8a1b77e8f809d5e45b7d06904fc624490badcb0df133186952e",
+     "preimage_evidence": "baked by the image build layer 017fd0ba (installed hash paired with the image on both ranks; image source closure, 2026-09-21)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/single_type_kv_cache_manager.py",
+     "sha256": "a2a3c7509b13a2804059fd1dc0685a7775ac15d23737ebf34894eb9e29911b76",
+     "bytes": 105902,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [
+      "sparkring-kda-ckpt"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-core-single_type_kv_cache_manager.py.patch",
+     "preimage_sha256": "0b238ffd65d65a462dedea640928713a6e0452091c75642cf7dbb15514d56261",
+     "preimage_evidence": "sha256 read inside a container of the image on four nodes by the KDA-checkpoint staging job (2026-09-24)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/sample/ops/topk_topp_triton.py",
+     "sha256": "6d7a945290ebb64e59a43e6b6c3d64f2aa4c953cea2e47bd5232422850d6490c",
+     "bytes": 68793,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-sample-ops-topk_topp_triton.py.patch",
+     "preimage_sha256": "255619f699898ddaaac959d9bef4494294c76d730abb8e90549afac83a9bcbe9",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/async_utils.py",
+     "sha256": "019aefd848e47ca4d6d916113e5b4672b632460ed1ce6a3426b53def291e394f",
+     "bytes": 10944,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-worker-gpu-async_utils.py.patch",
+     "preimage_sha256": "36bd876f1c2cf648ed9436c66205db39df7bd4f9b0da90f507fed8b3159840c5",
+     "preimage_evidence": "installed hash recorded from the image by the lab (2026-09-13 source-control manifest); equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py",
+     "sha256": "f06a71f797c06bdfe45484d76350d5dd664dab9de781675a6486a49ccd536cf1",
+     "bytes": 98003,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [
+      "sparkring-kda-ckpt"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-worker-gpu-model_runner.py.patch",
+     "preimage_sha256": "f01ae09c799799c8949778588d4e5e43f8c4c2dc4fd531a0eb7a553eb5d45c5e",
+     "preimage_evidence": "read from a running container of the image (2026-09-17, no overlay on this path); equals the v0.29.0 port source tree"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/gumbel.py",
+     "sha256": "8793f30567609af00d8c8c8026558f00ddf90a000a0444068128edded0fd2919",
+     "bytes": 10521,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its vocabulary clamp is a port of vllm-project/vllm#50843 (alexbi29))",
+     "attribution": [
+      "vllm-pr-50843"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-worker-gpu-sample-gumbel.py.patch",
+     "preimage_sha256": "3ec1df510bdad13e8b0a457b5b67c98affdf6e57369e56cb471246cc8f40dd34",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/sampler.py",
+     "sha256": "77e22ab8419a5fc1235c65ae5824c34c9750e93730b4f2c6b2bc3ea80e64d49c",
+     "bytes": 16573,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-worker-gpu-sample-sampler.py.patch",
+     "preimage_sha256": "408b08c4ac66de271f476460490f360ef2a9b73528a346d132a22326e1674369",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py",
+     "sha256": "d59cb83ce11a92d2ee5fa8822988abc38cde0baeb6a2d14db36c953ce1f6c693",
+     "bytes": 14069,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-worker-gpu-spec_decode-rejection_sampler.py.patch",
+     "preimage_sha256": "e20adc9b6c8a62a5be232bae15a1e361e898142966a68ea3ef244b39ffc5ce44",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py",
+     "sha256": "d1d5ba7ab39b9404bbd2a8f7b322f473f9d921f1095f766368c854b67741f8ec",
+     "bytes": 41645,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained; its vocabulary clamp is a port of vllm-project/vllm#50843 (alexbi29))",
+     "attribution": [
+      "vllm-pr-50843"
+     ],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-worker-gpu-spec_decode-rejection_sampler_utils.py.patch",
+     "preimage_sha256": "20ca2e5ac34e9ef93dca388bed72a00d4ff67d569ec6ec2393b21a92d74a1fae",
+     "preimage_evidence": "the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py",
+     "sha256": "d383b345621226ab6c0896444e5047c675f74d0e6263db68d23b4f2d7b1c571e",
+     "bytes": 64098,
+     "kind": "patch",
+     "licence": "Apache-2.0 (upstream file; SPDX header retained)",
+     "attribution": [],
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)",
+     "patch": "patches/vllm/tp4/v1-worker-gpu_worker.py.patch",
+     "preimage_sha256": "b0f39124f31ead3d2d20f1c6ac8696393c0ed6fed585ba8d31a4f7673e390407",
+     "preimage_evidence": "sha256 read inside a container of the image on two nodes before the warm-up leaf"
+    },
+    {
+     "target": "/opt/glm53-speedup/runtime",
+     "kind": "config-dir",
+     "files": {
+      "override.json": {
+       "sha256": "de86e2deb894195cee024c1e1620e731ff25e0704fd51b918b84a5f1b9b8fc3c",
+       "source": "launch/profiles/tp4/override.json"
+      }
+     },
+     "licence": "Apache-2.0 (repository licence)",
+     "attribution": []
+    },
+    {
+     "target": "/opt/switchless-nccl",
+     "kind": "binary-dir",
+     "files": {
+      "libnccl.so.2.30.7": {
+       "sha256": "5d5c65502cd3d1336dd73b9dd3f1d584fc1289c79fd595f9605b8a6ac3caab7f"
+      }
+     },
+     "licence": "NCCL LICENSE.txt (Apache-2.0 with BSD portions)",
+     "attribution": [
+      "nccl",
+      "sparkring-nccl",
+      "switchless-nccl"
+     ],
+     "artefact": "nccl-switchless-dual-pf",
+     "symlinks": {
+      "libnccl.so.2": "libnccl.so.2.30.7"
+     }
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_lean_allreduce",
+     "kind": "src-dir",
+     "files": {
+      "LICENSE": {
+       "sha256": "1eb85fc97224598dad1852b5d6483bbcf0aa8608790dcc657a5a2a761ae9c8c6",
+       "source": "src/tp4/glm53_lean_allreduce/LICENSE"
+      },
+      "__init__.py": {
+       "sha256": "081602faa668cf267f35323b43163462bb034e94715a117558f018d8cf8c4e9c",
+       "source": "src/tp4/glm53_lean_allreduce/__init__.py"
+      },
+      "_cute_intrinsics.py": {
+       "sha256": "ff0847d986243bf92444cd4c3db9156a6fc10d8c2e1a16d54761375e6aa7a78e",
+       "source": "src/tp4/glm53_lean_allreduce/_cute_intrinsics.py"
+      },
+      "_lean_cute.py": {
+       "sha256": "d4c1fbc5335304cfcf589d519449242536b91dce67914acf7afd7e360c538073",
+       "source": "src/tp4/glm53_lean_allreduce/_lean_cute.py"
+      },
+      "_proxy.py": {
+       "sha256": "eb96bd59e8472ee89fd33fe8288d8abdf4359f253a38c50f70b7bd3c711f2794",
+       "source": "src/tp4/glm53_lean_allreduce/_proxy.py"
+      },
+      "_roce_proxy.c": {
+       "sha256": "6bcc5b94a31f2dea684424776afe8bcaa859bc37ec45264476dec2e605970f83",
+       "source": "src/tp4/glm53_lean_allreduce/_roce_proxy.c"
+      },
+      "lean_tp4.py": {
+       "sha256": "ae34f8883e15e621f62d69443ba87f41a58426b3fbda9c36f11095d58b9fdc67",
+       "source": "src/tp4/glm53_lean_allreduce/lean_tp4.py"
+      },
+      "protocol.py": {
+       "sha256": "b6fef13014b03f95af2236bdc949eb82e401bbd3ff4c1e71fa2acae54612751a",
+       "source": "src/tp4/glm53_lean_allreduce/protocol.py"
+      }
+     },
+     "licence": "Apache-2.0 (LICENSE in the package directory)",
+     "attribution": [
+      "b12x-roce",
+      "sparkring-roce"
+     ]
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_prefill_rdma",
+     "kind": "src-dir",
+     "files": {
+      "__init__.py": {
+       "sha256": "f73835b63553eb70015f97aacc2d0ae4b2c2627e7836d6a2f60a5130594b7cfc",
+       "source": "src/tp4/glm53_prefill_rdma/__init__.py"
+      },
+      "_prb.cu": {
+       "sha256": "7ffd99abacd3e746f5eef850361336125bc322251aad7203f05d06c7a47f3d65",
+       "source": "src/tp4/glm53_prefill_rdma/_prb.cu"
+      },
+      "libprb-7ffd99abacd3e746.so": {
+       "sha256": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+       "artefact": "glm53-prefill-rdma-libprb",
+       "per_rank_sha256": {
+        "0": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+        "1": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+        "2": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+        "3": "9b54e41bf46f09939f10a60d40194d6fd2d7398f092a090ba9a6686fd4a18e57"
+       }
+      },
+      "protocol.py": {
+       "sha256": "300c20acf9ebf5235f17ca15985fbdddab8d9745782883efe6fd7d56529eac88",
+       "source": "src/tp4/glm53_prefill_rdma/protocol.py"
+      },
+      "ring.py": {
+       "sha256": "ef4abf208149318901581577cc037a13e0314264190c91bb046a69074fc92ceb",
+       "source": "src/tp4/glm53_prefill_rdma/ring.py"
+      }
+     },
+     "licence": "Apache-2.0 (SPDX headers)",
+     "attribution": []
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/humming",
+     "kind": "third-party-dir",
+     "files": {
+      "__init__.py": {
+       "sha256": "4ada2947dc99e51c5441f71f8360b857fba7c6afded7b041acc3032ea7a35ef6"
+      },
+      "_version.py": {
+       "sha256": "101f5667edebb0140efa9990ad99cc1c5937fe3f048158ac08baea9afb8aba8b"
+      },
+      "build.py": {
+       "sha256": "55abd28a76dea970af688a36052b862d88e1e8a0edd50ea2369441fc9e88b361"
+      },
+      "config/__init__.py": {
+       "sha256": "82fd258b30db03d8cd19e8ee0d4726f9eecdf1495877cdd1baf769dd2bf06270"
+      },
+      "config/base.py": {
+       "sha256": "a2099f4aa25b45e7c5d5ca25916b88d8295090befa8a60ef0b74bad539ff15dc"
+      },
+      "config/config.py": {
+       "sha256": "75cee10c83031c4826a5f40518363bb382268dd6410524253e404b74e4beff44"
+      },
+      "config/enum.py": {
+       "sha256": "c86d173e8d17a54168bfa42e77d14a65f718c491b16a8aafd98ad486b498ba1e"
+      },
+      "config/mma.py": {
+       "sha256": "5b602f4a73c8d99ee3cf921f425817b70ee19c4a4878318180f6e78bbe3cfa5e"
+      },
+      "csrc/device_info.cpp": {
+       "sha256": "ef45b2c6e117e7fc5dbbc322d975aa4e2875ef4045d76a0e280e04c37d677780"
+      },
+      "csrc/launcher/elf.h": {
+       "sha256": "3fdf3ff5a30bbfd2e776d16587af2da612b183a369c311b11aba0c9ed74d657d"
+      },
+      "csrc/launcher/launcher.cpp": {
+       "sha256": "4d38f2c65b3393e3bcc5e9a41a1110690d94553c80cf441320f7b708455f0ba2"
+      },
+      "csrc/launcher/mapped_file.h": {
+       "sha256": "f7553bb13579054fbd9c3db344718e533d8a285c91c8c895733cf68c4d33987a"
+      },
+      "csrc/launcher/process_input.h": {
+       "sha256": "2ac838c85dbba6b11478284fb08c58a69500a6461b43e02568948f2863532e97"
+      },
+      "csrc/launcher/tensor.h": {
+       "sha256": "661ab0be265511e2d6962c068c7d2bbfecd403ed7599350b84f3afb1aa531c11"
+      },
+      "csrc/launcher/tma.h": {
+       "sha256": "fe6d7414def4280b73cc692282c48e728100ffea40944defffcab698cbd70f62"
+      },
+      "csrc/launcher/torch_api.h": {
+       "sha256": "7db80bf14ea331891634a94950a837390a104b4119751c76ac178f963325bc74"
+      },
+      "csrc/launcher/utils.h": {
+       "sha256": "401be04f317906e89e301279d9c29aa5b38fd3015e0fb3c4db461fd6d92ef677"
+      },
+      "csrc/nvrtc_compile.cpp": {
+       "sha256": "1cc4dd2b5840ef5e88646cfb704b88ab0f37a1f0ef646ab9433ba4067aab9c23"
+      },
+      "csrc/patch_cubin.cpp": {
+       "sha256": "523c3a531c5b09e38267b737b56f8ae97d5c9896aa8c316366a08bdaf3a8a244"
+      },
+      "device.py": {
+       "sha256": "70bb4187ae1ffc769e77290f6a370917d2201eb184115815452d887617c16ee4"
+      },
+      "dtypes.py": {
+       "sha256": "9cac95e379962f78aa7a156fdaf900f820e20008a3ca78b02f9277911cc589f0"
+      },
+      "forward.py": {
+       "sha256": "08151d7bd7fa6f5be0a19ce26f749f808676e893866b082a82ffc156223dd9cf"
+      },
+      "include/humming/arith/epilogue_arith.cuh": {
+       "sha256": "2a92e5b894f0b272408a883e4e03e916240a8f0e42e28f568e8d9510ec763ad5"
+      },
+      "include/humming/arith/exp_offset.cuh": {
+       "sha256": "c4709a3de6a3b09c48289530f50f646e2cca45e1a25c383811a69e27dc848ed5"
+      },
+      "include/humming/arith/mainloop_arith.cuh": {
+       "sha256": "bb95a2b3ce872e0e4bbb100a8923c0c63606155d48dbee265bedc7f68c8c3df0"
+      },
+      "include/humming/datatype/base_conversion.cuh": {
+       "sha256": "3014588bf09c475f6c5d8aa4a2d82a48d6a9e058891ec28b24b3b7b4abd0aabc"
+      },
+      "include/humming/datatype/dequant.cuh": {
+       "sha256": "e6fa5f6ccf5673ef2fd8fdfb5f78f7b6887744e3db4da70cdadcfb943b644193"
+      },
+      "include/humming/datatype/dequant_fused.cuh": {
+       "sha256": "f424681b654a114f08fd07bc71dce4f2b9991c9a692e9d74178c3a7c3ed54561"
+      },
+      "include/humming/datatype/dequant_native.cuh": {
+       "sha256": "62c52ae50591060f13a2d4d83d7c6572d6227bf625a4001fb77860dee326fa8a"
+      },
+      "include/humming/datatype/dequant_prepare.cuh": {
+       "sha256": "d1b17ca2bfef89a836f4afad5d18fad50f6c331aa8118221261b13f99bbc5f28"
+      },
+      "include/humming/datatype/dequant_single.cuh": {
+       "sha256": "30071115ede684bb33ece4250c50cf52255565a1060a7fef6f59cd00ef598687"
+      },
+      "include/humming/datatype/dtypes.cuh": {
+       "sha256": "2963f4a16a910739553727120404ee18e920f1e148663ab4c1fd5b79ef2d95dd"
+      },
+      "include/humming/epilogue/gmem_writer.cuh": {
+       "sha256": "fb52647224da17c52a2bef0cbe6c5f48e52e4057c9a61269a985677b643bdca8"
+      },
+      "include/humming/epilogue/pipeline.cuh": {
+       "sha256": "5b323bfac14a5b38f37dafca0881adc9e95dab05fbc6ed27e6294cff32a8d05c"
+      },
+      "include/humming/epilogue/smem_reducer.cuh": {
+       "sha256": "f41b9361abac304fc04bba46bab45a422bca46f9626cfe5c69c3c438a9bc5d79"
+      },
+      "include/humming/epilogue/smem_writer.cuh": {
+       "sha256": "edf8608b271be1ff2bf5f27c9c433c53bdce0be65b46fa732a2a1b005668951d"
+      },
+      "include/humming/kernel/dequant_weight.cuh": {
+       "sha256": "9100995a5abc011baf2b92fbd394f1bcd2badd7edaf4c7f9e929dfe365c4c2e9"
+      },
+      "include/humming/kernel/humming.cuh": {
+       "sha256": "c55849a932094a7509abbea032a00ba6876c241be9ffab7c459bf6faea2eb860"
+      },
+      "include/humming/kernel/humming_ws.cuh": {
+       "sha256": "e624508cf02b195bfd2c2f6917e6c0e26acabaa505cde737b9e5f79a0c9c7677"
+      },
+      "include/humming/kernel/pack_weight.cuh": {
+       "sha256": "bdb9ce0342d75fbfe950327699954bb3565885421a22fcc4ccf71f123b2b5b0a"
+      },
+      "include/humming/kernel/process.cuh": {
+       "sha256": "db3c9b00b58931e77acea754359357835af69d74d7213618817a4fb841099d40"
+      },
+      "include/humming/kernel/process_input.cuh": {
+       "sha256": "29a725f0f93247fbc8f0637510a0c77ec4e553da8fb59d28ef469b4d3a3c80fa"
+      },
+      "include/humming/kernel/process_input/activation.cuh": {
+       "sha256": "a52a32bf45c8e1de80d3a052944eff05219ae29dcf105309ce95e179bb905996"
+      },
+      "include/humming/kernel/process_input/context.cuh": {
+       "sha256": "5e190eb0362812515d630038ab369578b08824db0fd136c0bd6b1889e26dddec"
+      },
+      "include/humming/kernel/process_input/hadamard.cuh": {
+       "sha256": "eb15fc31d322ba8904c967c5cd1f9fd46512d872b46e3cffce949cdb7d042a0a"
+      },
+      "include/humming/kernel/process_input/quantization.cuh": {
+       "sha256": "f247e9d0afa492972b3761be66140cc019e05424b6f0297497342b4c7b2afd9f"
+      },
+      "include/humming/kernel/process_input/thread_task.cuh": {
+       "sha256": "22b935f2af6daeb8c56de356fd5f9ca37110f8458f282e6a20e18d1f570731b1"
+      },
+      "include/humming/kernel/process_mxfp4.cuh": {
+       "sha256": "a3be517bcc506854a6aab4deabf5aecc5889a86a14186a080324e511eaffceea"
+      },
+      "include/humming/kernel/quant_weight.cuh": {
+       "sha256": "ee46c70544e1d366e6233432b51ba1b3c245299868e4b409db1b62bfdfb3baed"
+      },
+      "include/humming/kernel/tops_bench.cuh": {
+       "sha256": "d58f6d84fae5228110c1d29240342da7b6827b8942527dd54c093f491ecd783f"
+      },
+      "include/humming/memory/g2s_loader/loader_a.cuh": {
+       "sha256": "494ceeb8748568bb49b3055669789c901297282425769128c5c0854f8dcecb25"
+      },
+      "include/humming/memory/g2s_loader/loader_as.cuh": {
+       "sha256": "caefdd04210e8bbdf81ae25bfa45954f53f5a549548852629e5dd9fc931898a0"
+      },
+      "include/humming/memory/g2s_loader/loader_b.cuh": {
+       "sha256": "fda294358403ecd7909c63d0a91604d2191f6c6f11f38264b8c4b56325336ebb"
+      },
+      "include/humming/memory/g2s_loader/loader_bias.cuh": {
+       "sha256": "6fbbb7cad19050155779d426d889eaa37b9d91bfda3b1086055a43ef2c21c3a3"
+      },
+      "include/humming/memory/g2s_loader/loader_bs.cuh": {
+       "sha256": "c846a75b53810f1e30415ca8ce97180ff4b6a944f66b8c70ac1d007d79b81968"
+      },
+      "include/humming/memory/g2s_loader/loader_bs2.cuh": {
+       "sha256": "ea863309d706ea749304ad5ade0c004ff88178ea9278b60daf1bf3d2d20d0b2b"
+      },
+      "include/humming/memory/g2s_loader/loader_bzp.cuh": {
+       "sha256": "62c1d14e2a4ad69eb678c816334ba5640e32e13227a1da0b5032ca44ae5954b5"
+      },
+      "include/humming/memory/g2s_pipeline.cuh": {
+       "sha256": "b4e5c5c07338673db743cf3784817db3cbc520477cd1c224f24d3f3bd59baa19"
+      },
+      "include/humming/memory/s2r_loader/loader_a.cuh": {
+       "sha256": "325fbcb2b4bd794dae913945aeb796ef2dd7eadf07b2de16308c92a3856bf7ec"
+      },
+      "include/humming/memory/s2r_loader/loader_as.cuh": {
+       "sha256": "34bb40e1f614efa8e46447cc36cb06e7e5964a7dd55c26510fa5b2de3ac6ccbf"
+      },
+      "include/humming/memory/s2r_loader/loader_b.cuh": {
+       "sha256": "7b7cd6560ebb3fa8a15565e39890a578e4ec4b12735b5e6977670976e62149ef"
+      },
+      "include/humming/memory/s2r_loader/loader_bias.cuh": {
+       "sha256": "d3d16e41fdba0f997a2d390a8acbefe57cb48ebdb86c25de98eb28534f78e3f6"
+      },
+      "include/humming/memory/s2r_loader/loader_bs.cuh": {
+       "sha256": "21cc0742c22101d9b62dd5276d735e57147dfad3c1031bb4079eaf7cbf26f37f"
+      },
+      "include/humming/memory/s2r_loader/loader_bzp.cuh": {
+       "sha256": "ff7e40b02a8575f182d374041693085f4065e92f8654091ab1d4aa8b83a91362"
+      },
+      "include/humming/memory/s2r_pipeline.cuh": {
+       "sha256": "69c5be56b5168e62d9ef4368206912b8fac22588c4e3c57dd938008fbea9f0e2"
+      },
+      "include/humming/mma/all.cuh": {
+       "sha256": "f2cf035acecf4bd55340a95020c4e589f1f6b7e5cb44611f17a3731f5813da68"
+      },
+      "include/humming/mma/mxmma.cuh": {
+       "sha256": "3a6b81c08bb025e61e55f12e520a36673e802b065675a7286a56669ed4ed948a"
+      },
+      "include/humming/mma/umma.cuh": {
+       "sha256": "9464d002a43aff7ec0f7fd377d63bb70e6353ef4776c216bae7cc433fd5ee485"
+      },
+      "include/humming/mma/wgmma.cuh": {
+       "sha256": "6c7f64c9e1db75f3948b508091e0f1bd6ce7a74251de68b50e96b0f77e02dd09"
+      },
+      "include/humming/mma/wmma.cuh": {
+       "sha256": "06b4d0fd5ed437ed94d2a1c2c7eac308b711ad0bf2de6bbcea7c99bbc7135b7c"
+      },
+      "include/humming/scheduler.cuh": {
+       "sha256": "6b3f02be918d5289ee868a79ae1f39ce81ccc54b6a05965bbc58f81c1ea3746d"
+      },
+      "include/humming/utils/all.cuh": {
+       "sha256": "7cfd604795f05da3598333a6d8e4638a3523134036966c12d07b85b190f79ccb"
+      },
+      "include/humming/utils/base.cuh": {
+       "sha256": "20a89819655bf669e64c86f1ca56f88abe2f1b2317a68ce840f61800d36b815a"
+      },
+      "include/humming/utils/context.cuh": {
+       "sha256": "fdf47086854e89288b6fff4ff7d60866443552d401e2c6fa1daf93ab1af937d1"
+      },
+      "include/humming/utils/enum.cuh": {
+       "sha256": "991b55f6cbb34c0ab1f72430380462f8490a5d834829c57d0998d3de018a6844"
+      },
+      "include/humming/utils/ptx/barrier.cuh": {
+       "sha256": "34a1086db75436c38e55f637c16df675d9175fd9e1fbff48e022b5623f212896"
+      },
+      "include/humming/utils/ptx/legacy_load.cuh": {
+       "sha256": "5c2f4776506e9909900d9ead6ac03f8c17035c0e7f7835d762042937c900b662"
+      },
+      "include/humming/utils/ptx/math.cuh": {
+       "sha256": "fbb9012c8c0f12747130a4a0da2db6adf642fdfad80f2ead11c54b5557173c6f"
+      },
+      "include/humming/utils/ptx/shared.cuh": {
+       "sha256": "5e2f0d9fd5b381191a80a199306e10441e1339f9f8336ec583cfe0a99d4dcdb3"
+      },
+      "include/humming/utils/ptx/tcgen05.cuh": {
+       "sha256": "49a2e6a73cec0afd17e7714d7b728c66f1c5e44119ca9bc2760897deec499571"
+      },
+      "include/humming/utils/ptx/tma.cuh": {
+       "sha256": "a394580f5718e7dbf9f288d3378498c909a602ccd476614e1f618fc316bb2d97"
+      },
+      "include/humming/utils/ptx/warp.cuh": {
+       "sha256": "3849fd913dddbe787aabae9e0e2644f48cceab76a3d8dbce64dd543a8068051c"
+      },
+      "include/humming/utils/ptx/wgmma.cuh": {
+       "sha256": "3df6e0cb3d09af60e283bc89ea3fd9e535fc5278f6c0ba5d05740bb9d907d9a3"
+      },
+      "include/humming/utils/storage.cuh": {
+       "sha256": "21a5dfd9c40f5cae97b3ad18a84f94430425453dccc59bfe057e9b42b92ce452"
+      },
+      "jit/__init__.py": {
+       "sha256": "a4826b5d609d069f9a1136afaead1a9596f17ccf30f1830d66b6a2da96a1282a"
+      },
+      "jit/compiler.py": {
+       "sha256": "f5b5def6ad3bbb40daccdbb0120518e79b2abcc770009cf3ba25f72f399183c1"
+      },
+      "jit/runtime.py": {
+       "sha256": "da8afaa4c7598ab4ed6ef0b7cc5bf6eaf393d876f258261696013c90f4e587d6"
+      },
+      "kernel/__init__.py": {
+       "sha256": "bd0704f1af42e306741991cc08066a8ffb8ea1a34ceb5486d6a5fbb22ef751e2"
+      },
+      "kernel/dequant_weight.py": {
+       "sha256": "396a50d08ce4441e993f1fb79270430322b8ff616b229fa26be74b8f2d56e7d1"
+      },
+      "kernel/humming.py": {
+       "sha256": "e679d46be7712b52863efae85995e7dbea02a1e0bc6f3ffa8b8de8bcec9b0d1c"
+      },
+      "kernel/pack_weight.py": {
+       "sha256": "b325f54789c3d019babf612e62a920a07b812602c5ea9de42954f71df3ac4493"
+      },
+      "kernel/process_input.py": {
+       "sha256": "ec3b676a507bbd22abe19bd993fe9de910218ed63002320f9c5c77b5d98afbb1"
+      },
+      "kernel/process_mxfp4.py": {
+       "sha256": "535812a912222a9d1b0b6a5874b3c304f92dabd55f8437ba888427369d8239e8"
+      },
+      "kernel/quant_weight.py": {
+       "sha256": "066cf9d867bb039603e85fdf3dd69920ccaa52ac6a9be2f2afb630e51e0ea3fa"
+      },
+      "kernel/repack_weight.py": {
+       "sha256": "2fab3e5bc1ec86c8465f0d05548f17afc51dfb15119e920de8871a0367c8ab6c"
+      },
+      "kernel/tops_bench.py": {
+       "sha256": "48a5e3a171553404f24840497ce11f4d458c19ab594ec69d877aa0f202754773"
+      },
+      "kernel/unpack_weight.py": {
+       "sha256": "593d4e8a24af95dd51ee5f4b144411b28b0210b2cd93ef076833c5e50b70ed43"
+      },
+      "layer.py": {
+       "sha256": "e2a1fcfcce8abdb735bd321fbb1519201ac66201af59460ada94ad8bc4270645"
+      },
+      "ops/__init__.py": {
+       "sha256": "194fcf84d6b317c80597b5e4d6f585ce2fcb684856484036dc9b58d994aab08d"
+      },
+      "ops/bench.py": {
+       "sha256": "9787df1f5229dd6b5a66d62382890c8a484340cd37430fd474365a37298d893e"
+      },
+      "ops/gemm.py": {
+       "sha256": "98150b7115587259fc02463e35ad89e5dd520d74452636ea2e1b08e8ef30a6e1"
+      },
+      "ops/input.py": {
+       "sha256": "004c8cbcdd46d9335e6499fd1498d8d520c9e29b441f332347ff5304c15de937"
+      },
+      "ops/launcher.py": {
+       "sha256": "bc2d3fb62a9d08ea83ef9192fc56d2e145a2698364c4d423376e68f5377396cb"
+      },
+      "ops/utils.py": {
+       "sha256": "2e9d33291c21a7c11bd640af8d4ae5d0ef464748ba2314fdad0cc12c2109508e"
+      },
+      "ops/weight.py": {
+       "sha256": "c6108d235990a043dfdb9019e2f361ed7937df2832984f0e933015c2147fb361"
+      },
+      "schema/__init__.py": {
+       "sha256": "4850eebb04c880b1155053490a7ea8a19c3f28739f91ebb8c45b32c025e079a1"
+      },
+      "schema/autoround.py": {
+       "sha256": "3b8a0897b50d4fd7dd759b53c40f40d12501877ac07941038acc9cbd83458da4"
+      },
+      "schema/awq.py": {
+       "sha256": "75a2a510b063059fb2becdbfcc8323da21c58588ecaa3d46e54b0fb393d7d8fd"
+      },
+      "schema/base.py": {
+       "sha256": "3700824493c14cc269b67346f454c5a2851d76ec46d56b7f7a0c71ad94b67c7d"
+      },
+      "schema/bitnet.py": {
+       "sha256": "75b2cade63b2d6dce15995039e1922cbff42df2e8d80b6ee08b9c3a725f77a0d"
+      },
+      "schema/compressed_tensors.py": {
+       "sha256": "75375c5d0773cef0d56cfa368887f7157c82464bc72bf39b741e8dd483389fb2"
+      },
+      "schema/fp8.py": {
+       "sha256": "77d52bc920850c8464ac03383c12d70d51cde06a24c7df51584f2938518363df"
+      },
+      "schema/gpt_oss_mxfp4.py": {
+       "sha256": "38b09bd2bb972f791ad0c137d5e26b53d8be1f8b71db2e5e3ae67222916c374e"
+      },
+      "schema/gptq.py": {
+       "sha256": "e08f18111d57682ecc3afa8325d058cf8ff59127d62c00fc5665db84de8ace23"
+      },
+      "schema/humming.py": {
+       "sha256": "b0550bc1bda00a75f8769d5bf98a44941e46b862074467f0fb5cd3b14672c8f1"
+      },
+      "schema/modelopt.py": {
+       "sha256": "baf18b79eb547f949ee22c4c0fc91619d8d20e4dfc1b226e718347ee337c99df"
+      },
+      "schema/mxfp4.py": {
+       "sha256": "643ae9de8c510c42d10ee2a65ce5453b256121a1e898cafe180bb6644880899b"
+      },
+      "testing/__init__.py": {
+       "sha256": "92822abc0ffa13aecd2a831d4282ab5c042c5e4548fb9096965477413c5ed8fe"
+      },
+      "testing/benchmark.py": {
+       "sha256": "72ea98123a5c8468da0bfd4ed0df2909df555f85c646d6ce8fc1e747a58c3f9d"
+      },
+      "testing/data.py": {
+       "sha256": "56c7a891d9bbb201c96f6624355a5c4861c5f5994d59c0045a324939230117a1"
+      },
+      "testing/device.py": {
+       "sha256": "26c52bad5627d783c594ee3a2d65d5a965a956d15a15c443400a5d2ccd2eba97"
+      },
+      "testing/process_input.py": {
+       "sha256": "3878d71ee03af9bff29482a2cf3acceb038a8757931fbaadcbca0a16c498441f"
+      },
+      "testing/runner.py": {
+       "sha256": "efc5c9a4f60206b889d42f98b0bc3d42aacac666de7327cb8b3abf7f7b88314f"
+      },
+      "testing/tuning.py": {
+       "sha256": "717099926f5c49ed8a30e372fcefac945f1d6976dddc4cabffaeabdbe099c32e"
+      },
+      "transform.py": {
+       "sha256": "d92af67fc6c6d329747a78b599c4899ca6f4c72e987053c632f0fffb3787ca1a"
+      },
+      "tune/__init__.py": {
+       "sha256": "6403e1ea6437b0a04a005226c91169bebc9abefec12338f834e162e439339c12"
+      },
+      "tune/base.py": {
+       "sha256": "746de5aa4c3626fa5d1b5f7f19bc801fd40ca3361c7746a07124d96e104bfe81"
+      },
+      "tune/candidate.py": {
+       "sha256": "7aa7028a733233ae377f7cf44b1e2996f98dd680b38cc9dd99b671eb2c24555a"
+      },
+      "tune/ppu_sm80.py": {
+       "sha256": "3bc3af8177b7671c8536f8e51f35d942ec10d6187328f285f23e3c065261db43"
+      },
+      "tune/process_input.py": {
+       "sha256": "255b724951037c4d5b6beeefe3d67612f07214c5fffa57ab4e8a6f003e55c27d"
+      },
+      "tune/raster.py": {
+       "sha256": "79215c82f50423e92879b6c8616e503dca1eae3b45e17651333f7aeebf975233"
+      },
+      "tune/sm100.py": {
+       "sha256": "e3a85a19e7c544a37ab686eb2fcba918e87b507c4efa7f0f0167e33976f0b68f"
+      },
+      "tune/sm120.py": {
+       "sha256": "fe78d91f2e9c607aaaa2aa3a67591c72c677b6d3d6d00d58e185b4a941df974a"
+      },
+      "tune/sm121.py": {
+       "sha256": "97f244cbc47c889541b7685fa0404b5792cdca8b61435ee357e524878ee07045"
+      },
+      "tune/sm75.py": {
+       "sha256": "f5c27b4c639e70bee72e0481de8962f6e3938806a748aec7add4ac2ffc2178cc"
+      },
+      "tune/sm8x.py": {
+       "sha256": "421d6e7a31f8390fc793b974d87670ee302cc8dd02d091e65bdc6faf8d012d12"
+      },
+      "tune/sm90.py": {
+       "sha256": "38766d4d2f47ac1e0774511c829d54e322453bd42510e2221d0c148a50fa215f"
+      },
+      "tune/sm90_h20.py": {
+       "sha256": "2066341781855219e175b6fb36869f89b8af92ae2602164ee1e9107ab8806fb8"
+      },
+      "tune/sm90_policies.py": {
+       "sha256": "841cd308cc0691fcf86a7d2421d998f8c6e6eb153d73da3209998526b5a5e719"
+      },
+      "utils/__init__.py": {
+       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "utils/cubin.py": {
+       "sha256": "64c52940f1474a3b5ea7268a6a64a53855efd21ccadc05192b247c9d45a436d7"
+      },
+      "utils/cuda.py": {
+       "sha256": "32e328dca1417b27db32706fc8cb64b9961c6912cc1965b2dbe65ea0277fce7d"
+      },
+      "utils/device.py": {
+       "sha256": "42dbbed2f03d2b6559fb0390da436e55feb3df8d0c989037a606c6c699297296"
+      },
+      "utils/jit.py": {
+       "sha256": "17760e8b6ea7d8f2af2cdd5465472ada437b73896528899d795ddba2b47a24bd"
+      },
+      "utils/math.py": {
+       "sha256": "f95087e5195c91db27d9c6d295450c4381a63adcfd1a264a2414007233891287"
+      },
+      "utils/nvrtc.py": {
+       "sha256": "80b5a7433d8c64a13824862f7f94d960b6eebdb4f915382f36a4c82cbfedf40e"
+      },
+      "utils/smem.py": {
+       "sha256": "e1ed052a6304441117eedb41bc0182982229167c30594fc6063bc6bc2ff9d246"
+      },
+      "utils/weight.py": {
+       "sha256": "cf5c45e686ce02a125f42d591438568aa8e3bec87c6e187b9cb807477d21bcfc"
+      }
+     },
+     "licence": "Apache-2.0 (humming-kernels)",
+     "attribution": [
+      "humming"
+     ],
+     "artefact": "humming-kernels-0.1.15",
+     "ignored_pycache_files": 75,
+     "source_dir": "humming"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/humming_kernels-0.1.12.dist-info",
+     "kind": "third-party-dir",
+     "files": {
+      "INSTALLER": {
+       "sha256": "ceebae7b8927a3227e5303cf5e0f1f7b34bb542ad7250ac03fbcde36ec2f1508"
+      },
+      "METADATA": {
+       "sha256": "7759e151649e4aaa8d3e28a20ef836b4de868fd6759bbe6f216933412cbc69b4"
+      },
+      "RECORD": {
+       "sha256": "6ba243a5562a8db0f6293033eae25945a13b318504b6abffdbe7df9dfbe9fc11"
+      },
+      "REQUESTED": {
+       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "WHEEL": {
+       "sha256": "61532836a2b3111b7ec23519c09df7c41180c27165fb872a6d8913b566b88ad1"
+      },
+      "direct_url.json": {
+       "sha256": "642a1d16b3b0eeee062a425df927244e335a604298f4f655bc0918afd768fdd2"
+      },
+      "licenses/LICENSE": {
+       "sha256": "c95bae1d1ce0235ecccd3560b772ec1efb97f348a79f0fbe0a634f0c2ccefe2c"
+      },
+      "top_level.txt": {
+       "sha256": "a86c43eb33a1183473b90171e8068b558543caa93644d356a74d9cf84efcf106"
+      }
+     },
+     "licence": "Apache-2.0 (humming-kernels)",
+     "attribution": [
+      "humming"
+     ],
+     "artefact": "humming-kernels-0.1.15",
+     "source_dir": "humming_kernels-0.1.15.dist-info",
+     "distribution": {
+      "name": "humming-kernels",
+      "version": "0.1.15"
+     }
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/nvfp4_topk_rowspread",
+     "kind": "src-dir",
+     "files": {
+      "__init__.py": {
+       "sha256": "71a0005eccef3e29fa2233c6bb16fdbbb5a5fee353601d892859265d3eab1332",
+       "source": "src/tp4/nvfp4_topk_rowspread/__init__.py"
+      },
+      "_kernel.so": {
+       "sha256": "3fefebaa5eee7599fce0e53d3a42f5f0eaa3b0428610f9c8239a79ba89342ad4",
+       "artefact": "nvfp4-topk-rowspread"
+      },
+      "build-receipt.json": {
+       "sha256": "b500393f49d0cb20ea743fe0d32b79de488ebc661e19188952826f36e3134fc8",
+       "artefact": "nvfp4-topk-rowspread-receipt"
+      }
+     },
+     "licence": "Apache-2.0 (_kernel.so: built from vLLM's persistent top-k sources with the hunks of vllm-project/vllm pull request 55314 by Dovis01, after sgl-project/sglang#37625 by ormandj and bold84, and the rowspread change, build/topk_rowspread) and the repository licence (__init__.py, the loader, no SPDX header)",
+     "attribution": [
+      "vllm"
+     ]
+    },
+    {
+     "target": "/opt/glm53_fp8_gemm/glm53_fp8_gemm.so",
+     "kind": "binary",
+     "sha256": "db120c32a467aa53be745ede8b20b08ff2a473db2d74382416da7c97aab31de0",
+     "bytes": 1002696,
+     "artefact": "glm53-fp8-gemm",
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)"
+    },
+    {
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so",
+     "kind": "binary",
+     "sha256": "1f940e75297105155cb0f253a351a4c62354054da63b39cd84628731feaf7b99",
+     "bytes": 9050840,
+     "artefact": "sparse-mla-a1c",
+     "evidence": "lab staging read-back on all four hosts (receipt of the plan 89dfef84, 2026-09-26 00:31)"
+    }
+   ],
+   "artefacts": [
+    {
+     "name": "nccl-switchless-dual-pf",
+     "target": "/opt/switchless-nccl"
+    },
+    {
+     "name": "glm53-prefill-rdma-libprb",
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_prefill_rdma/libprb-7ffd99abacd3e746.so",
+     "sha256": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+     "per_rank_sha256": {
+      "0": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+      "1": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+      "2": "9f4106239b7fa8ef6949691f2638a9d8ebf10103bb10e3941cd4ad9073d11b73",
+      "3": "9b54e41bf46f09939f10a60d40194d6fd2d7398f092a090ba9a6686fd4a18e57"
+     }
+    },
+    {
+     "name": "humming-kernels-0.1.15",
+     "target": "/usr/local/lib/python3.12/dist-packages/humming"
+    },
+    {
+     "name": "humming-kernels-0.1.15",
+     "target": "/usr/local/lib/python3.12/dist-packages/humming_kernels-0.1.12.dist-info"
+    },
+    {
+     "name": "nvfp4-topk-rowspread",
+     "target": "/usr/local/lib/python3.12/dist-packages/nvfp4_topk_rowspread/_kernel.so",
+     "sha256": "3fefebaa5eee7599fce0e53d3a42f5f0eaa3b0428610f9c8239a79ba89342ad4",
+     "per_rank_sha256": null
+    },
+    {
+     "name": "nvfp4-topk-rowspread-receipt",
+     "target": "/usr/local/lib/python3.12/dist-packages/nvfp4_topk_rowspread/build-receipt.json",
+     "sha256": "b500393f49d0cb20ea743fe0d32b79de488ebc661e19188952826f36e3134fc8",
+     "per_rank_sha256": null
+    },
+    {
+     "name": "glm53-fp8-gemm",
+     "target": "/opt/glm53_fp8_gemm/glm53_fp8_gemm.so",
+     "sha256": "db120c32a467aa53be745ede8b20b08ff2a473db2d74382416da7c97aab31de0"
+    },
+    {
+     "name": "sparse-mla-a1c",
+     "target": "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so",
+     "sha256": "1f940e75297105155cb0f253a351a4c62354054da63b39cd84628731feaf7b99"
+    }
+   ]
+  }
+ }
+}

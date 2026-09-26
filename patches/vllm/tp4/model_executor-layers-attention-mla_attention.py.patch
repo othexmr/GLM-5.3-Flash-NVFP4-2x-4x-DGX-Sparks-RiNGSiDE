@@ -1,0 +1,106 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/attention/mla_attention.py
+Preimage:    sha256 b8c5386de3aa37461571f974f262f417dab28a708456e686f3cd02a576986faf
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    recorded as the image file (b8c5386d) by the lab TP2 port; equals the v0.29.0 port source tree
+Postimage:   sha256 a32b1b3e38b76797e8f7246382a855aa625826d0eb557af52266c1ff474d88b3 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/model_executor/layers/attention/mla_attention.py b/vllm/model_executor/layers/attention/mla_attention.py
+index 18a9c144f4d2d6c9ff7724fa30c2e4cd1a109c59..6db3ca61ea4a17689c529b993b8551e534e281f3 100644
+--- a/vllm/model_executor/layers/attention/mla_attention.py
++++ b/vllm/model_executor/layers/attention/mla_attention.py
+@@ -1,5 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in row-chunked absorbed-MLA batched GEMMs
++# (GLM53_MLA_ABSORB_CHUNK) that write the query directly in the layout the attention kernel reads.
+ """
+ # MLA Common Components
+ 
+@@ -210,6 +212,8 @@ from math import lcm
+ from typing import ClassVar, Generic, TypeVar, cast
+ 
+ import numpy as np
++import os
++
+ import torch
+ import torch.nn as nn
+ from tqdm import tqdm
+@@ -307,6 +311,13 @@ from vllm.v1.kv_cache_interface import (
+ 
+ logger = init_logger(__name__)
+ 
++# 2026-09-23 (default off): absorbed-MLA batched GEMMs in row chunks, and W_UK written straight into the
++# (B, N, L) buffer the attention kernel reads. cuBLAS picks a legacy SM80 WMMA kernel for the 16-head batched GEMM at
++# 13,824 rows (5.2 ms W_UK incl. the backend's q concatenation, 2.8 ms W_UV) and a far better one per <= 2,304-row
++# chunk (2.0 / 1.9 ms), bit-identical (outputs/2026-09-23-mla-absorb-layout, leaf 2). GLM53_MLA_ABSORB_CHUNK = rows
++# per chunk; 0 keeps the stock path.
++_GLM53_MLA_ABSORB_CHUNK = int(os.environ.get("GLM53_MLA_ABSORB_CHUNK", "0"))
++
+ _FP8_DTYPE = current_platform.fp8_dtype()
+ 
+ 
+@@ -930,17 +941,26 @@ class MLAAttention(nn.Module, AttentionLayerBase):
+                 assert W_UK_T is not None
+                 _, _, L = W_UK_T.shape
+ 
+-                if self.q_pad_num_heads is not None:
+-                    mqa_ql_nope = mqa_q_nope.new_empty((self.q_pad_num_heads, B, L))
+-                    mqa_ql_nope.resize_((N, B, L))
++                if _GLM53_MLA_ABSORB_CHUNK > 0 and self.q_pad_num_heads is None:
++                    # (B, N, L) contiguous: each chunk's (N, b, L) product lands in place through a
++                    # transposed view, so neither a transpose copy nor the backend's q concatenation runs.
++                    mqa_ql_nope = mqa_q_nope.new_empty((B, N, L))
++                    for c0 in range(0, B, _GLM53_MLA_ABSORB_CHUNK):
++                        c1 = min(B, c0 + _GLM53_MLA_ABSORB_CHUNK)
++                        torch.bmm(mqa_q_nope[:, c0:c1], W_UK_T,
++                                  out=mqa_ql_nope[c0:c1].transpose(0, 1))
+                 else:
+-                    mqa_ql_nope = mqa_q_nope.new_empty((N, B, L))
++                    if self.q_pad_num_heads is not None:
++                        mqa_ql_nope = mqa_q_nope.new_empty((self.q_pad_num_heads, B, L))
++                        mqa_ql_nope.resize_((N, B, L))
++                    else:
++                        mqa_ql_nope = mqa_q_nope.new_empty((N, B, L))
+ 
+-                # Multiply (N, B, P) x (N, P, L) -> (N, B, L)
+-                torch.bmm(mqa_q_nope, W_UK_T, out=mqa_ql_nope)
++                    # Multiply (N, B, P) x (N, P, L) -> (N, B, L)
++                    torch.bmm(mqa_q_nope, W_UK_T, out=mqa_ql_nope)
+ 
+-                # Convert from (N, B, L) to (B, N, L)
+-                mqa_ql_nope = mqa_ql_nope.transpose(0, 1)
++                    # Convert from (N, B, L) to (B, N, L)
++                    mqa_ql_nope = mqa_ql_nope.transpose(0, 1)
+ 
+             if fp8_attention and self.impl.supports_quant_query_input:
+                 assert mqa_ql_nope.shape[0] == mqa_q_pe.shape[0]
+@@ -948,6 +968,10 @@ class MLAAttention(nn.Module, AttentionLayerBase):
+                 mqa_q = self._decode_concat_quant_fp8_op(
+                     mqa_ql_nope, mqa_q_pe, self._q_scale
+                 )
++            elif (_GLM53_MLA_ABSORB_CHUNK > 0 and mqa_q_pe.shape[-1] == 0
++                  and mqa_ql_nope.is_contiguous()):
++                # NoPE (pe width 0): the contiguous (B, N, L) query is already the concatenation.
++                mqa_q = mqa_ql_nope
+             else:
+                 mqa_q = (mqa_ql_nope, mqa_q_pe)
+             # concatenate nope + pe -> (B, N, L + P) (fp8 op above may have fused)
+@@ -1261,7 +1285,13 @@ class MLAAttention(nn.Module, AttentionLayerBase):
+             )
+         else:
+             # Multiply + Transpose (N, B, L) x (N, L, V)->(N, B, V)->(B, N, V)
+-            torch.bmm(x, self.W_UV, out=out.transpose(0, 1))
++            if _GLM53_MLA_ABSORB_CHUNK > 0:
++                o = out.transpose(0, 1)
++                for c0 in range(0, x.shape[1], _GLM53_MLA_ABSORB_CHUNK):
++                    c1 = min(x.shape[1], c0 + _GLM53_MLA_ABSORB_CHUNK)
++                    torch.bmm(x[:, c0:c1], self.W_UV, out=o[:, c0:c1])
++            else:
++                torch.bmm(x, self.W_UV, out=out.transpose(0, 1))
+ 
+ 
+ def unified_mla_kv_cache_update(

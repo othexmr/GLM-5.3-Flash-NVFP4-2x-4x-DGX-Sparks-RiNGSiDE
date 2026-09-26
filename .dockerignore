@@ -1,0 +1,21 @@
+# Build context of docker/Dockerfile (the repository root): no Git data, site files, rendered projects or local outputs.
+.git
+.github
+bench
+deploy
+site.env
+site-*.env
+site.json
+.env
+overlay*
+image-root
+artefacts
+artifacts
+work
+dist
+.cache
+.venv
+**/__pycache__
+**/*.pyc
+**/.DS_Store
+*.log

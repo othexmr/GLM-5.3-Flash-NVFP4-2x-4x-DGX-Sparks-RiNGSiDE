@@ -1,0 +1,191 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/mla.py
+Preimage:    sha256 936b06c4671d52fce52ae85bb24b986db17855f32740bf55b226053fc385c4b4
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)
+Postimage:   sha256 097d18096e86b7904c0c6f9e310e650b25bdcef0eaf08398ba857c3d4580a25e (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Attribution: sparkring-mhc (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/model_executor/layers/mla.py b/vllm/model_executor/layers/mla.py
+index 4211813062360979cb87cd889147a0d7f01d0dfe..8b1f922068315cfd41bde944ea522ab2e494b222 100644
+--- a/vllm/model_executor/layers/mla.py
++++ b/vllm/model_executor/layers/mla.py
+@@ -1,16 +1,111 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): forward passes defer_tp_reduction to o_proj (token-sharded mHC
++# prefill).
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in q_a norm with fused FP8 quantization (GLM53_MLA_QNORM_FP8).
++# + GLM53_MLA_QNORM_FP8 (prefill-levers lane, 2026-09-25, outputs/2026-09-25-prefill-levers). Default off.
++import os
+ from dataclasses import dataclass
+ 
+ import torch
+ 
+ from vllm.config import CacheConfig
++from vllm.logger import init_logger
+ from vllm.model_executor.custom_op import PluggableLayer
+ from vllm.model_executor.layers.attention import MLAAttention
+ from vllm.model_executor.layers.quantization import QuantizationConfig
+ from vllm.models.common.ops import fused_q_kv_rmsnorm
+ from vllm.platforms import current_platform
+ 
++logger = init_logger(__name__)
++
++# GLM53_MLA_QNORM_FP8 (default "0" = the served code, unchanged): for prefill-sized calls (more than 128 rows) of an
++# MLA layer with q-LoRA and the fused q_a/kv_a RMSNorm, the norm kernel also writes the per-token FP8 quantization of
++# the normalized q_c (vllm/models/common/ops/glm53_qnorm_fp8.py: the served kernel's statements plus vLLM's
++# per-token quantization arithmetic) and registers it in the dense module's shared-quant slot as producer
++# "mla_qnorm". q_b_proj takes it (GLM53_DENSE_SHARED_QUANT=mla_qnorm>mla_qb,...) and relays it to the indexer's wq_b
++# (mla_qb>indexer), so the separate quantization kernel, which re-read the BF16 q_c, is gone. It engages only where
++# q_b_proj is certain to take the copy (glm53_consumes_shared_quant); otherwise the served kernel runs.
++#   1 = the BF16 q_c is still written (a reader that misses the slot quantizes it itself; logged once);
++#   2 = FP8 only: the BF16 q_c store is skipped when every reader of q_c takes the copy (q_b_proj and, if the indexer
++#       runs, its wq_b through the relay); after each reader the hit counter is checked and a miss raises. Where the
++#       indexer cannot take it, that call runs mode 1.
++_GLM53_MLA_QNORM_FP8_RAW = os.environ.get("GLM53_MLA_QNORM_FP8", "0").strip()
++if _GLM53_MLA_QNORM_FP8_RAW not in ("0", "1", "2"):
++    raise ValueError(f"GLM53_MLA_QNORM_FP8 must be 0, 1 or 2, not {_GLM53_MLA_QNORM_FP8_RAW!r}")
++_GLM53_MLA_QNORM_FP8 = int(_GLM53_MLA_QNORM_FP8_RAW)
++_GLM53_QNORM_PRODUCER = "mla_qnorm"
++_GLM53_QNORM_MIN_ROWS = 128
++_GLM53_QNORM_LOGGED: set = set()
++if _GLM53_MLA_QNORM_FP8:
++    logger.warning("GLM53_MLA_QNORM_FP8_READY mode=%d default_off=1", _GLM53_MLA_QNORM_FP8)
++
++
++def _glm53_dense():
++    from vllm.model_executor.layers.quantization import glm53_dual_fp8_dense
++
++    return glm53_dual_fp8_dense
++
++
++class _Glm53QNorm:
++    """One engaged q_a norm: the q_b_proj input and normalized kv_c it returns, and the hand-over checks."""
++
++    __slots__ = ("q_proj_input", "kv_c_normed", "fp8_only", "indexer_takes", "hits")
++
++    def __init__(self, q_proj_input, kv_c_normed, fp8_only, indexer_takes, hits):
++        self.q_proj_input, self.kv_c_normed = q_proj_input, kv_c_normed
++        self.fp8_only, self.indexer_takes, self.hits = fp8_only, indexer_takes, hits
++
++    def check(self, reader: str) -> None:
++        """After q_b_proj ("q_b_proj", producer mla_qnorm) or the indexer ("indexer", the relay from mla_qb): the reader
++        took the handed quantization exactly once. A miss raises in FP8-only mode (the BF16 q_c was never written) and
++        is logged once otherwise (the reader quantized the served BF16 values itself)."""
++        if reader == "indexer" and not self.indexer_takes:
++            return
++        producer = _GLM53_QNORM_PRODUCER if reader == "q_b_proj" else "mla_qb"
++        got = _glm53_dense()._SHARED_QUANT_HITS.get(producer, 0)
++        if got == self.hits[producer] + 1:
++            self.hits[producer] = got
++            return
++        msg = (f"GLM53_MLA_QNORM_FP8: {reader} did not take the q_a norm's FP8 quantization "
++               f"(hits {got}, expected {self.hits[producer] + 1})")
++        if self.fp8_only:
++            raise RuntimeError(msg + "; FP8-only mode never wrote the BF16 q_c")
++        logger.warning_once(msg + "; the BF16 q_c is the served one, so its output is unchanged")
++
++
++def _glm53_mla_qnorm_fp8(wrapper, q_c: torch.Tensor, kv_c: torch.Tensor):
++    """GLM53_MLA_QNORM_FP8: the fused q_a/kv_a RMSNorm with q_b_proj's FP8 quantization fused in, registered for
++    q_b_proj, or None when this call keeps the served kernel (at most 128 rows, or q_b_proj would not take it)."""
++    m = q_c.shape[0]
++    if m <= _GLM53_QNORM_MIN_ROWS or q_c.dim() != 2 or q_c.dtype != torch.bfloat16:
++        return None
++    dense = _glm53_dense()
++    if not dense.glm53_consumes_shared_quant(wrapper.q_b_proj, m, _GLM53_QNORM_PRODUCER):
++        return None
++    runs_indexer = bool(wrapper.indexer) and wrapper.is_sparse and not wrapper.skip_topk
++    indexer_takes = (runs_indexer and wrapper.q_b_proj.quant_method.family in dense.SHARED_QUANT_PRODUCERS
++                     and dense.glm53_consumes_shared_quant(wrapper.indexer.wq_b, m, "mla_qb"))
++    fp8_only = _GLM53_MLA_QNORM_FP8 == 2 and (indexer_takes or not runs_indexer)
++    from vllm.models.common.ops.glm53_qnorm_fp8 import fused_q_kv_rmsnorm_fp8
++
++    q_out, kv_out, q8, q_scale = fused_q_kv_rmsnorm_fp8(
++        q_c,
++        kv_c,
++        wrapper.q_a_layernorm.weight.data,
++        wrapper.kv_a_layernorm.weight.data,
++        wrapper.q_a_layernorm.variance_epsilon,
++        write_q=not fp8_only,
++    )
++    hits = {p: dense._SHARED_QUANT_HITS.get(p, 0) for p in (_GLM53_QNORM_PRODUCER, "mla_qb")}
++    dense.glm53_register_quant(_GLM53_QNORM_PRODUCER, q_out, q8, q_scale)   # q_b_proj is the next dense apply()
++    key = (_GLM53_MLA_QNORM_FP8, fp8_only, indexer_takes)
++    if key not in _GLM53_QNORM_LOGGED:
++        _GLM53_QNORM_LOGGED.add(key)
++        logger.warning("GLM53_MLA_QNORM_FP8 engaged mode=%d fp8_only=%d indexer_takes=%d rows=%d",
++                       _GLM53_MLA_QNORM_FP8, int(fp8_only), int(indexer_takes), m)
++    return _Glm53QNorm(q_out, kv_out, fp8_only, indexer_takes, hits)
++
+ 
+ @dataclass
+ class MLAModules:
+@@ -157,9 +252,12 @@ class MultiHeadLatentAttentionWrapper(PluggableLayer):
+         positions: torch.Tensor,
+         hidden_states: torch.Tensor,
+         llama_4_scaling: torch.Tensor | None = None,
++        *,
++        defer_tp_reduction: bool = False,
+     ) -> torch.Tensor:
+         q_c = None
+         kv_lora = None
++        glm53_qn = None
+ 
+         if self.q_lora_rank is not None:
+             assert self.fused_qkv_a_proj is not None, (
+@@ -197,13 +295,18 @@ class MultiHeadLatentAttentionWrapper(PluggableLayer):
+             # Fuse q_a + kv_a RMSNorm into one kernel launch (q_c is still the
+             # pre-norm projection output here).
+             assert self.q_a_layernorm is not None
+-            q_proj_input, kv_c_normed = fused_q_kv_rmsnorm(
+-                q_c,
+-                kv_c,
+-                self.q_a_layernorm.weight.data,
+-                self.kv_a_layernorm.weight.data,
+-                self.q_a_layernorm.variance_epsilon,
+-            )
++            if _GLM53_MLA_QNORM_FP8:
++                glm53_qn = _glm53_mla_qnorm_fp8(self, q_c, kv_c)
++            if glm53_qn is not None:
++                q_proj_input, kv_c_normed = glm53_qn.q_proj_input, glm53_qn.kv_c_normed
++            else:
++                q_proj_input, kv_c_normed = fused_q_kv_rmsnorm(
++                    q_c,
++                    kv_c,
++                    self.q_a_layernorm.weight.data,
++                    self.kv_a_layernorm.weight.data,
++                    self.q_a_layernorm.variance_epsilon,
++                )
+             q_c = q_proj_input
+         else:
+             kv_c_normed = self.kv_a_layernorm(kv_c)
+@@ -211,6 +314,8 @@ class MultiHeadLatentAttentionWrapper(PluggableLayer):
+         k_pe = k_pe.unsqueeze(1)
+ 
+         q = q_proj_layer(q_proj_input)[0]
++        if glm53_qn is not None:
++            glm53_qn.check("q_b_proj")
+         heads = self.num_heads
+         if self.dcp_q_replicate:
+             heads *= q_proj_layer.group_size
+@@ -223,6 +328,8 @@ class MultiHeadLatentAttentionWrapper(PluggableLayer):
+ 
+         if self.indexer and self.is_sparse and not self.skip_topk:
+             self.indexer(hidden_states, q_c, positions, self.indexer_rope_emb)
++            if glm53_qn is not None:
++                glm53_qn.check("indexer")
+ 
+         if llama_4_scaling is not None:
+             q *= llama_4_scaling
+@@ -242,4 +349,6 @@ class MultiHeadLatentAttentionWrapper(PluggableLayer):
+         if self.g_proj is not None:
+             attn_out = attn_out * self.g_proj(hidden_states)[0].sigmoid()
+ 
++        if defer_tp_reduction:
++            return self.o_proj(attn_out, defer_tp_reduction=True)[0]
+         return self.o_proj(attn_out)[0]

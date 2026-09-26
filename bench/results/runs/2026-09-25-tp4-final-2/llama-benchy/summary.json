@@ -1,0 +1,150 @@
+{
+ "arm": "ours-tp4",
+ "rows": [
+  {
+   "depth": 0,
+   "concurrency": 1,
+   "pp": 2545.9862445614513,
+   "tg": 78.7155868403119,
+   "pp_req": 2545.9862445614513,
+   "tg_req": 78.7155868403119,
+   "e2e_ttft_ms": 879.2229590471834,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 0,
+   "concurrency": 2,
+   "pp": 2636.2525759721752,
+   "tg": 87.82253151618465,
+   "pp_req": 1656.1740049583104,
+   "tg_req": 52.040324060886206,
+   "e2e_ttft_ms": 1345.0837710406631,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 0,
+   "concurrency": 4,
+   "pp": 3187.360227868923,
+   "tg": 113.66302990078427,
+   "pp_req": 821.1589271133967,
+   "tg_req": 43.214648918247434,
+   "e2e_ttft_ms": 2568.8556460663676,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 4096,
+   "concurrency": 1,
+   "pp": 4776.133997007017,
+   "tg": 74.50575223259456,
+   "pp_req": 4776.133997007017,
+   "tg_req": 74.50575223259456,
+   "e2e_ttft_ms": 1361.2156249582767,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 4096,
+   "concurrency": 2,
+   "pp": 3999.9025636016513,
+   "tg": 64.19491598368641,
+   "pp_req": 3413.461331354586,
+   "tg_req": 40.86517874993689,
+   "e2e_ttft_ms": 2211.688958457671,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 4096,
+   "concurrency": 4,
+   "pp": 4213.416175117697,
+   "tg": 63.16667799127896,
+   "pp_req": 1068.8029434952514,
+   "tg_req": 34.14370261243663,
+   "e2e_ttft_ms": 5823.311604501214,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 8192,
+   "concurrency": 1,
+   "pp": 5069.94824072876,
+   "tg": 81.12873709196542,
+   "pp_req": 5069.94824072876,
+   "tg_req": 81.12873709196542,
+   "e2e_ttft_ms": 2094.564041006379,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 8192,
+   "concurrency": 2,
+   "pp": 4207.649703824343,
+   "tg": 51.42997996878368,
+   "pp_req": 3604.6590690235407,
+   "tg_req": 43.37810798923556,
+   "e2e_ttft_ms": 3476.9669170491397,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 8192,
+   "concurrency": 4,
+   "pp": 4079.0248151385736,
+   "tg": 45.75601547193633,
+   "pp_req": 1107.5879066139255,
+   "tg_req": 38.190422820917775,
+   "e2e_ttft_ms": 9320.135562506039,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 32768,
+   "concurrency": 1,
+   "pp": 4964.558792689211,
+   "tg": 80.18309951141518,
+   "pp_req": 4964.558792689211,
+   "tg_req": 80.18309951141518,
+   "e2e_ttft_ms": 7087.05908304546,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 32768,
+   "concurrency": 2,
+   "pp": 4295.404786820652,
+   "tg": 39.57438091112041,
+   "pp_req": 2533.9244374154705,
+   "tg_req": 36.459309839113786,
+   "e2e_ttft_ms": 14119.71237452235,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  },
+  {
+   "depth": 32768,
+   "concurrency": 4,
+   "pp": 4212.899318533382,
+   "tg": 32.758363037942196,
+   "pp_req": 1091.9977929161992,
+   "tg_req": 32.292182612966826,
+   "e2e_ttft_ms": 32315.282208030112,
+   "runs": 3,
+   "prompt": 2048,
+   "gen": 128
+  }
+ ],
+ "note": "Measured with llama-benchy 0.4.0 through llama_benchy_seeded.py: the same seeds, tokenizer snapshot and book for every arm; chat_template_kwargs enable_thinking=true on every benchmark request unless the receipt says thinking=server-default. tg is measured on llama-benchy's own prompts (English prose from its default book); DFlash2 speculative decoding accepts more drafted tokens on code than on prose, so tg depends on the text. Arms differ in checkpoint, quantisation, drafter revision, runtime and slot count; this is our own measurement on our four DGX Sparks and is not the same measurement as numbers posted on the forum."
+}

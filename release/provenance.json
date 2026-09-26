@@ -1,0 +1,72 @@
+{
+ "schema": 2,
+ "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+ "prepared": "2026-09-25",
+ "profiles": {
+  "tp4": {
+   "lab_plan_sha256": "89dfef8440c6318f0d34a3d767cb2ce11a1946715085ac60cf890802b38b9b76",
+   "launch_sha256": "edcbe5329ed70bce5197f87696eddb52762abb8c265d689ff6085fe45962ed82",
+   "description": "the RiNGSiDE release plan: the release plan 23ebce61 (lab plan 6f490797 with the change notices and comment fixes and the DFlash2 capture and drafter KV-cache group written from vLLM's DeepSeek-V4 code) with 10 served changes: the fused RecoverSSM commit back on, with its ordering fix and the exact-landing column (GLM53_RECOVERSSM_FUSED_COMMIT=1); the KDA FP8 handoff through the tuned FP8 GEMM configurations (GLM53_KDA_FP8_HANDOFF_TUNED=1); the MLA q_a norm with the q_b_proj FP8 quantization fused in (GLM53_MLA_QNORM_FP8=2); the rowspread indexer top-k with pool-width decode logits (GLM53_TOPK_ROWSPREAD=1, GLM53_INDEXER_POOL_LOGITS=1); the exact top-p fallback and the UTF-8 continuation guard, mask only (GLM53_TOPP_FIX=1, GLM53_UTF8_GUARD=1); the kpool tail ring sized for speculative decoding (vllm-project/vllm#58454); the sampler kernels' tile argmax clamped to the vocabulary (vllm-project/vllm#50843); the kpool tail group left out of the generic slot mapping (an out-of-bounds read at long contexts); the RedHatAI/GLM-5.3-Flash-NVFP4 checkpoint (revision 18d55bfd) with NVIDIA's tokenizer.json and top-p 0.95 as its generation default; the prefill indexer's query rows split across the ranks (GLM53_INDEXER_ROW_SPLIT=1); launch/profiles/tp4/profile.json has the derivation (source_plan.derived_from, the release plan's own as base_derived_from) and the checks (source_plan.qualification)",
+   "derived_from": {
+    "lab_plan_sha256": "23ebce61ce40df5ed585b9f622f72598dc45563ea7c53c8749601a78475b298e",
+    "launch_sha256": "4e60d395969422c72af1334f2f601b013f2ff9da8427a5a40cf9a443b38d741d",
+    "description": "the RiNGSiDE release plan: the measured TP4 profile of lab plan 6f490797 with three changes that no benchmark measured: the RiNGSiDE change notices and comment fixes in 38 served files and directories (comment and docstring lines only), the DFlash2 auxiliary hidden-state capture and drafter KV-cache group written from vLLM's DeepSeek-V4 code (model.py, and kv_cache_utils.py as a new mount), and GLM53_RECOVERSSM_FUSED_COMMIT=0 on every rank; launch/profiles/tp4/profile.json has the derivation (source_plan.derived_from) and the checks it passed (source_plan.qualification)",
+    "derived_from": {
+     "lab_plan_sha256": "6f4907977686ef2a9d93b1336daac6c8dba14db407410b931b6c0031e316bd50",
+     "launch_sha256": "b2cdfb3fb2c720da31b9f7c2d190e7dd8890b959948eb54ac24b2b9f913e7650",
+     "description": "the previous TP4 profile (lab plan 50e80d44: the composed lab winners, the non-deterministic MoE decode and KDA checkpoints saved inside a prefill chunk) plus the fp16 KDA recurrent state with fp32 slow channels (A2b) and its replay fix, greedy argmax verification, the startup warm-up v3, the replay boundary v3 with the admit fix, and P1 first-token repay",
+     "measured_as": {
+      "lab_plan_sha256": "387b3ff36fee62f8c2d84e2a6167ffbfa3efaac9e5f6b41b79588c6f1fc67e14",
+      "difference": "the replay-boundary module only: glm53_replay_boundary.py 144c7d34 where this plan serves d41662b1 (the admit fix); every other served file and every flag are equal"
+     },
+     "measured_windows": [
+      "2026-09-25 00:30-01:20, lab plan 387b3ff3 (measured_as): RigMark with 2 runs of every suite (prefill 8K-256K with warm replays, 1-16 streams, staggered arrivals 2-16), then llama-benchy and tool-eval-bench in the same boot (bench/results/runs/2026-09-25-tp4-final-2)",
+      "2026-09-25 01:41-01:54, this plan: check window of the admit fix (replay-boundary cache check, tool-eval-bench, engagement markers and a completed answer; no RigMark)",
+      "2026-09-25 03:40-03:48, this plan: sparkDash (a Python reproduction of MiaAI-Lab/sparkDash's decode-benchmark protocol) and the acceptance probe in a separate window"
+     ]
+    },
+    "qualification_windows": [
+     "2026-09-25 13:35-14:34, lab plan a15748dc (6f490797 with GLM53_RECOVERSSM_FUSED_COMMIT=0 only): Korean prompt 1 x 72 at width 6, 72 of 72 runs without a long-generation break, 4 of them with one isolated flagged character",
+     "2026-09-25 15:48-15:57, the DFlash2 capture and drafter KV-cache group in the TP4 configuration: the GPU leaf on one GB10 (captures and final hidden states equal to the earlier code at tolerance 0; KV-cache groups and layout equal) and the ownership leaf on four nodes, both PASS"
+    ],
+    "not_measured": "this plan was not served as a whole and has no RigMark, llama-benchy, sparkDash or tool-eval-bench run; the results page shows lab plan 387b3ff3 (RigMark, llama-benchy, tool-eval-bench) and 6f490797 (sparkDash, check window)",
+    "previous_profile": {
+     "lab_plan_sha256": "50e80d44835b8c5938a640bc3e839d0d4dbfe1b4f519718acad0f8097ecdec0d",
+     "measured": "2026-09-24 16:30-17:59: RigMark with 5 runs of every suite and llama-benchy in the same boot (bench/results/runs/2026-09-24-rigmark5-tp4-1), an additional arm of the results page"
+    }
+   },
+   "measured_windows": [
+    "2026-09-26 00:36-01:50, this plan: the release window: RigMark with 2 runs of every suite (prefill 8K-256K with warm replays, 1-16 streams, staggered arrivals 2-16), tool-eval-bench (2 rounds) and sparkDash (2 rounds), the Korean prompt 1 x 12 at width 6 (12 of 12 runs without a long-generation break) in the same boot; the emoji stress test and llama-benchy did not run on this plan (llama-benchy ran on the same release plan with the NVIDIA checkpoint: an additional arm) (bench/results/runs/2026-09-26-ringside-redhat-rowsplit-tp4-1, bench/results/evidence/release-window-tp4.json)"
+   ]
+  },
+  "tp2": {
+   "lab_plan_sha256": "b80911ecfd59c25fa8a711d974f1734cd990fc5e26ec3ea0d355f1d95397f29d",
+   "launch_sha256": "323d4b00504bbd84429f0a8076e86b1cb4457defcfc7967529acdf4f48ad142f",
+   "description": "the RiNGSiDE release plan for TP2: the measured TP2 plan 69ad74fc with change notices in the served files and the DFlash2 capture and drafter KV-cache group written from vLLM's DeepSeek-V4 code, and 5 correctness fixes: the exact-landing column of the RecoverSSM state write (the fused commit stays off); the kpool tail ring sized for speculative decoding (vllm-project/vllm#58454); the kpool tail group left out of the generic slot mapping (an out-of-bounds read at long contexts); the exact top-p fallback and the UTF-8 continuation guard, mask only (GLM53_TOPP_FIX=1, GLM53_UTF8_GUARD=1); the sampler kernels' tile argmax clamped to the vocabulary (vllm-project/vllm#50843); served with the RedHatAI/GLM-5.3-Flash-NVFP4 checkpoint (revision 18d55bfd) with NVIDIA's tokenizer.json and top-p 0.95 as its generation default and a KV cache pool 1 GiB smaller per rank (--kv-cache-memory 11274289152, 10.5 GiB) as the RedHat checkpoint's memory margin; launch/profiles/tp2/profile.json has the derivation (source_plan.derived_from) and the checks (source_plan.qualification)",
+   "derived_from": {
+    "lab_plan_sha256": "69ad74fccf7ec29cd42c7db31e2bcf906b92fbad28a63242ea45704553684942",
+    "launch_sha256": "9b859f16085a1290239e297cd6672f7646d2f383d3ec0217f5b971104f618bf5",
+    "description": "the previous TP2 profile (lab plan 32dd2ab8: the TP2 record plan, the startup warm-up and the weak-spot fixes ported from TP4) plus the startup warm-up v3 (six prompts), the replay boundary v3 with the admit fix, and P1 first-token repay",
+    "measured_windows": [
+     "2026-09-25 02:21-02:55, this plan: RigMark with 2 runs of every suite (prefill 8K-64K with warm replays, 1-6 streams, staggered arrivals 2-6), replay-boundary and P1 markers and the replay-boundary cache check; one window without a fresh reference run (the owner's decision), compared with the previous profile's stored windows as information only (bench/results/evidence/tp2-row-69ad74fc.json)",
+     "2026-09-25 02:55-03:05, this plan: sparkDash (a Python reproduction of MiaAI-Lab/sparkDash's decode-benchmark protocol) and the acceptance probe in a separate window"
+    ],
+    "previous_profile": {
+     "lab_plan_sha256": "32dd2ab80f1a9384c0dab21b21e4329ff9438e9257c38eb298cd1b917a45f05f",
+     "measured": "2026-09-24: RigMark code-full, prose concurrency 1-6 with staggered arrivals over three rounds, and the replay matrix, against a fresh reference of the TP2 base before it in the same session, an additional arm of the results page",
+     "promotion": "promoted by the owner on 2026-09-24 although three guard clauses of the lab rule failed (bench/results/README.md lists them)"
+    }
+   },
+   "qualification_windows": [
+    "2026-09-26 02:49-02:57, the DFlash2 capture and drafter KV-cache group in the TP2 configuration: the GPU leaf on one GB10 (3,358 of 3,358 comparisons with the earlier code equal (the captured auxiliary hidden states, the final hidden states, eager and CUDA-graph replays, bit for bit); the KV-cache groups and layout equal; the served model.py and kv_cache_utils.py bytes checked inside the container; lab job 266d4c), PASS"
+   ],
+   "not_measured": "no TP2 window has served this plan: the results page shows lab plan 69ad74fc, measured before these changes and on the NVIDIA checkpoint; the fixes are verified by GPU leaves and CPU checks; the TP2 window of this plan follows the release"
+  }
+ },
+ "source_trees": {
+  "nccl": "9edccf0677e35c9b451eb2f5e037dfb9e6677a93",
+  "sparse-mla-a1c": "442d83ded51b5a0226bd13fbb2e3711d45d64699",
+  "sparse-mla-m7e": "ce9976030ba1b0d87566c78b8269ad73f4e25c01"
+ },
+ "checks": "sources/verify.py (CPU); every overlay patch was applied to its image preimage during import and reproduced the served sha256"
+}

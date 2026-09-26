@@ -1,0 +1,46 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py
+Preimage:    sha256 20ca2e5ac34e9ef93dca388bed72a00d4ff67d569ec6ec2393b21a92d74a1fae
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256
+Postimage:   sha256 d1d5ba7ab39b9404bbd2a8f7b322f473f9d921f1095f766368c854b67741f8ec (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained; its vocabulary clamp is a port of vllm-project/vllm#50843 (alexbi29))
+Attribution: vllm-pr-50843 (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py b/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py
+index 29b20afea69a1f89255be3ad91fc0e7995d462c1..39dd47d0f4284c6fb98e1444601e6bdd97ea2ca0 100644
+--- a/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py
++++ b/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py
+@@ -1,5 +1,6 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): tile argmax clamped to the vocabulary (vllm-project/vllm#50843).
+ import torch
+ 
+ from vllm.triton_utils import tl, tldevice, triton
+@@ -246,7 +247,10 @@ def _compute_local_logits_stats_kernel(
+             other=float("-inf"),
+         ).to(tl.float32)
+         value, idx = tl.max(target_logits, axis=0, return_indices=True)
+-        token_id = block_idx * BLOCK_SIZE + idx
++        # Out-of-vocabulary lanes of the last tile load as -inf; if every in-vocabulary
++        # lane of a tile is -inf or NaN, the argmax can land on one of them. Clamp to
++        # the vocabulary (port of vllm-project/vllm#50843).
++        token_id = tl.minimum(block_idx * BLOCK_SIZE + idx, vocab_size - 1)
+         tl.store(
+             target_local_argmax_ptr
+             + logit_idx * target_local_argmax_stride
+@@ -841,7 +845,10 @@ def _resample_kernel(
+         APPLY_TEMPERATURE=False,
+         USE_FP64=USE_FP64,
+     )
+-    token_id = block_idx * BLOCK_SIZE + idx
++    # Out-of-vocabulary lanes of the last tile load as -inf; if every in-vocabulary
++    # lane of a tile is -inf or NaN, the argmax can land on one of them. Clamp to
++    # the vocabulary (port of vllm-project/vllm#50843).
++    token_id = tl.minimum(block_idx * BLOCK_SIZE + idx, vocab_size - 1)
+     tl.store(
+         resampled_local_argmax_ptr
+         + req_idx * resampled_local_argmax_stride

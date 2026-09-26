@@ -1,0 +1,244 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tilelang.py
+Preimage:    sha256 c8ce81539c779436eb2b9fbba84738f3114bf3ac0a149f2b606f7d38bd1067ce
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    image manifest hash checked by an executed leaf (image source closure, 2026-09-21)
+Postimage:   sha256 29c22daf9dc316a625ee6337a464682bd5666f653ee1753a8b01c9b0c5f0a85a (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/model_executor/kernels/mhc/tilelang.py b/vllm/model_executor/kernels/mhc/tilelang.py
+index c3c773d07f2f3409a7cdba03b82e81c5ecb5aca4..be6657b738da2fa1e7367cb9380ca630fc52b572 100644
+--- a/vllm/model_executor/kernels/mhc/tilelang.py
++++ b/vllm/model_executor/kernels/mhc/tilelang.py
+@@ -1,10 +1,181 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in small-batch TP4 mHC kernel geometry (GLM53_TP4_MHC_GEOMETRY)
++# and L2-sized row blocks for the mHC post, prenorm GEMM and pre kernels of long prefills (GLM53_MHC_POST_PRENORM_FUSED,
++# GLM53_MHC_PRE_BLOCKED).
+ import torch
+ 
+ from vllm.utils.torch_utils import direct_register_custom_op
+ 
+ 
++
++import os as _mhc_geometry_os
++
++_GLM53_TP4_MHC_GEOMETRY = _mhc_geometry_os.environ.get("GLM53_TP4_MHC_GEOMETRY", "0") == "1"
++
++
++def _glm53_tp4_mhc_geometry(tokens, hidden_size, streams, normalized, tp_size):
++    if not _GLM53_TP4_MHC_GEOMETRY or tp_size != 4:
++        return None
++    if hidden_size != 4096 or streams != 4 or not normalized:
++        return None
++    return {5: (4, 4), 10: (4, 2)}.get(tokens)
++
++
++# GLM53 mHC post -> prenorm GEMM -> pre in L2-sized row blocks (mhc-fusion lane, 2026-09-23). Default off.
++# With GLM53_MHC_POST_PRENORM_FUSED=1, a long-path mhc_fused_post_pre_tilelang call with a fused RMSNorm and at least
++# GLM53_MHC_POST_PRENORM_MIN_ROWS rows (eager prefill only: the owner rows of the TP4 prefill ownership, and unsharded
++# eager forwards of that size; decode graphs stay far below it) runs the three stock kernels (mhc_post_tilelang,
++# DeepGEMM tf32_hc_prenorm_gemm, mhc_pre_big_fuse_with_norm_tilelang) block by block, blocks of at most
++# GLM53_MHC_POST_PRENORM_BLOCK_ROWS rows, so the BF16 residual_cur the post writes is still in the 24 MiB L2 when the
++# GEMM and the pre read it back. Each row's arithmetic is the stock kernels' (residual_cur is bit-identical); only the
++# GEMM's split-K count follows the block size ("fill": one wave of DeepGEMM's SM120 prenorm CTAs, BLOCK_M 128 and one
++# CTA per SM; "stock": vLLM's compute_num_split for the block's rows), which reorders the FP32 split sums the pre adds.
++import logging as _mhc_ppf_logging
++
++_MHC_PPF_LOG = _mhc_ppf_logging.getLogger(__name__)
++_GLM53_MHC_PPF_RAW = _mhc_geometry_os.environ.get("GLM53_MHC_POST_PRENORM_FUSED", "0")
++_GLM53_MHC_PPF_MIN_ROWS = int(_mhc_geometry_os.environ.get("GLM53_MHC_POST_PRENORM_MIN_ROWS", "1152"))
++_GLM53_MHC_PPF_BLOCK_ROWS = int(_mhc_geometry_os.environ.get("GLM53_MHC_POST_PRENORM_BLOCK_ROWS", "432"))
++_GLM53_MHC_PPF_SPLIT = _mhc_geometry_os.environ.get("GLM53_MHC_POST_PRENORM_SPLIT", "fill")
++if (_GLM53_MHC_PPF_RAW not in ("0", "1") or not 128 < _GLM53_MHC_PPF_MIN_ROWS <= 16384
++        or not 128 <= _GLM53_MHC_PPF_BLOCK_ROWS <= 4096 or _GLM53_MHC_PPF_SPLIT not in ("fill", "stock")):
++    raise RuntimeError("invalid GLM53_MHC_POST_PRENORM_* settings")
++_GLM53_MHC_PPF = _GLM53_MHC_PPF_RAW == "1"
++# GLM53_MHC_PRE_BLOCKED=1 (mhc-fusion 2026-09-24, default off): the standalone mhc_pre_tilelang (layer 0, full rows,
++# on a residual expanded from the embedding) runs its GEMM + pre kernels in the same L2-sized row blocks, so the pre
++# reads the block's residual from L2 instead of DRAM. Same MIN_ROWS / BLOCK_ROWS / SPLIT settings as above.
++_GLM53_MHC_PRE_BLOCKED_RAW = _mhc_geometry_os.environ.get("GLM53_MHC_PRE_BLOCKED", "0")
++if _GLM53_MHC_PRE_BLOCKED_RAW not in ("0", "1"):
++    raise RuntimeError("GLM53_MHC_PRE_BLOCKED must be 0 or 1")
++_GLM53_MHC_PRE_BLOCKED = _GLM53_MHC_PRE_BLOCKED_RAW == "1"
++_GLM53_MHC_PPF_REPORTED: set = set()
++if _GLM53_MHC_PPF:
++    _MHC_PPF_LOG.warning("GLM53_MHC_POST_PRENORM_READY min_rows=%d block_rows=%d split=%s default_off=1",
++                         _GLM53_MHC_PPF_MIN_ROWS, _GLM53_MHC_PPF_BLOCK_ROWS, _GLM53_MHC_PPF_SPLIT)
++if _GLM53_MHC_PRE_BLOCKED:
++    _MHC_PPF_LOG.warning("GLM53_MHC_PRE_BLOCKED_READY min_rows=%d block_rows=%d split=%s default_off=1",
++                         _GLM53_MHC_PPF_MIN_ROWS, _GLM53_MHC_PPF_BLOCK_ROWS, _GLM53_MHC_PPF_SPLIT)
++
++
++def _glm53_mhc_ppf_blocks(num_tokens, hc_hidden_size, n_sms, block_rows=None, split=None):
++    """(start, end, n_splits) of every row block of one blocked call: ceil(M / block_rows) blocks whose sizes differ
++    by at most one row, in row order."""
++    from vllm.model_executor.kernels.mhc.tilelang_kernels import compute_num_split
++    from vllm.utils.math_utils import cdiv
++
++    block_rows = _GLM53_MHC_PPF_BLOCK_ROWS if block_rows is None else block_rows
++    split = _GLM53_MHC_PPF_SPLIT if split is None else split
++    count = cdiv(num_tokens, block_rows)
++    base_rows, extra = divmod(num_tokens, count)
++    blocks, start = [], 0
++    for i in range(count):
++        rows = base_rows + (1 if i < extra else 0)
++        if split == "fill":
++            n_splits = max(1, n_sms // cdiv(rows, 128))
++        else:
++            n_splits = compute_num_split(64, hc_hidden_size, cdiv(rows, 64))
++        blocks.append((start, start + rows, n_splits))
++        start += rows
++    return blocks
++
++
++def _glm53_mhc_pre_blocked(residual_flat, fn, hc_scale, hc_base, norm_weight, rms_eps, hc_pre_eps, hc_sinkhorn_eps,
++                           hc_post_mult_value, sinkhorn_repeat, norm_eps):
++    from vllm.model_executor.kernels.mhc.tilelang_kernels import mhc_pre_big_fuse_with_norm_tilelang
++    from vllm.utils.deep_gemm import tf32_hc_prenorm_gemm
++
++    num_tokens, hc_mult, hidden_size = residual_flat.shape
++    hc_mult3 = fn.shape[0]
++    device = residual_flat.device
++    n_sms = torch.cuda.get_device_properties(device).multi_processor_count
++    blocks = _glm53_mhc_ppf_blocks(num_tokens, hc_mult * hidden_size, n_sms)
++    post_mix = torch.empty(num_tokens, hc_mult, dtype=torch.float32, device=device)
++    comb_mix = torch.empty(num_tokens, hc_mult * hc_mult, dtype=torch.float32, device=device)
++    layer_input = torch.empty(num_tokens, hidden_size, dtype=torch.bfloat16, device=device)
++    for start, end, n_splits in blocks:
++        rows = end - start
++        gemm_out_mul = torch.empty(n_splits, rows, hc_mult3, dtype=torch.float32, device=device)
++        gemm_out_sqrsum = torch.empty(n_splits, rows, dtype=torch.float32, device=device)
++        residual_blk = residual_flat[start:end]
++        tf32_hc_prenorm_gemm(residual_blk.view(rows, hc_mult * hidden_size), fn, gemm_out_mul, gemm_out_sqrsum, n_splits)
++        mhc_pre_big_fuse_with_norm_tilelang(
++            gemm_out_mul, gemm_out_sqrsum, hc_scale, hc_base, residual_blk, post_mix[start:end], comb_mix[start:end],
++            layer_input[start:end], norm_weight, hidden_size, rms_eps, hc_pre_eps, hc_sinkhorn_eps, hc_post_mult_value,
++            sinkhorn_repeat, norm_eps, n_splits, hc_mult)
++    key = ("pre", num_tokens)
++    if key not in _GLM53_MHC_PPF_REPORTED and len(_GLM53_MHC_PPF_REPORTED) < 64:
++        _GLM53_MHC_PPF_REPORTED.add(key)
++        _MHC_PPF_LOG.warning("GLM53_MHC_PRE_BLOCKED rows=%d blocks=%d splits=%s", num_tokens, len(blocks),
++                             sorted({n for _, _, n in blocks}))
++    return post_mix, comb_mix, layer_input
++
++
++def _glm53_mhc_post_pre_blocked(x_flat, residual_flat, post_flat, comb_flat, fn, hc_scale, hc_base, norm_weight,
++                                rms_eps, hc_pre_eps, hc_sinkhorn_eps, hc_post_mult_value, sinkhorn_repeat, norm_eps):
++    from vllm.model_executor.kernels.mhc.tilelang_kernels import (
++        mhc_post_tilelang,
++        mhc_pre_big_fuse_with_norm_tilelang,
++    )
++    from vllm.utils.deep_gemm import tf32_hc_prenorm_gemm
++
++    num_tokens, hc_mult, hidden_size = residual_flat.shape
++    hc_mult3 = fn.shape[0]
++    device = residual_flat.device
++    n_sms = torch.cuda.get_device_properties(device).multi_processor_count
++    blocks = _glm53_mhc_ppf_blocks(num_tokens, hc_mult * hidden_size, n_sms)
++    residual_cur = torch.empty_like(residual_flat)
++    post_mix_cur = torch.empty(num_tokens, hc_mult, dtype=torch.float32, device=device)
++    comb_mix_cur = torch.empty(num_tokens, hc_mult * hc_mult, dtype=torch.float32, device=device)
++    layer_input_cur = torch.empty(num_tokens, hidden_size, dtype=torch.bfloat16, device=device)
++    for start, end, n_splits in blocks:
++        rows = end - start
++        gemm_out_mul = torch.empty(n_splits, rows, hc_mult3, dtype=torch.float32, device=device)
++        gemm_out_sqrsum = torch.empty(n_splits, rows, dtype=torch.float32, device=device)
++        residual_blk = residual_cur[start:end]
++        mhc_post_tilelang(
++            comb_flat[start:end],
++            residual_flat[start:end],
++            post_flat[start:end],
++            x_flat[start:end],
++            residual_blk,
++            hc_mult,
++            hidden_size,
++        )
++        tf32_hc_prenorm_gemm(
++            residual_blk.view(rows, hc_mult * hidden_size),
++            fn,
++            gemm_out_mul,
++            gemm_out_sqrsum,
++            n_splits,
++        )
++        mhc_pre_big_fuse_with_norm_tilelang(
++            gemm_out_mul,
++            gemm_out_sqrsum,
++            hc_scale,
++            hc_base,
++            residual_blk,
++            post_mix_cur[start:end],
++            comb_mix_cur[start:end],
++            layer_input_cur[start:end],
++            norm_weight,
++            hidden_size,
++            rms_eps,
++            hc_pre_eps,
++            hc_sinkhorn_eps,
++            hc_post_mult_value,
++            sinkhorn_repeat,
++            norm_eps,
++            n_splits,
++            hc_mult,
++        )
++    if num_tokens not in _GLM53_MHC_PPF_REPORTED and len(_GLM53_MHC_PPF_REPORTED) < 64:
++        _GLM53_MHC_PPF_REPORTED.add(num_tokens)
++        _MHC_PPF_LOG.warning("GLM53_MHC_POST_PRENORM_FUSED rows=%d blocks=%d block_rows=%d-%d splits=%s",
++                             num_tokens, len(blocks), min(e - s for s, e, _ in blocks),
++                             max(e - s for s, e, _ in blocks), sorted({n for _, _, n in blocks}))
++    return residual_cur, post_mix_cur, comb_mix_cur, layer_input_cur
++
+ def _torch_hc_prenorm_gemm(
+     x: torch.Tensor,
+     fn: torch.Tensor,
+@@ -172,6 +343,16 @@ def mhc_pre_tilelang(
+         n_splits = compute_num_split(block_k, hc_hidden_size, cdiv(num_tokens, block_m))
+     else:
+         n_splits = 1
++    if (_GLM53_MHC_PRE_BLOCKED and use_deep_gemm and norm_weight is not None
++            and num_tokens >= _GLM53_MHC_PPF_MIN_ROWS):
++        post_mix, comb_mix, layer_input = _glm53_mhc_pre_blocked(
++            residual_flat, fn, hc_scale, hc_base, norm_weight, rms_eps, hc_pre_eps, hc_sinkhorn_eps,
++            hc_post_mult_value, sinkhorn_repeat, norm_eps)
++        return (
++            post_mix.view(*outer_shape, hc_mult, 1),
++            comb_mix.view(*outer_shape, hc_mult, hc_mult),
++            layer_input.view(*outer_shape, hidden_size),
++        )
+ 
+     post_mix = torch.empty(
+         num_tokens, hc_mult, dtype=torch.float32, device=residual.device
+@@ -516,10 +697,30 @@ def mhc_fused_post_pre_tilelang(
+ 
+     use_deep_gemm = is_deep_gemm_supported()
+     use_small_fma = num_tokens <= 16
++    if (_GLM53_MHC_PPF and not use_small_fma and use_deep_gemm and norm_weight is not None
++            and num_tokens >= _GLM53_MHC_PPF_MIN_ROWS):
++        residual_cur, post_mix_cur, comb_mix_cur, layer_input_cur = _glm53_mhc_post_pre_blocked(
++            x_flat, residual_flat, post_layer_mix_flat, comb_res_mix_flat, fn, hc_scale, hc_base, norm_weight,
++            rms_eps, hc_pre_eps, hc_sinkhorn_eps, hc_post_mult_value, sinkhorn_repeat, norm_eps)
++        return (
++            residual_cur.view(*outer_shape, hc_mult, hidden_size),
++            post_mix_cur.view(*outer_shape, hc_mult, 1),
++            comb_mix_cur.view(*outer_shape, hc_mult, hc_mult),
++            layer_input_cur.view(*outer_shape, hidden_size),
++        )
+     if use_small_fma:
+         # TODO(gnovack): investigate autotuning these heuristics
+         tile_n = 2 if num_tokens < 8 else 3
+         n_splits = 8 if (num_tokens < 8 and hidden_size <= 4096) else 4
++        if _GLM53_TP4_MHC_GEOMETRY:
++            from vllm.distributed import get_tensor_model_parallel_world_size
++
++            selected = _glm53_tp4_mhc_geometry(
++                num_tokens, hidden_size, hc_mult, norm_weight is not None,
++                get_tensor_model_parallel_world_size(),
++            )
++            if selected is not None:
++                tile_n, n_splits = selected
+     else:
+         if use_deep_gemm:
+             # these number are from deepgemm kernel impl

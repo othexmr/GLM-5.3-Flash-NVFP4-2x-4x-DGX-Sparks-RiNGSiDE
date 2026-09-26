@@ -1,0 +1,11 @@
+{
+ "schema": 2,
+ "build_image": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
+ "platform": "linux/arm64",
+ "gpu_architecture": "sm_121 (GB10)",
+ "cuda": "13.0 (image CUDA_VERSION 13.0.3; NCCL build: nvcc V13.0.88)",
+ "python": "3.12",
+ "torch": "2.13.0+cu130",
+ "cutlass_for_fp8_gemm": "image copy under flashinfer/data/cutlass, v4.5.0",
+ "note": "Recorded from the lab's build receipts. The builds are not bit-reproducible; see build/README.md."
+}

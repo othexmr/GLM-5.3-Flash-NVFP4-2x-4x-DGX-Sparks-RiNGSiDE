@@ -1,0 +1,40 @@
+{
+  "persistent_topk_sha256": "2f7f4fe28840a70d7c94276fe9fe2dfbba19a20f8c14a2113516056e77a13773",
+  "binding_sha256": "fca0bd595e1862d9341b266553b0c1dfc66e64d87db5881df981a7ba5878ca19",
+  "topk_cu_sha256": "2d0288facc79a50569cbd76e4445e8ebf800ed1a495296aa5ac6dba9ad7e8f60",
+  "loader_sha256": "71a0005eccef3e29fa2233c6bb16fdbbb5a5fee353601d892859265d3eab1332",
+  "build_script_sha256": "add107e4d04a85dc8a93c040caa3f6c6184c0611539f198b098112570c0adaa4",
+  "image_sources_match_served": {
+    "bindings.cu": true,
+    "csrc/libtorch_stable/topk.cu": true,
+    "csrc/libtorch_stable/persistent_topk.cuh": true,
+    "csrc/libtorch_stable/topk_histogram_4096.cuh": true,
+    "csrc/libtorch_stable/torch_utils.h": true
+  },
+  "torch_version": "2.13.0+cu130",
+  "torch_cuda_version": "13.0",
+  "cuda_arch": "121",
+  "nvcc_version": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Wed_Aug_20_01:57:39_PM_PDT_2025\nCuda compilation tools, release 13.0, V13.0.88\nBuild cuda_13.0.r13.0/compiler.36424714_0\n",
+  "cflags": [
+    "-O3",
+    "-std=c++20",
+    "-DUSE_CUDA",
+    "-DTORCH_TARGET_VERSION=0x020B000000000000ULL",
+    "-fvisibility=hidden"
+  ],
+  "cuda_flags": [
+    "-O3",
+    "-std=c++20",
+    "-DUSE_CUDA",
+    "-DTORCH_TARGET_VERSION=0x020B000000000000ULL",
+    "--expt-relaxed-constexpr",
+    "--expt-extended-lambda",
+    "-Xcompiler=-fvisibility=hidden",
+    "-gencode=arch=compute_121,code=sm_121"
+  ],
+  "built_utc": "2026-09-25T11:19:22.668097+00:00",
+  "binary_sha256": "3fefebaa5eee7599fce0e53d3a42f5f0eaa3b0428610f9c8239a79ba89342ad4",
+  "binary_name": "nvfp4_topk_rowspread_5341dbeff2713ebd.so",
+  "build_identity_sha256": "5341dbeff2713ebdcc525dd0d33c2c6d4c84644481aaa4547fe5049217847358",
+  "build_seconds": 21.3
+}

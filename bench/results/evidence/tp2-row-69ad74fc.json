@@ -1,0 +1,319 @@
+{
+ "dates": {
+  "campaign_started": "2026-09-25T02:26:25+07:00",
+  "code_full": [
+   "2026-09-25T02:27:19+07:00",
+   "2026-09-25T02:33:38+07:00"
+  ],
+  "launch_to_ready_s": 273.6,
+  "prose_concurrency": [
+   "2026-09-25T02:33:38+07:00",
+   "2026-09-25T02:52:11+07:00"
+  ],
+  "timezone": "UTC+7",
+  "window_finished": "2026-09-25T02:55:03+07:00"
+ },
+ "information_comparison": {
+  "base_windows": {
+   "note": "the stored windows the lab's TP2 selection script uses: the base 32dd2ab8's record window, and a re-measure of the same base with 3 runs for the aggregate cells",
+   "prefill_and_staggered": "outputs/2026-09-24-tp2ws-cand-1",
+   "throughput": "outputs/2026-09-24-llama-benchy-ours-tp2-1"
+  },
+  "line": "overall +15.8 % over 21 cells | cold +5.5 % replay +145.7 % code +1.0 % prose +2.6 % staggered +0.6 %",
+  "ratios": {
+   "code:1": 0.9854,
+   "code:2": 1.0117,
+   "code:3": 1.0484,
+   "code:4": 1.0437,
+   "code:5": 0.9697,
+   "code:6": 1.0011,
+   "cold 32K": 1.0128,
+   "cold 64K": 1.0102,
+   "cold 8K": 1.1461,
+   "prose:1": 1.0357,
+   "prose:2": 1.0624,
+   "prose:3": 1.0027,
+   "prose:4": 0.995,
+   "prose:5": 1.0243,
+   "prose:6": 1.0362,
+   "replay 32K": 2.703,
+   "replay 64K": 2.3285,
+   "replay 8K": 2.358,
+   "staggered L2": 0.9896,
+   "staggered L4": 0.9191,
+   "staggered L6": 1.12
+  },
+  "source": "outputs/2026-09-23-lever-program/compare_tp2_final.py",
+  "statistic": "speed ratio per cell (base over final for time to first token, final over base for throughput; above 1 = the final run is faster), geometric means per group",
+  "summary": {
+   "cells": 21,
+   "code_pct": 1.0,
+   "cold_pct": 5.5,
+   "overall_pct": 15.8,
+   "prose_pct": 2.6,
+   "replay_pct": 145.7,
+   "staggered_pct": 0.6
+  }
+ },
+ "lab_plans": {
+  "2026-09-24-tp2ws-cand-1": {
+   "lab_plan": "32dd2ab8",
+   "lab_plan_sha256": "32dd2ab80f1a9384c0dab21b21e4329ff9438e9257c38eb298cd1b917a45f05f"
+  },
+  "2026-09-25-tp2-final-1": {
+   "lab_plan": "69ad74fc",
+   "lab_plan_sha256": "69ad74fccf7ec29cd42c7db31e2bcf906b92fbad28a63242ea45704553684942"
+  }
+ },
+ "lab_receipts": [
+  "2026-09-25-tp2-final-1",
+  "2026-09-24-tp2ws-cand-1",
+  "2026-09-24-llama-benchy-ours-tp2-1"
+ ],
+ "measurement_kind": "measured (2 runs of every RigMark cell; the median of 2 runs is their mean)",
+ "negative_findings": [
+  "No fresh reference window: the comparison with the base is between different boots and times of day, 2 runs against 1 (prefill, staggered: 3 rounds) or 3 (aggregates).",
+  "The replay matrix was not run on this profile; sparkDash ran once, in a separate window of the same plan.",
+  "The replay-boundary cache check found 3 differences from fresh prefills and 1 near-tie."
+ ],
+ "page_row": {
+  "aggregate_c1_c6": "44.0 / 97.3",
+  "cold": "3.56 / 12.94 / 25.66",
+  "decode": "56.5 / 33.0 / 83.4",
+  "replay_matrix": "not run in this window",
+  "sparkdash": "85.7 (separate window of the same plan)",
+  "staggered_decode_first": "14.38 / 14.81 / 15.42",
+  "staggered_prefill_first": "4.70 / 5.15 / 4.90"
+ },
+ "record": "tp2-row-69ad74fc",
+ "rigmark": {
+  "chat_template_kwargs": {
+   "reasoning_effort": "low"
+  },
+  "measured_revision": "6e0e24a6ff5061721b83a482d1967c6b4e07517f",
+  "prompts_sha256": "0c3ac4015813af6a1b967659bd2289990fde895a5e43ae065b894d1e1f909ecb",
+  "prompts_version": "1.0.0",
+  "protocol_version": "1.1.0",
+  "published_as": {
+   "branch": "feat/staggered-arrival",
+   "commit": "40fabcaf6e963ac27ab347f61d54a225dbd07419",
+   "note": "published with the identical tree to the measured revision",
+   "repository": "othexmr/rigmark",
+   "tree": "3ba4ae72a548bc72df66933163106829b0644e15"
+  },
+  "staggered_rounds": 2,
+  "worktree_dirty": false
+ },
+ "schema": "switchless-evidence/1",
+ "sources": [
+  "outputs/2026-09-25-tp2-final-1/native/code-full.json",
+  "outputs/2026-09-25-tp2-final-1/native/prose-concurrency.json",
+  "outputs/2026-09-25-tp2-final-1/rb-markers.json",
+  "outputs/2026-09-25-tp2-final-1/ftr-markers.json",
+  "outputs/2026-09-25-tp2-final-1/rb-cache-check/report.json",
+  "outputs/2026-09-23-lever-program/compare_tp2_final.py",
+  "outputs/2026-09-25-sparkdash-tp2-final-1/sparkdash.json"
+ ],
+ "values": {
+  "cache_check": {
+   "hits_ok": true,
+   "mismatches": 3,
+   "near_ties": 1
+  },
+  "cells": {
+   "cold_ttft_s": {
+    "32768": 12.944,
+    "65536": 25.664,
+    "8192": 3.559
+   },
+   "decode_tok_s": {
+    "code": 56.537,
+    "prose": 32.962,
+    "structured": 83.373
+   },
+   "prose_aggregate_tok_s": {
+    "1": 32.269,
+    "2": 43.644,
+    "3": 49.621,
+    "4": 57.804,
+    "5": 63.556,
+    "6": 70.278
+   },
+   "short_code_aggregate_tok_s": {
+    "1": 43.979,
+    "2": 54.587,
+    "3": 68.982,
+    "4": 77.784,
+    "5": 84.538,
+    "6": 97.286
+   },
+   "staggered": {
+    "2": {
+     "decode_first_newcomer_ttft_s": 14.381,
+     "prefill_first_newcomer_ttft_s": 4.696,
+     "total_rounds": {
+      "decode_first": 2,
+      "prefill_first": 2
+     },
+     "valid_rounds": {
+      "decode_first": 2,
+      "prefill_first": 2
+     }
+    },
+    "4": {
+     "decode_first_newcomer_ttft_s": 14.814,
+     "prefill_first_newcomer_ttft_s": 5.153,
+     "total_rounds": {
+      "decode_first": 2,
+      "prefill_first": 2
+     },
+     "valid_rounds": {
+      "decode_first": 2,
+      "prefill_first": 2
+     }
+    },
+    "6": {
+     "decode_first_newcomer_ttft_s": 15.424,
+     "prefill_first_newcomer_ttft_s": 4.899,
+     "total_rounds": {
+      "decode_first": 2,
+      "prefill_first": 2
+     },
+     "valid_rounds": {
+      "decode_first": 2,
+      "prefill_first": 2
+     }
+    }
+   },
+   "warm_replay_ttft_s": {
+    "32768": 0.862,
+    "65536": 1.105,
+    "8192": 0.704
+   }
+  },
+  "engagement": {
+   "first_token_repay": {
+    "ok": true
+   },
+   "replay_boundary": {
+    "invalid": 0,
+    "ok": true
+   }
+  },
+  "replay_matrix": null,
+  "runs": {
+   "every_cell_runs": 2,
+   "settings": {
+    "concurrency_runs": 2,
+    "prefill_runs": 2,
+    "prose_concurrency_runs": 2,
+    "prose_runs": 2,
+    "prose_staggered_runs": 2,
+    "runs": 2
+   },
+   "staggered_valid_and_total_rounds": [
+    2
+   ]
+  },
+  "sparkdash": {
+   "dates": {
+    "launch_to_ready_s": 275.0,
+    "timezone": "UTC+7",
+    "window_finished": "2026-09-25T03:05:02+07:00"
+   },
+   "lab_plan": "69ad74fc",
+   "mean_decode_tps": {
+    "codex1": 85.69,
+    "codex2": 53.11,
+    "codex3": 43.29,
+    "codex4": 43.21,
+    "jsonx1": 68.09,
+    "jsonx2": 40.26,
+    "jsonx3": 30.02,
+    "jsonx4": 28.73,
+    "prosex1": 45.82,
+    "prosex2": 28.67,
+    "prosex3": 21.77,
+    "prosex4": 20.95,
+    "structuredx1": 82.91,
+    "structuredx2": 54.47,
+    "structuredx3": 42.83,
+    "structuredx4": 67.1
+   },
+   "protocol": "a Python reproduction of MiaAI-Lab/sparkDash's decode-benchmark protocol (DecodeBench: the same prompts, temperature 0, 400 tokens, thinking off, one warm-up stream)",
+   "repeats": [
+    1
+   ],
+   "window": "2026-09-25-sparkdash-tp2-final-1"
+  },
+  "staggered_rounds": {
+   "2": {
+    "decode_first_newcomer_ttft_s": [
+     14.386568,
+     14.375648
+    ],
+    "decode_first_summary": {
+     "maximum": 14.387,
+     "median": 14.381,
+     "minimum": 14.376,
+     "p90": 14.387
+    },
+    "prefill_first_newcomer_ttft_s": [
+     4.652702,
+     4.738534
+    ],
+    "prefill_first_summary": {
+     "maximum": 4.739,
+     "median": 4.696,
+     "minimum": 4.653,
+     "p90": 4.739
+    }
+   },
+   "4": {
+    "decode_first_newcomer_ttft_s": [
+     14.767429,
+     14.860473
+    ],
+    "decode_first_summary": {
+     "maximum": 14.86,
+     "median": 14.814,
+     "minimum": 14.767,
+     "p90": 14.86
+    },
+    "prefill_first_newcomer_ttft_s": [
+     4.753228,
+     5.552987
+    ],
+    "prefill_first_summary": {
+     "maximum": 5.553,
+     "median": 5.153,
+     "minimum": 4.753,
+     "p90": 5.553
+    }
+   },
+   "6": {
+    "decode_first_newcomer_ttft_s": [
+     15.59019,
+     15.257967
+    ],
+    "decode_first_summary": {
+     "maximum": 15.59,
+     "median": 15.424,
+     "minimum": 15.258,
+     "p90": 15.59
+    },
+    "prefill_first_newcomer_ttft_s": [
+     4.943378,
+     4.85486
+    ],
+    "prefill_first_summary": {
+     "maximum": 4.943,
+     "median": 4.899,
+     "minimum": 4.855,
+     "p90": 4.943
+    }
+   }
+  }
+ },
+ "what": "The cells of the final TP2 row, lab plan 69ad74fc (the TP2 profile), computed with the page generator's statistic from window 2026-09-25-tp2-final-1 (RigMark code-full and prose concurrency 1-6 with staggered arrivals, 2 runs of every cell), and the lab's information comparison with the stored windows of the TP2 base 32dd2ab8. The final TP2 run had no fresh reference window (owner decision), so the comparison has no rule and no verdict: different boots, times of day and run counts."
+}

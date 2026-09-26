@@ -1,0 +1,364 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/model.py
+Preimage:    sha256 031439712aa46203846e1df03de95d7e38c42578c59c2f556d540ab09f26bf8c
+             image file of the rebuilt base: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c), the lab port and the recipe's DFlash2 capture (docker/base)
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    the file of the rebuilt base: the v0.29.0 port patch of docker/base, applied to the v0.29.0 source and checked by docker/tools/verify_port.py on a CPU (not built on a DGX Spark yet); the measured image 017fd0ba has 7cddb9d1 here, which differs only in the DFlash2 auxiliary hidden-state capture
+Postimage:   sha256 f826b4311615eb56c16dd1dea69cd0dbaf45df48f5d18dce05749a93b47d09c5 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained; its DFlash2 auxiliary hidden-state capture is adapted from vLLM's DeepseekV4Model.forward in vllm/models/deepseek_v4/nvidia/model.py)
+Attribution: sparkring-mhc, vllm (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/models/glm5next/nvidia/model.py b/vllm/models/glm5next/nvidia/model.py
+index 93795ff4baf494367b241d94ab143a63d6c3df12..a9f2a3f0b18d98e31815fd376e5fa8b33e77b75a 100644
+--- a/vllm/models/glm5next/nvidia/model.py
++++ b/vllm/models/glm5next/nvidia/model.py
+@@ -1,5 +1,9 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in token-sharded mHC prefill with deferred TP reductions
++# (GLM53_MHC_PREFILL_SHARD), FP8 KDA input gather (GLM53_KDA_FP8_HANDOFF) and a replicated embedding table
++# (GLM53_EMBED_REPLICATE); SupportsReplaySSM on the model classes; the DFlash2 auxiliary hidden-state capture
++# (EagleModelMixin, SupportsEagle3) adapted from vLLM's DeepseekV4Model.forward.
+ 
+ from collections.abc import Iterable
+ from typing import ClassVar, Literal
+@@ -20,6 +24,11 @@ from vllm.model_executor.layers.activation import SiluAndMul, SiluAndMulWithClam
+ import os as _glm53_os
+ 
+ _GLM53_ROUTER_DEDUP = _glm53_os.environ.get("VLLM_GLM53_ROUTER_DEDUP", "0").strip() == "1"
++# GLM53_EMBED_REPLICATE (rdma-prefill lane, 2026-09-24; default "0" = the sharded table, unchanged): "1" keeps the
++# full vocab embedding table on every TP rank (VocabParallelEmbedding disable_tp=True), so embedding lookups need no
++# all-reduce, for the target and for the DFlash2 drafter, which shares this module; "canon" additionally rewrites
++# -0.0 entries to +0.0 after loading, which is exactly what the sharded all-reduce (x + 0 + 0 + 0) returned for them.
++_GLM53_EMBED_REPLICATE = _glm53_os.environ.get("GLM53_EMBED_REPLICATE", "0").strip()
+ 
+ from vllm.model_executor.layers.fused_moe import (
+     FusedMoEFactory,
+@@ -70,6 +79,7 @@ from vllm.model_executor.models.interfaces import (
+     MixtureOfExperts,
+     SupportsEagle3,
+     SupportsPP,
++    SupportsReplaySSM,
+ )
+ from vllm.model_executor.models.utils import (
+     AutoWeightsLoader,
+@@ -92,6 +102,9 @@ from vllm.transformers_utils.configs.glm5_next import Glm5NextConfig
+ 
+ from .attention import Glm5NextMLAAttention
+ from .kda import Glm5NextLinearAttention
++from .mhc_prefill_sharding import configure as configure_mhc_prefill
++from .mhc_prefill_sharding import maybe_create as maybe_create_mhc_prefill_ownership
++from . import kda_fp8_handoff as _kda_fp8_handoff
+ from .multimodal import (
+     Glm5NextMultiModalProcessor,
+     Glm5NextProcessingInfo,
+@@ -101,6 +114,31 @@ from .multimodal import (
+ logger = init_logger(__name__)
+ 
+ 
++def _glm53_embed_replicate_vote() -> str:
++    """GLM53_EMBED_REPLICATE, identical on every TP rank or a hard error (a mixed setting would hang a collective)."""
++    if _GLM53_EMBED_REPLICATE not in ("0", "1", "canon"):
++        raise RuntimeError("GLM53_EMBED_REPLICATE must be 0, 1 or canon")
++    from vllm.distributed import get_tp_group
++
++    group = get_tp_group()
++    votes = [None] * group.world_size
++    torch.distributed.all_gather_object(votes, _GLM53_EMBED_REPLICATE, group=group.cpu_group)
++    if any(v != _GLM53_EMBED_REPLICATE for v in votes):
++        raise RuntimeError(f"GLM53_EMBED_REPLICATE disagrees across TP ranks: {votes}")
++    return _GLM53_EMBED_REPLICATE
++
++
++def _glm53_mem_available_mib() -> int:
++    try:
++        with open("/proc/meminfo") as f:
++            for line in f:
++                if line.startswith("MemAvailable:"):
++                    return int(line.split()[1]) // 1024
++    except OSError:
++        pass
++    return -1
++
++
+ class Glm5NextMLP(nn.Module):
+     def __init__(
+         self,
+@@ -147,10 +185,13 @@ class Glm5NextMLP(nn.Module):
+         else:
+             self.act_fn = SiluAndMul()
+ 
+-    def forward(self, x):
++    def forward(self, x, *, defer_tp_reduction: bool = False):
+         gate_up, _ = self.gate_up_proj(x)
+         x = self.act_fn(gate_up)
+-        x, _ = self.down_proj(x)
++        if defer_tp_reduction:
++            x, _ = self.down_proj(x, defer_tp_reduction=True)
++        else:
++            x, _ = self.down_proj(x)
+         return x
+ 
+ 
+@@ -257,6 +298,8 @@ class Glm5NextMoE(nn.Module):
+         self,
+         hidden_states: torch.Tensor,
+         already_sequence_parallel: bool = False,
++        *,
++        defer_tp_reduction: bool = False,
+     ) -> torch.Tensor:
+         num_tokens, hidden_dim = hidden_states.shape
+ 
+@@ -278,9 +321,17 @@ class Glm5NextMoE(nn.Module):
+             )
+         else:
+             router_logits, _ = self.gate(hidden_states)
+-        final_hidden_states = self.experts(
+-            hidden_states=hidden_states, router_logits=router_logits
+-        )
++        if defer_tp_reduction:
++            if self.is_sequence_parallel or already_sequence_parallel:
++                raise RuntimeError("mHC deferral requires full-token conventional TP MoE")
++            final_hidden_states = self.experts(
++                hidden_states=hidden_states, router_logits=router_logits,
++                defer_tp_reduction=True,
++            )
++        else:
++            final_hidden_states = self.experts(
++                hidden_states=hidden_states, router_logits=router_logits
++            )
+ 
+         if self.is_sequence_parallel and not already_sequence_parallel:
+             final_hidden_states = tensor_model_parallel_all_gather(
+@@ -426,12 +477,17 @@ class Glm5NextDecoderLayer(nn.Module):
+         residual: torch.Tensor | None = None,
+         post: torch.Tensor | None = None,
+         comb: torch.Tensor | None = None,
++        *,
++        mhc_prefill_ownership=None,
+     ) -> tuple[
+         torch.Tensor,
+         torch.Tensor | None,
+         torch.Tensor | None,
+         torch.Tensor | None,
+     ]:
++        if mhc_prefill_ownership is not None and (not self.mhc or self.is_mtp_layer
++                                                      or self.is_sequence_parallel):
++            raise RuntimeError("mHC ownership excludes MTP/non-mHC/sequence-parallel layers")
+         # 70B or MTP layers: KDA + MoE without HC.
+         if not self.mhc or self.is_mtp_layer:
+             residual = hidden_states
+@@ -459,6 +515,7 @@ class Glm5NextDecoderLayer(nn.Module):
+         # hc_post with this layer's attn hc_pre into one kernel (inter-layer
+         # fusion). Layer 0 has no incoming state -> standalone hc_pre.
+         x = hidden_states
++        first_full_pre = post is None
+         if post is None:
+             if self.layer_idx == 0:
+                 x = hc_expand(x, self.n)
+@@ -471,6 +528,11 @@ class Glm5NextDecoderLayer(nn.Module):
+                 norm_weight=self.input_layernorm.weight.data,
+                 norm_eps=self.input_layernorm.variance_epsilon,
+             )
++            if mhc_prefill_ownership is not None:
++                # First pre stays full-sized; no additional initial all-gather.
++                residual = mhc_prefill_ownership.local_view(residual)
++                post = mhc_prefill_ownership.local_view(post)
++                comb = mhc_prefill_ownership.local_view(comb)
+         else:
+             residual, post, comb, x = self.hc_fused_post_pre(
+                 x,
+@@ -486,16 +548,30 @@ class Glm5NextDecoderLayer(nn.Module):
+ 
+         # Attention needs the full token sequence; mHC above ran on the SP
+         # shard. Gather for attention, scatter back afterward (DSv4 pattern).
+-        if self.is_sequence_parallel:
++        kda_fp8_input = None
++        if mhc_prefill_ownership is not None:
++            if not first_full_pre:
++                # GLM53_KDA_FP8_HANDOFF (default off): a KDA layer's input is read only by its FP8 in-projection, so
++                # its owner rows are quantized once and the FP8 bytes + scales are gathered instead of the BF16.
++                if self.layer_kind == "kda" and _kda_fp8_handoff.engage(self.self_attn, mhc_prefill_ownership):
++                    kda_fp8_input = _kda_fp8_handoff.gather(mhc_prefill_ownership, x)
++                    x = None
++                else:
++                    x = mhc_prefill_ownership.all_gather(x)
++        elif self.is_sequence_parallel:
+             x = sp_all_gather(x)[: positions.shape[0]]
+ 
+-        x = self.self_attn(
+-            hidden_states=x,
+-            positions=positions,
+-        )
+-
+-        if self.is_sequence_parallel:
+-            x = sp_reduce_scatter(x)
++        if mhc_prefill_ownership is not None:
++            if kda_fp8_input is not None:
++                x = self.self_attn(hidden_states=None, positions=positions, defer_tp_reduction=True,
++                                   fp8_input=kda_fp8_input)
++            else:
++                x = self.self_attn(hidden_states=x, positions=positions, defer_tp_reduction=True)
++            x = mhc_prefill_ownership.reduce_scatter(x)
++        else:
++            x = self.self_attn(hidden_states=x, positions=positions)
++            if self.is_sequence_parallel:
++                x = sp_reduce_scatter(x)
+ 
+         # Fuse post-attn hc_post + pre-FFN hc_pre (+ RMSNorm) into one kernel.
+         residual, post, comb, x = self.hc_fused_post_pre(
+@@ -511,7 +587,11 @@ class Glm5NextDecoderLayer(nn.Module):
+         )
+ 
+         # Fully Connected
+-        if self._mlp_is_moe:
++        if mhc_prefill_ownership is not None:
++            x = mhc_prefill_ownership.all_gather(x)
++            x = self.mlp(x, defer_tp_reduction=True)
++            x = mhc_prefill_ownership.reduce_scatter(x)
++        elif self._mlp_is_moe:
+             x = self.mlp(x, already_sequence_parallel=self.is_sequence_parallel)
+         else:
+             x = self.mlp(x)
+@@ -624,12 +704,23 @@ class Glm5NextModel(nn.Module, EagleModelMixin):
+             # Full-MLA config (no kpool sparse indexer): no topk buffer.
+             topk_indices_buffer = None
+ 
++        self._glm53_embed_replicate = "0"
++        self._glm53_embed_mem_logs = 0
+         if get_pp_group().is_first_rank:
++            self._glm53_embed_replicate = _glm53_embed_replicate_vote()
+             self.embed_tokens = VocabParallelEmbedding(
+                 config.vocab_size,
+                 config.hidden_size,
+                 prefix=f"{prefix}.embed_tokens",
++                disable_tp=self._glm53_embed_replicate != "0",
+             )
++            if self._glm53_embed_replicate != "0":
++                logger.warning(
++                    "GLM53_EMBED_REPLICATE_READY rank=%d mode=%s table_rows=%d table_bytes=%d",
++                    get_tensor_model_parallel_rank(), self._glm53_embed_replicate,
++                    self.embed_tokens.num_embeddings_per_partition,
++                    self.embed_tokens.weight.numel() * self.embed_tokens.weight.element_size(),
++                )
+         else:
+             self.embed_tokens = PPMissingLayer()
+ 
+@@ -657,6 +748,7 @@ class Glm5NextModel(nn.Module, EagleModelMixin):
+         else:
+             self.norm = PPMissingLayer()
+ 
++        configure_mhc_prefill(self, vllm_config, _glm53_os.environ)
+         self.is_sequence_parallel = (
+             vllm_config.parallel_config.use_sequence_parallel_moe
+         )
+@@ -667,7 +759,17 @@ class Glm5NextModel(nn.Module, EagleModelMixin):
+         )
+ 
+     def embed_input_ids(self, input_ids: torch.Tensor) -> torch.Tensor:
+-        return self.embed_tokens(input_ids)
++        embeds = self.embed_tokens(input_ids)
++        if (self._glm53_embed_replicate != "0" and input_ids.shape[0] >= 2304
++                and not torch.compiler.is_compiling()):
++            # Host headroom on the unified-memory Spark: the replicated table costs 0.886 GiB per rank. Logged at the
++            # first three prefill-sized lookups and every 256th after (the serving rule reads the minimum).
++            self._glm53_embed_mem_logs += 1
++            if self._glm53_embed_mem_logs <= 3 or self._glm53_embed_mem_logs % 256 == 0:
++                logger.warning("GLM53_EMBED_REPLICATE_MEM rank=%d rows=%d mem_available_mib=%d",
++                               get_tensor_model_parallel_rank(), input_ids.shape[0],
++                               _glm53_mem_available_mib())
++        return embeds
+ 
+     def forward(
+         self,
+@@ -695,6 +797,8 @@ class Glm5NextModel(nn.Module, EagleModelMixin):
+             comb = None
+ 
+         full_num_tokens = positions.shape[0]
++        mhc_owner = maybe_create_mhc_prefill_ownership(self, hidden_states, positions)
++        mhc_aux_gathers = 0
+         if self.is_sequence_parallel:
+             hidden_states = sp_shard(hidden_states)
+ 
+@@ -704,9 +808,15 @@ class Glm5NextModel(nn.Module, EagleModelMixin):
+         aux_layer_ids = self.aux_hidden_state_layers
+         aux_hidden_states: list[torch.Tensor] = []
+         for layer in self._active_layers:
+-            hidden_states, residual, post, comb = layer(
+-                positions, hidden_states, residual, post, comb
+-            )
++            if mhc_owner is not None:
++                hidden_states, residual, post, comb = layer(
++                    positions, hidden_states, residual, post, comb,
++                    mhc_prefill_ownership=mhc_owner,
++                )
++            else:
++                hidden_states, residual, post, comb = layer(
++                    positions, hidden_states, residual, post, comb
++                )
+             if layer.layer_idx + 1 in aux_layer_ids:
+                 if post is None:
+                     # Already one stream: the last mHC layer's contracted output,
+@@ -718,7 +828,10 @@ class Glm5NextModel(nn.Module, EagleModelMixin):
+                     aux_hidden_state = hc_contract(
+                         layer.hc_post(hidden_states, residual, post, comb), layer.n
+                     )
+-                if self.is_sequence_parallel:
++                if mhc_owner is not None:
++                    aux_hidden_state = mhc_owner.all_gather(aux_hidden_state)
++                    mhc_aux_gathers += 1
++                elif self.is_sequence_parallel:
+                     aux_hidden_state = sp_all_gather(aux_hidden_state)[:full_num_tokens]
+                 aux_hidden_states.append(aux_hidden_state)
+ 
+@@ -732,7 +845,10 @@ class Glm5NextModel(nn.Module, EagleModelMixin):
+                 {"hidden_states": hidden_states, "residual": residual}
+             )
+ 
+-        if self.is_sequence_parallel:
++        if mhc_owner is not None:
++            hidden_states = mhc_owner.all_gather(hidden_states)
++            mhc_owner.finish(len(self._active_layers), mhc_aux_gathers)
++        elif self.is_sequence_parallel:
+             hidden_states = sp_all_gather(hidden_states)[:full_num_tokens]
+ 
+         hidden_states = self.norm(hidden_states)
+@@ -898,11 +1014,23 @@ class Glm5NextModel(nn.Module, EagleModelMixin):
+                     )
+                     weight_loader(param, loaded_weight, **kwargs)
+             loaded_params.add(name)
++        if self._glm53_embed_replicate == "canon" and "embed_tokens.weight" in loaded_params:
++            bits = self.embed_tokens.weight.data.view(torch.int16)
++            neg_zero = int((bits == -32768).sum())
++            bits.masked_fill_(bits == -32768, 0)  # 0x8000 (-0.0) -> 0x0000 (+0.0)
++            logger.warning("GLM53_EMBED_REPLICATE_CANON rank=%d neg_zero_rewritten=%d",
++                           get_tensor_model_parallel_rank(), neg_zero)
+         return loaded_params
+ 
+ 
+ class Glm5NextForCausalLM(
+-    nn.Module, HasInnerState, SupportsPP, SupportsEagle3, MixtureOfExperts, IsHybrid
++    nn.Module,
++    HasInnerState,
++    SupportsPP,
++    SupportsEagle3,
++    MixtureOfExperts,
++    IsHybrid,
++    SupportsReplaySSM,
+ ):
+     def __init__(self, *, vllm_config: VllmConfig, prefix: str = ""):
+         super().__init__()
+@@ -998,7 +1126,11 @@ class Glm5NextForCausalLM(
+     dummy_inputs=Glm4vDummyInputsBuilder,
+ )
+ class Glm5NextForConditionalGeneration(
+-    Glm4vForConditionalGeneration, HasInnerState, IsHybrid, SupportsEagle3
++    Glm4vForConditionalGeneration,
++    HasInnerState,
++    IsHybrid,
++    SupportsEagle3,
++    SupportsReplaySSM,
+ ):
+     # The text model (KDA + dense-MLA + MoE) is a hybrid mamba model. The
+     # multimodal wrapper must declare the same interfaces so vLLM treats it as

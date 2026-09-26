@@ -1,0 +1,1837 @@
+{
+ "dates": {
+  "first": "2026-09-23",
+  "last": "2026-09-24",
+  "timezone": "UTC+7"
+ },
+ "lab_receipts": [
+  "2026-09-23-draft-fp8-marlin-campaign-1",
+  "2026-09-23-draft-fp8-marlin-campaign-2",
+  "2026-09-23-head-indexer-campaign-1",
+  "2026-09-23-kv-bf16-campaign-1",
+  "2026-09-23-topk-tiles-campaign-1",
+  "2026-09-23-topk-tiles-campaign-2",
+  "2026-09-24-final-full-protocol-3",
+  "2026-09-24-kda-ckpt-ref-tp2-1",
+  "2026-09-24-kda-ckpt-ref-tp4-1",
+  "2026-09-24-tp2ws-ref-1"
+ ],
+ "measurement_kind": "measured (same-plan pairs) and inference (window shift)",
+ "negative_findings": [
+  "No temperature measurement exists for any window.",
+  "The page figure \"about 1 to 2 %\" is not a same-code measurement: it matches windows of different code judged not to slow decode.",
+  "Single same-code cells moved up to 4.22 %, more than \"about 3 %\"."
+ ],
+ "page_claim": "Windows of the same code measured hours apart moved by about 1 to 2 % in median decode step time, single cells by up to about 3 %.",
+ "record": "temperature-drift",
+ "schema": "switchless-evidence/1",
+ "searched_not_usable": [
+  "2026-09-21 control and repeat windows (base-control-quick-3/4, retention-control-five-rep-1, mia-coop-tolerance-control-quick-1..5, tony-control-full-1/2): no fixed-(streams, K) step records exist for them (the step method dates from 2026-09-23)"
+ ],
+ "sources": [
+  "lab result log, entry for 2026-09-23 06:19-07:02 (\"BF16-KV run was a no-op\")",
+  "outputs/2026-09-23-draft-fp8-marlin-campaign-1/native/code-full.json",
+  "outputs/2026-09-23-draft-fp8-marlin-campaign-2/native/code-full.json",
+  "outputs/2026-09-23-head-indexer-campaign-1/native/code-full.json",
+  "outputs/2026-09-23-kv-bf16-campaign-1/native/code-full.json",
+  "outputs/2026-09-23-lever-program/README.md",
+  "outputs/2026-09-23-scoring/compare_steps.py",
+  "outputs/2026-09-23-scoring/window-steps-20.json",
+  "outputs/2026-09-23-scoring/window-steps-21.json",
+  "outputs/2026-09-23-scoring/window-steps-7.json",
+  "outputs/2026-09-23-scoring/window-steps-8.json",
+  "outputs/2026-09-23-scoring/window-steps-9.json",
+  "outputs/2026-09-23-scoring/window-steps-kda-ckpt-ref-tp2-1.json",
+  "outputs/2026-09-23-scoring/window-steps-tp2ws-ref-1.json",
+  "outputs/2026-09-23-topk-tiles-campaign-1/native/code-full.json",
+  "outputs/2026-09-23-topk-tiles-campaign-2/native/code-full.json",
+  "outputs/2026-09-24-compose-winners/README.md",
+  "outputs/2026-09-24-compose-winners/compare-steps-compose-12b-1.json",
+  "outputs/2026-09-24-compose-winners/compare-steps-compose-12b-vs-12-1.json",
+  "outputs/2026-09-24-compose-winners/decode-window-series.json",
+  "outputs/2026-09-24-final-full-protocol-3/native/code-full.json",
+  "outputs/2026-09-24-kda-ckpt-ref-tp2-1/native/code-full.json",
+  "outputs/2026-09-24-kda-ckpt-ref-tp4-1/native/code-full.json",
+  "outputs/2026-09-24-tp2ws-ref-1/native/code-full.json"
+ ],
+ "suggested_page_text": "Room temperature was not logged. Two windows of the same TP4 plan measured 2.5 hours apart differed by +0.47 % in median decode step time at fixed (streams, K) and by -4.22 to +2.33 % in single cells. Windows whose code changes were judged not to slow decode moved by 1.2 to 1.9 % in median decode step time when measured hours apart (single cells up to +3.2 %), which the lab attributes to the room temperature (air conditioning off, then on). The rows below come from different days and times of day.",
+ "values": {
+  "inferred_window_shift": {
+   "judged_drift": {
+    "code_full_started": [
+     "2026-09-24T05:50:50+07:00",
+     "2026-09-24T07:57:48+07:00"
+    ],
+    "decode_step_time_summary": {
+     "max": 3.24,
+     "mean": 1.29,
+     "median": 1.21,
+     "min": -0.43,
+     "n": 29
+    },
+    "hours_apart": 2.12,
+    "lab_receipts": [
+     "2026-09-24-compose-6-campaign-1",
+     "2026-09-24-compose-12b-campaign-1"
+    ],
+    "what": "compose-12b against compose-6, 2.1 hours apart. compose-12b adds seven components; by the lab's code reading none of them slows pure decode (the embedding replication was expected to make it 0.2-0.4 % faster). The lab owner judged the slower decode to be drift with the air conditioning off; the room was then cooled (noted as 25 C)."
+   },
+   "kind": "inference: windows of different code, where the lab judged by code reading and kernel-level (leaf) bounds that the code differences do not change pure-decode kernels; room temperature was not logged",
+   "near_same_code": {
+    "decode_step_time_summary": {
+     "max": 2.75,
+     "mean": 0.71,
+     "median": 0.61,
+     "min": -1.31,
+     "n": 29
+    },
+    "lab_receipts": [
+     "2026-09-24-compose-12-campaign-1",
+     "2026-09-24-compose-12b-campaign-1"
+    ],
+    "what": "compose-12b against compose-12, code identical except one top-k path setting"
+   },
+   "reference_window": "2026-09-23-mhc-ppf-campaign-1",
+   "sources": [
+    "outputs/2026-09-24-compose-winners/decode-window-series.json",
+    "outputs/2026-09-24-compose-winners/README.md",
+    "outputs/2026-09-23-lever-program/README.md",
+    "outputs/2026-09-24-compose-winners/compare-steps-compose-12b-1.json",
+    "outputs/2026-09-24-compose-winners/compare-steps-compose-12b-vs-12-1.json"
+   ],
+   "window_series": [
+    {
+     "decode_step_median_vs_reference_pct": 0.03,
+     "finished": "02:45",
+     "window": "2026-09-24-moe-mixed-campaign-1"
+    },
+    {
+     "decode_step_median_vs_reference_pct": -0.01,
+     "finished": "03:13",
+     "window": "2026-09-24-kda-fp8-handoff-campaign-1"
+    },
+    {
+     "decode_step_median_vs_reference_pct": -0.3,
+     "finished": "04:20",
+     "window": "2026-09-24-rdma-bidir-campaign-1"
+    },
+    {
+     "decode_step_median_vs_reference_pct": 0.15,
+     "finished": "~05:00",
+     "window": "conv fold campaign (window id not recorded in the series)"
+    },
+    {
+     "decode_step_median_vs_reference_pct": -2.22,
+     "finished": "05:38",
+     "window": "2026-09-24-embed-replicate-campaign-1"
+    },
+    {
+     "decode_step_median_vs_reference_pct": -2.38,
+     "finished": "06:05",
+     "window": "2026-09-24-compose-6-campaign-1"
+    },
+    {
+     "decode_step_median_vs_reference_pct": -1.92,
+     "finished": "06:43",
+     "window": "2026-09-24-compose-12-campaign-1"
+    }
+   ],
+   "window_series_reading": "Against one stored reference window (started 2026-09-24 00:53), windows finished before about 05:1x read within +-0.3 %; later windows read about 1.9 % faster, which none of their code changes explains (lab reading)."
+  },
+  "metric": "rank-0 scheduler round trip of pure decode steps, median per fixed (streams, K) cell, cells with at least 30 steps in both windows (the compare_steps method)",
+  "same_effective_configuration_repeat": {
+   "acceptance": [
+    0.398,
+    0.3958
+   ],
+   "code_full_started": [
+    "2026-09-23T05:59:56+07:00",
+    "2026-09-23T06:45:40+07:00"
+   ],
+   "cold_ttft_s": {
+    "change_pct": {
+     "32768": 0.16,
+     "65536": -0.22,
+     "8192": -0.14
+    },
+    "first": {
+     "32768": 9.385,
+     "65536": 18.77,
+     "8192": 2.763
+    },
+    "second": {
+     "32768": 9.4,
+     "65536": 18.728,
+     "8192": 2.759
+    }
+   },
+   "decode_step_time": {
+    "bands": {
+     "C1-C4": {
+      "max": 1.14,
+      "mean": -0.12,
+      "median": -0.07,
+      "min": -1.04,
+      "n": 12
+     },
+     "C5-C8": {
+      "max": 2.78,
+      "mean": -0.03,
+      "median": -0.41,
+      "min": -1.07,
+      "n": 8
+     },
+     "C9-C16": {
+      "max": 1.36,
+      "mean": 0.59,
+      "median": 0.44,
+      "min": 0.26,
+      "n": 8
+     }
+    },
+    "cells": [
+     {
+      "cand_ms": 33.34,
+      "cell": "1/k2",
+      "change_pct": -0.51,
+      "k": 2,
+      "n_steps": [
+       869,
+       731
+      ],
+      "ref_ms": 33.51,
+      "streams": 1
+     },
+     {
+      "cand_ms": 36.53,
+      "cell": "1/k3",
+      "change_pct": -0.52,
+      "k": 3,
+      "n_steps": [
+       2055,
+       2102
+      ],
+      "ref_ms": 36.72,
+      "streams": 1
+     },
+     {
+      "cand_ms": 40.8,
+      "cell": "1/k4",
+      "change_pct": 0.02,
+      "k": 4,
+      "n_steps": [
+       1503,
+       1659
+      ],
+      "ref_ms": 40.79,
+      "streams": 1
+     },
+     {
+      "cand_ms": 42.42,
+      "cell": "1/k5",
+      "change_pct": 1.14,
+      "k": 5,
+      "n_steps": [
+       158,
+       179
+      ],
+      "ref_ms": 41.94,
+      "streams": 1
+     },
+     {
+      "cand_ms": 43.34,
+      "cell": "1/k6",
+      "change_pct": -0.09,
+      "k": 6,
+      "n_steps": [
+       113,
+       112
+      ],
+      "ref_ms": 43.38,
+      "streams": 1
+     },
+     {
+      "cand_ms": 46.0,
+      "cell": "1/k7",
+      "change_pct": 0.11,
+      "k": 7,
+      "n_steps": [
+       359,
+       354
+      ],
+      "ref_ms": 45.95,
+      "streams": 1
+     },
+     {
+      "cand_ms": 52.53,
+      "cell": "2/k3",
+      "change_pct": 0.73,
+      "k": 3,
+      "n_steps": [
+       130,
+       101
+      ],
+      "ref_ms": 52.15,
+      "streams": 2
+     },
+     {
+      "cand_ms": 61.15,
+      "cell": "2/k4",
+      "change_pct": 0.33,
+      "k": 4,
+      "n_steps": [
+       310,
+       315
+      ],
+      "ref_ms": 60.95,
+      "streams": 2
+     },
+     {
+      "cand_ms": 67.48,
+      "cell": "3/k3",
+      "change_pct": -1.04,
+      "k": 3,
+      "n_steps": [
+       451,
+       450
+      ],
+      "ref_ms": 68.19,
+      "streams": 3
+     },
+     {
+      "cand_ms": 73.48,
+      "cell": "3/k4",
+      "change_pct": -0.72,
+      "k": 4,
+      "n_steps": [
+       167,
+       222
+      ],
+      "ref_ms": 74.01,
+      "streams": 3
+     },
+     {
+      "cand_ms": 77.84,
+      "cell": "4/k3",
+      "change_pct": -0.8,
+      "k": 3,
+      "n_steps": [
+       103,
+       106
+      ],
+      "ref_ms": 78.47,
+      "streams": 4
+     },
+     {
+      "cand_ms": 87.75,
+      "cell": "4/k4",
+      "change_pct": -0.05,
+      "k": 4,
+      "n_steps": [
+       296,
+       292
+      ],
+      "ref_ms": 87.79,
+      "streams": 4
+     },
+     {
+      "cand_ms": 86.76,
+      "cell": "5/k3",
+      "change_pct": -1.07,
+      "k": 3,
+      "n_steps": [
+       453,
+       444
+      ],
+      "ref_ms": 87.7,
+      "streams": 5
+     },
+     {
+      "cand_ms": 95.95,
+      "cell": "5/k4",
+      "change_pct": -0.68,
+      "k": 4,
+      "n_steps": [
+       203,
+       174
+      ],
+      "ref_ms": 96.61,
+      "streams": 5
+     },
+     {
+      "cand_ms": 97.25,
+      "cell": "6/k3",
+      "change_pct": 2.78,
+      "k": 3,
+      "n_steps": [
+       99,
+       99
+      ],
+      "ref_ms": 94.62,
+      "streams": 6
+     },
+     {
+      "cand_ms": 107.76,
+      "cell": "6/k4",
+      "change_pct": -0.54,
+      "k": 4,
+      "n_steps": [
+       272,
+       278
+      ],
+      "ref_ms": 108.34,
+      "streams": 6
+     },
+     {
+      "cand_ms": 104.91,
+      "cell": "7/k3",
+      "change_pct": -0.18,
+      "k": 3,
+      "n_steps": [
+       385,
+       366
+      ],
+      "ref_ms": 105.1,
+      "streams": 7
+     },
+     {
+      "cand_ms": 116.49,
+      "cell": "7/k4",
+      "change_pct": 0.65,
+      "k": 4,
+      "n_steps": [
+       69,
+       110
+      ],
+      "ref_ms": 115.74,
+      "streams": 7
+     },
+     {
+      "cand_ms": 111.92,
+      "cell": "8/k3",
+      "change_pct": -0.28,
+      "k": 3,
+      "n_steps": [
+       88,
+       63
+      ],
+      "ref_ms": 112.23,
+      "streams": 8
+     },
+     {
+      "cand_ms": 125.23,
+      "cell": "8/k4",
+      "change_pct": -0.88,
+      "k": 4,
+      "n_steps": [
+       276,
+       277
+      ],
+      "ref_ms": 126.34,
+      "streams": 8
+     },
+     {
+      "cand_ms": 132.48,
+      "cell": "11/k3",
+      "change_pct": 0.44,
+      "k": 3,
+      "n_steps": [
+       340,
+       366
+      ],
+      "ref_ms": 131.9,
+      "streams": 11
+     },
+     {
+      "cand_ms": 148.12,
+      "cell": "11/k4",
+      "change_pct": 0.68,
+      "k": 4,
+      "n_steps": [
+       65,
+       58
+      ],
+      "ref_ms": 147.12,
+      "streams": 11
+     },
+     {
+      "cand_ms": 138.07,
+      "cell": "12/k3",
+      "change_pct": 0.41,
+      "k": 3,
+      "n_steps": [
+       90,
+       81
+      ],
+      "ref_ms": 137.5,
+      "streams": 12
+     },
+     {
+      "cand_ms": 156.56,
+      "cell": "12/k4",
+      "change_pct": 1.36,
+      "k": 4,
+      "n_steps": [
+       253,
+       264
+      ],
+      "ref_ms": 154.46,
+      "streams": 12
+     },
+     {
+      "cand_ms": 156.29,
+      "cell": "15/k3",
+      "change_pct": 0.26,
+      "k": 3,
+      "n_steps": [
+       329,
+       318
+      ],
+      "ref_ms": 155.88,
+      "streams": 15
+     },
+     {
+      "cand_ms": 174.37,
+      "cell": "15/k4",
+      "change_pct": 0.7,
+      "k": 4,
+      "n_steps": [
+       83,
+       83
+      ],
+      "ref_ms": 173.15,
+      "streams": 15
+     },
+     {
+      "cand_ms": 159.86,
+      "cell": "16/k3",
+      "change_pct": 0.4,
+      "k": 3,
+      "n_steps": [
+       87,
+       88
+      ],
+      "ref_ms": 159.22,
+      "streams": 16
+     },
+     {
+      "cand_ms": 181.26,
+      "cell": "16/k4",
+      "change_pct": 0.44,
+      "k": 4,
+      "n_steps": [
+       260,
+       257
+      ],
+      "ref_ms": 180.46,
+      "streams": 16
+     }
+    ],
+    "min_steps_per_cell": 30,
+    "summary": {
+     "max": 2.78,
+     "mean": 0.11,
+     "median": 0.07,
+     "min": -1.07,
+     "n": 28
+    }
+   },
+   "hours_apart": 0.76,
+   "id": "tp4-same-effective-configuration-0.8h",
+   "kind": "same configuration except --kv-cache-dtype fp8_e4m3 -> auto, which resolves to FP8 for this checkpoint (the boot reported the same KV cache size); an unplanned repeat",
+   "lab_plans": [
+    "8f900d82",
+    "7e285cf9"
+   ],
+   "lab_receipts": [
+    "2026-09-23-head-indexer-campaign-1",
+    "2026-09-23-kv-bf16-campaign-1"
+   ],
+   "same_campaign_command": true,
+   "same_plan_file": false,
+   "single_stream_decode_tok_s": {
+    "change_pct": {
+     "code": -0.7,
+     "prose": 0.58,
+     "structured": 0.06
+    },
+    "first": {
+     "code": 95.877,
+     "prose": 55.665,
+     "structured": 138.528
+    },
+    "note": "single samples that move with speculative acceptance; not a step-time measure",
+    "second": {
+     "code": 95.204,
+     "prose": 55.989,
+     "structured": 138.611
+    }
+   },
+   "sources": [
+    "outputs/2026-09-23-scoring/window-steps-7.json",
+    "outputs/2026-09-23-scoring/window-steps-8.json",
+    "outputs/2026-09-23-head-indexer-campaign-1/native/code-full.json",
+    "outputs/2026-09-23-kv-bf16-campaign-1/native/code-full.json",
+    "lab result log, entry for 2026-09-23 06:19-07:02 (\"BF16-KV run was a no-op\")"
+   ],
+   "topology": "TP4"
+  },
+  "same_plan_confounded": {
+   "acceptance": [
+    0.4655,
+    0.4508
+   ],
+   "code_full_started": [
+    "2026-09-24T13:36:34+07:00",
+    "2026-09-24T14:27:20+07:00"
+   ],
+   "cold_ttft_s": {
+    "change_pct": {
+     "32768": 1.21,
+     "65536": 0.33,
+     "8192": -4.72
+    },
+    "first": {
+     "32768": 12.932,
+     "65536": 26.46,
+     "8192": 4.318
+    },
+    "second": {
+     "32768": 13.088,
+     "65536": 26.548,
+     "8192": 4.114
+    }
+   },
+   "decode_step_time": {
+    "bands": {
+     "C1-C4": {
+      "max": 6.48,
+      "mean": 1.58,
+      "median": 1.87,
+      "min": -4.09,
+      "n": 13
+     },
+     "C5-C8": {
+      "max": 8.75,
+      "mean": 5.46,
+      "median": 6.06,
+      "min": 0.99,
+      "n": 4
+     },
+     "C9-C16": null
+    },
+    "cells": [
+     {
+      "cand_ms": 54.99,
+      "cell": "1/k2",
+      "change_pct": 1.87,
+      "k": 2,
+      "n_steps": [
+       1157,
+       2728
+      ],
+      "ref_ms": 53.98,
+      "streams": 1
+     },
+     {
+      "cand_ms": 61.01,
+      "cell": "1/k3",
+      "change_pct": 1.77,
+      "k": 3,
+      "n_steps": [
+       1507,
+       6525
+      ],
+      "ref_ms": 59.95,
+      "streams": 1
+     },
+     {
+      "cand_ms": 67.56,
+      "cell": "1/k4",
+      "change_pct": 0.16,
+      "k": 4,
+      "n_steps": [
+       1449,
+       3073
+      ],
+      "ref_ms": 67.45,
+      "streams": 1
+     },
+     {
+      "cand_ms": 67.17,
+      "cell": "1/k5",
+      "change_pct": -3.26,
+      "k": 5,
+      "n_steps": [
+       102,
+       244
+      ],
+      "ref_ms": 69.43,
+      "streams": 1
+     },
+     {
+      "cand_ms": 70.1,
+      "cell": "1/k6",
+      "change_pct": -1.36,
+      "k": 6,
+      "n_steps": [
+       72,
+       182
+      ],
+      "ref_ms": 71.07,
+      "streams": 1
+     },
+     {
+      "cand_ms": 74.82,
+      "cell": "1/k7",
+      "change_pct": -4.09,
+      "k": 7,
+      "n_steps": [
+       194,
+       432
+      ],
+      "ref_ms": 78.01,
+      "streams": 1
+     },
+     {
+      "cand_ms": 94.93,
+      "cell": "2/k3",
+      "change_pct": 6.48,
+      "k": 3,
+      "n_steps": [
+       134,
+       1181
+      ],
+      "ref_ms": 89.15,
+      "streams": 2
+     },
+     {
+      "cand_ms": 106.9,
+      "cell": "2/k4",
+      "change_pct": 5.23,
+      "k": 4,
+      "n_steps": [
+       315,
+       1090
+      ],
+      "ref_ms": 101.59,
+      "streams": 2
+     },
+     {
+      "cand_ms": 101.6,
+      "cell": "3/k2",
+      "change_pct": 1.57,
+      "k": 2,
+      "n_steps": [
+       60,
+       129
+      ],
+      "ref_ms": 100.03,
+      "streams": 3
+     },
+     {
+      "cand_ms": 119.06,
+      "cell": "3/k3",
+      "change_pct": 2.29,
+      "k": 3,
+      "n_steps": [
+       422,
+       1889
+      ],
+      "ref_ms": 116.4,
+      "streams": 3
+     },
+     {
+      "cand_ms": 134.72,
+      "cell": "3/k4",
+      "change_pct": 3.77,
+      "k": 4,
+      "n_steps": [
+       169,
+       765
+      ],
+      "ref_ms": 129.83,
+      "streams": 3
+     },
+     {
+      "cand_ms": 140.43,
+      "cell": "4/k3",
+      "change_pct": 4.09,
+      "k": 3,
+      "n_steps": [
+       84,
+       195
+      ],
+      "ref_ms": 134.91,
+      "streams": 4
+     },
+     {
+      "cand_ms": 156.85,
+      "cell": "4/k4",
+      "change_pct": 1.96,
+      "k": 4,
+      "n_steps": [
+       273,
+       885
+      ],
+      "ref_ms": 153.84,
+      "streams": 4
+     },
+     {
+      "cand_ms": 153.72,
+      "cell": "5/k3",
+      "change_pct": 0.99,
+      "k": 3,
+      "n_steps": [
+       467,
+       1282
+      ],
+      "ref_ms": 152.21,
+      "streams": 5
+     },
+     {
+      "cand_ms": 175.51,
+      "cell": "5/k4",
+      "change_pct": 3.58,
+      "k": 4,
+      "n_steps": [
+       168,
+       435
+      ],
+      "ref_ms": 169.44,
+      "streams": 5
+     },
+     {
+      "cand_ms": 182.98,
+      "cell": "6/k3",
+      "change_pct": 8.75,
+      "k": 3,
+      "n_steps": [
+       89,
+       223
+      ],
+      "ref_ms": 168.26,
+      "streams": 6
+     },
+     {
+      "cand_ms": 207.01,
+      "cell": "6/k4",
+      "change_pct": 8.54,
+      "k": 4,
+      "n_steps": [
+       263,
+       2584
+      ],
+      "ref_ms": 190.73,
+      "streams": 6
+     }
+    ],
+    "min_steps_per_cell": 30,
+    "summary": {
+     "max": 8.75,
+     "mean": 2.49,
+     "median": 1.96,
+     "min": -4.09,
+     "n": 17
+    }
+   },
+   "hours_apart": 0.85,
+   "id": "tp2-same-plan-different-campaign",
+   "kind": "same plan file (lab plan f1771e0a) but DIFFERENT campaigns: the later window ran 3 staggered rounds and the replay matrix (long-context decode at C1-C6), the earlier 1 round and no replay matrix, so its fixed-(streams, K) cells mix different context lengths. Not a drift measurement; excluded.",
+   "lab_plans": [
+    "f1771e0a",
+    "f1771e0a"
+   ],
+   "lab_receipts": [
+    "2026-09-24-kda-ckpt-ref-tp2-1",
+    "2026-09-24-tp2ws-ref-1"
+   ],
+   "same_campaign_command": false,
+   "same_plan_file": true,
+   "single_stream_decode_tok_s": {
+    "change_pct": {
+     "code": -1.25,
+     "prose": 3.07,
+     "structured": -1.63
+    },
+    "first": {
+     "code": 56.676,
+     "prose": 32.818,
+     "structured": 71.704
+    },
+    "note": "single samples that move with speculative acceptance; not a step-time measure",
+    "second": {
+     "code": 55.97,
+     "prose": 33.827,
+     "structured": 70.533
+    }
+   },
+   "sources": [
+    "outputs/2026-09-23-scoring/window-steps-kda-ckpt-ref-tp2-1.json",
+    "outputs/2026-09-23-scoring/window-steps-tp2ws-ref-1.json",
+    "outputs/2026-09-24-kda-ckpt-ref-tp2-1/native/code-full.json",
+    "outputs/2026-09-24-tp2ws-ref-1/native/code-full.json"
+   ],
+   "topology": "TP2"
+  },
+  "same_plan_repeats": [
+   {
+    "acceptance": [
+     0.4042,
+     0.3997
+    ],
+    "code_full_started": [
+     "2026-09-23T06:24:19+07:00",
+     "2026-09-23T08:55:07+07:00"
+    ],
+    "cold_ttft_s": {
+     "change_pct": {
+      "32768": 0.05,
+      "65536": -0.1,
+      "8192": -1.22
+     },
+     "first": {
+      "32768": 9.387,
+      "65536": 18.806,
+      "8192": 2.783
+     },
+     "second": {
+      "32768": 9.392,
+      "65536": 18.788,
+      "8192": 2.749
+     }
+    },
+    "decode_step_time": {
+     "bands": {
+      "C1-C4": {
+       "max": 1.95,
+       "mean": -0.41,
+       "median": -0.34,
+       "min": -4.22,
+       "n": 13
+      },
+      "C5-C8": {
+       "max": 2.33,
+       "mean": 1.02,
+       "median": 0.94,
+       "min": 0.07,
+       "n": 8
+      },
+      "C9-C16": {
+       "max": 0.67,
+       "mean": 0.32,
+       "median": 0.51,
+       "min": -0.41,
+       "n": 8
+      }
+     },
+     "cells": [
+      {
+       "cand_ms": 33.77,
+       "cell": "1/k2",
+       "change_pct": -0.56,
+       "k": 2,
+       "n_steps": [
+        777,
+        1225
+       ],
+       "ref_ms": 33.96,
+       "streams": 1
+      },
+      {
+       "cand_ms": 37.07,
+       "cell": "1/k3",
+       "change_pct": -0.88,
+       "k": 3,
+       "n_steps": [
+        2442,
+        1803
+       ],
+       "ref_ms": 37.4,
+       "streams": 1
+      },
+      {
+       "cand_ms": 41.22,
+       "cell": "1/k4",
+       "change_pct": -0.94,
+       "k": 4,
+       "n_steps": [
+        1665,
+        1656
+       ],
+       "ref_ms": 41.61,
+       "streams": 1
+      },
+      {
+       "cand_ms": 42.18,
+       "cell": "1/k5",
+       "change_pct": -4.22,
+       "k": 5,
+       "n_steps": [
+        211,
+        200
+       ],
+       "ref_ms": 44.04,
+       "streams": 1
+      },
+      {
+       "cand_ms": 43.56,
+       "cell": "1/k6",
+       "change_pct": -2.27,
+       "k": 6,
+       "n_steps": [
+        157,
+        132
+       ],
+       "ref_ms": 44.57,
+       "streams": 1
+      },
+      {
+       "cand_ms": 46.89,
+       "cell": "1/k7",
+       "change_pct": 0.75,
+       "k": 7,
+       "n_steps": [
+        340,
+        281
+       ],
+       "ref_ms": 46.54,
+       "streams": 1
+      },
+      {
+       "cand_ms": 53.29,
+       "cell": "2/k3",
+       "change_pct": -0.5,
+       "k": 3,
+       "n_steps": [
+        65,
+        131
+       ],
+       "ref_ms": 53.56,
+       "streams": 2
+      },
+      {
+       "cand_ms": 62.0,
+       "cell": "2/k4",
+       "change_pct": -0.34,
+       "k": 4,
+       "n_steps": [
+        337,
+        338
+       ],
+       "ref_ms": 62.21,
+       "streams": 2
+      },
+      {
+       "cand_ms": 58.58,
+       "cell": "3/k2",
+       "change_pct": 0.48,
+       "k": 2,
+       "n_steps": [
+        30,
+        60
+       ],
+       "ref_ms": 58.3,
+       "streams": 3
+      },
+      {
+       "cand_ms": 68.29,
+       "cell": "3/k3",
+       "change_pct": 0.04,
+       "k": 3,
+       "n_steps": [
+        414,
+        462
+       ],
+       "ref_ms": 68.26,
+       "streams": 3
+      },
+      {
+       "cand_ms": 74.62,
+       "cell": "3/k4",
+       "change_pct": 0.17,
+       "k": 4,
+       "n_steps": [
+        202,
+        183
+       ],
+       "ref_ms": 74.49,
+       "streams": 3
+      },
+      {
+       "cand_ms": 79.48,
+       "cell": "4/k3",
+       "change_pct": 1.95,
+       "k": 3,
+       "n_steps": [
+        74,
+        94
+       ],
+       "ref_ms": 77.96,
+       "streams": 4
+      },
+      {
+       "cand_ms": 88.37,
+       "cell": "4/k4",
+       "change_pct": 0.93,
+       "k": 4,
+       "n_steps": [
+        288,
+        294
+       ],
+       "ref_ms": 87.56,
+       "streams": 4
+      },
+      {
+       "cand_ms": 87.96,
+       "cell": "5/k3",
+       "change_pct": 1.02,
+       "k": 3,
+       "n_steps": [
+        440,
+        449
+       ],
+       "ref_ms": 87.07,
+       "streams": 5
+      },
+      {
+       "cand_ms": 96.59,
+       "cell": "5/k4",
+       "change_pct": 0.16,
+       "k": 4,
+       "n_steps": [
+        185,
+        173
+       ],
+       "ref_ms": 96.44,
+       "streams": 5
+      },
+      {
+       "cand_ms": 98.59,
+       "cell": "6/k3",
+       "change_pct": 2.12,
+       "k": 3,
+       "n_steps": [
+        102,
+        106
+       ],
+       "ref_ms": 96.54,
+       "streams": 6
+      },
+      {
+       "cand_ms": 108.1,
+       "cell": "6/k4",
+       "change_pct": 0.88,
+       "k": 4,
+       "n_steps": [
+        276,
+        280
+       ],
+       "ref_ms": 107.16,
+       "streams": 6
+      },
+      {
+       "cand_ms": 105.75,
+       "cell": "7/k3",
+       "change_pct": 0.07,
+       "k": 3,
+       "n_steps": [
+        406,
+        369
+       ],
+       "ref_ms": 105.68,
+       "streams": 7
+      },
+      {
+       "cand_ms": 117.88,
+       "cell": "7/k4",
+       "change_pct": 0.62,
+       "k": 4,
+       "n_steps": [
+        70,
+        77
+       ],
+       "ref_ms": 117.15,
+       "streams": 7
+      },
+      {
+       "cand_ms": 114.81,
+       "cell": "8/k3",
+       "change_pct": 2.33,
+       "k": 3,
+       "n_steps": [
+        89,
+        93
+       ],
+       "ref_ms": 112.2,
+       "streams": 8
+      },
+      {
+       "cand_ms": 128.07,
+       "cell": "8/k4",
+       "change_pct": 0.99,
+       "k": 4,
+       "n_steps": [
+        269,
+        264
+       ],
+       "ref_ms": 126.82,
+       "streams": 8
+      },
+      {
+       "cand_ms": 132.34,
+       "cell": "11/k3",
+       "change_pct": -0.41,
+       "k": 3,
+       "n_steps": [
+        332,
+        357
+       ],
+       "ref_ms": 132.89,
+       "streams": 11
+      },
+      {
+       "cand_ms": 148.79,
+       "cell": "11/k4",
+       "change_pct": 0.04,
+       "k": 4,
+       "n_steps": [
+        91,
+        72
+       ],
+       "ref_ms": 148.73,
+       "streams": 11
+      },
+      {
+       "cand_ms": 138.09,
+       "cell": "12/k3",
+       "change_pct": 0.55,
+       "k": 3,
+       "n_steps": [
+        79,
+        74
+       ],
+       "ref_ms": 137.34,
+       "streams": 12
+      },
+      {
+       "cand_ms": 155.78,
+       "cell": "12/k4",
+       "change_pct": 0.08,
+       "k": 4,
+       "n_steps": [
+        263,
+        276
+       ],
+       "ref_ms": 155.66,
+       "streams": 12
+      },
+      {
+       "cand_ms": 156.28,
+       "cell": "15/k3",
+       "change_pct": 0.56,
+       "k": 3,
+       "n_steps": [
+        314,
+        335
+       ],
+       "ref_ms": 155.41,
+       "streams": 15
+      },
+      {
+       "cand_ms": 173.21,
+       "cell": "15/k4",
+       "change_pct": 0.6,
+       "k": 4,
+       "n_steps": [
+        72,
+        62
+       ],
+       "ref_ms": 172.18,
+       "streams": 15
+      },
+      {
+       "cand_ms": 160.79,
+       "cell": "16/k3",
+       "change_pct": 0.47,
+       "k": 3,
+       "n_steps": [
+        88,
+        91
+       ],
+       "ref_ms": 160.04,
+       "streams": 16
+      },
+      {
+       "cand_ms": 181.8,
+       "cell": "16/k4",
+       "change_pct": 0.67,
+       "k": 4,
+       "n_steps": [
+        259,
+        251
+       ],
+       "ref_ms": 180.59,
+       "streams": 16
+      }
+     ],
+     "min_steps_per_cell": 30,
+     "summary": {
+      "max": 2.33,
+      "mean": 0.18,
+      "median": 0.47,
+      "min": -4.22,
+      "n": 29
+     }
+    },
+    "hours_apart": 2.51,
+    "id": "tp4-same-plan-2.5h",
+    "kind": "same plan file, same campaign, 2.5 hours apart",
+    "lab_plans": [
+     "4a85a0c3",
+     "4a85a0c3"
+    ],
+    "lab_receipts": [
+     "2026-09-23-draft-fp8-marlin-campaign-1",
+     "2026-09-23-draft-fp8-marlin-campaign-2"
+    ],
+    "same_campaign_command": true,
+    "same_plan_file": true,
+    "single_stream_decode_tok_s": {
+     "change_pct": {
+      "code": -4.98,
+      "prose": -2.0,
+      "structured": -0.21
+     },
+     "first": {
+      "code": 98.683,
+      "prose": 56.382,
+      "structured": 137.805
+     },
+     "note": "single samples that move with speculative acceptance; not a step-time measure",
+     "second": {
+      "code": 93.771,
+      "prose": 55.257,
+      "structured": 137.511
+     }
+    },
+    "sources": [
+     "outputs/2026-09-23-scoring/window-steps-8.json",
+     "outputs/2026-09-23-scoring/window-steps-9.json",
+     "outputs/2026-09-23-draft-fp8-marlin-campaign-1/native/code-full.json",
+     "outputs/2026-09-23-draft-fp8-marlin-campaign-2/native/code-full.json"
+    ],
+    "topology": "TP4"
+   },
+   {
+    "acceptance": [
+     0.4046,
+     0.3956
+    ],
+    "code_full_started": [
+     "2026-09-23T15:40:33+07:00",
+     "2026-09-23T16:08:59+07:00"
+    ],
+    "cold_ttft_s": {
+     "change_pct": {
+      "32768": -0.33,
+      "65536": -0.81,
+      "8192": -1.15
+     },
+     "first": {
+      "32768": 8.539,
+      "65536": 16.589,
+      "8192": 2.615
+     },
+     "second": {
+      "32768": 8.511,
+      "65536": 16.454,
+      "8192": 2.585
+     }
+    },
+    "decode_step_time": {
+     "bands": {
+      "C1-C4": {
+       "max": 1.25,
+       "mean": -0.0,
+       "median": 0.31,
+       "min": -2.12,
+       "n": 13
+      },
+      "C5-C8": {
+       "max": 1.03,
+       "mean": -0.22,
+       "median": 0.03,
+       "min": -1.69,
+       "n": 8
+      },
+      "C9-C16": {
+       "max": 1.53,
+       "mean": 0.22,
+       "median": 0.01,
+       "min": -0.58,
+       "n": 8
+      }
+     },
+     "cells": [
+      {
+       "cand_ms": 31.87,
+       "cell": "1/k2",
+       "change_pct": 1.24,
+       "k": 2,
+       "n_steps": [
+        1125,
+        561
+       ],
+       "ref_ms": 31.48,
+       "streams": 1
+      },
+      {
+       "cand_ms": 34.7,
+       "cell": "1/k3",
+       "change_pct": 1.02,
+       "k": 3,
+       "n_steps": [
+        1732,
+        2274
+       ],
+       "ref_ms": 34.35,
+       "streams": 1
+      },
+      {
+       "cand_ms": 38.86,
+       "cell": "1/k4",
+       "change_pct": 1.04,
+       "k": 4,
+       "n_steps": [
+        1750,
+        1497
+       ],
+       "ref_ms": 38.46,
+       "streams": 1
+      },
+      {
+       "cand_ms": 40.57,
+       "cell": "1/k5",
+       "change_pct": -0.56,
+       "k": 5,
+       "n_steps": [
+        257,
+        196
+       ],
+       "ref_ms": 40.8,
+       "streams": 1
+      },
+      {
+       "cand_ms": 40.65,
+       "cell": "1/k6",
+       "change_pct": -2.12,
+       "k": 6,
+       "n_steps": [
+        170,
+        126
+       ],
+       "ref_ms": 41.53,
+       "streams": 1
+      },
+      {
+       "cand_ms": 43.14,
+       "cell": "1/k7",
+       "change_pct": -0.53,
+       "k": 7,
+       "n_steps": [
+        362,
+        320
+       ],
+       "ref_ms": 43.37,
+       "streams": 1
+      },
+      {
+       "cand_ms": 50.98,
+       "cell": "2/k3",
+       "change_pct": 0.31,
+       "k": 3,
+       "n_steps": [
+        122,
+        155
+       ],
+       "ref_ms": 50.82,
+       "streams": 2
+      },
+      {
+       "cand_ms": 57.62,
+       "cell": "2/k4",
+       "change_pct": -0.83,
+       "k": 4,
+       "n_steps": [
+        316,
+        299
+       ],
+       "ref_ms": 58.1,
+       "streams": 2
+      },
+      {
+       "cand_ms": 57.36,
+       "cell": "3/k2",
+       "change_pct": 1.25,
+       "k": 2,
+       "n_steps": [
+        45,
+        60
+       ],
+       "ref_ms": 56.65,
+       "streams": 3
+      },
+      {
+       "cand_ms": 65.52,
+       "cell": "3/k3",
+       "change_pct": 0.57,
+       "k": 3,
+       "n_steps": [
+        451,
+        428
+       ],
+       "ref_ms": 65.15,
+       "streams": 3
+      },
+      {
+       "cand_ms": 71.5,
+       "cell": "3/k4",
+       "change_pct": 1.13,
+       "k": 4,
+       "n_steps": [
+        175,
+        190
+       ],
+       "ref_ms": 70.7,
+       "streams": 3
+      },
+      {
+       "cand_ms": 73.92,
+       "cell": "4/k3",
+       "change_pct": -1.79,
+       "k": 3,
+       "n_steps": [
+        80,
+        106
+       ],
+       "ref_ms": 75.27,
+       "streams": 4
+      },
+      {
+       "cand_ms": 82.91,
+       "cell": "4/k4",
+       "change_pct": -0.75,
+       "k": 4,
+       "n_steps": [
+        302,
+        296
+       ],
+       "ref_ms": 83.54,
+       "streams": 4
+      },
+      {
+       "cand_ms": 83.15,
+       "cell": "5/k3",
+       "change_pct": -0.12,
+       "k": 3,
+       "n_steps": [
+        394,
+        454
+       ],
+       "ref_ms": 83.25,
+       "streams": 5
+      },
+      {
+       "cand_ms": 91.2,
+       "cell": "5/k4",
+       "change_pct": -1.69,
+       "k": 4,
+       "n_steps": [
+        177,
+        196
+       ],
+       "ref_ms": 92.77,
+       "streams": 5
+      },
+      {
+       "cand_ms": 91.56,
+       "cell": "6/k3",
+       "change_pct": -0.36,
+       "k": 3,
+       "n_steps": [
+        105,
+        107
+       ],
+       "ref_ms": 91.89,
+       "streams": 6
+      },
+      {
+       "cand_ms": 102.23,
+       "cell": "6/k4",
+       "change_pct": 0.55,
+       "k": 4,
+       "n_steps": [
+        275,
+        265
+       ],
+       "ref_ms": 101.67,
+       "streams": 6
+      },
+      {
+       "cand_ms": 100.87,
+       "cell": "7/k3",
+       "change_pct": 0.25,
+       "k": 3,
+       "n_steps": [
+        349,
+        349
+       ],
+       "ref_ms": 100.62,
+       "streams": 7
+      },
+      {
+       "cand_ms": 111.69,
+       "cell": "7/k4",
+       "change_pct": 1.03,
+       "k": 4,
+       "n_steps": [
+        77,
+        89
+       ],
+       "ref_ms": 110.55,
+       "streams": 7
+      },
+      {
+       "cand_ms": 105.95,
+       "cell": "8/k3",
+       "change_pct": -1.62,
+       "k": 3,
+       "n_steps": [
+        91,
+        100
+       ],
+       "ref_ms": 107.69,
+       "streams": 8
+      },
+      {
+       "cand_ms": 120.17,
+       "cell": "8/k4",
+       "change_pct": 0.17,
+       "k": 4,
+       "n_steps": [
+        275,
+        267
+       ],
+       "ref_ms": 119.97,
+       "streams": 8
+      },
+      {
+       "cand_ms": 126.04,
+       "cell": "11/k3",
+       "change_pct": -0.11,
+       "k": 3,
+       "n_steps": [
+        342,
+        351
+       ],
+       "ref_ms": 126.18,
+       "streams": 11
+      },
+      {
+       "cand_ms": 138.25,
+       "cell": "11/k4",
+       "change_pct": 0.04,
+       "k": 4,
+       "n_steps": [
+        84,
+        68
+       ],
+       "ref_ms": 138.19,
+       "streams": 11
+      },
+      {
+       "cand_ms": 130.31,
+       "cell": "12/k3",
+       "change_pct": -0.58,
+       "k": 3,
+       "n_steps": [
+        90,
+        78
+       ],
+       "ref_ms": 131.07,
+       "streams": 12
+      },
+      {
+       "cand_ms": 145.33,
+       "cell": "12/k4",
+       "change_pct": -0.07,
+       "k": 4,
+       "n_steps": [
+        265,
+        274
+       ],
+       "ref_ms": 145.43,
+       "streams": 12
+      },
+      {
+       "cand_ms": 146.97,
+       "cell": "15/k3",
+       "change_pct": -0.03,
+       "k": 3,
+       "n_steps": [
+        346,
+        353
+       ],
+       "ref_ms": 147.02,
+       "streams": 15
+      },
+      {
+       "cand_ms": 161.05,
+       "cell": "15/k4",
+       "change_pct": 1.53,
+       "k": 4,
+       "n_steps": [
+        75,
+        65
+       ],
+       "ref_ms": 158.62,
+       "streams": 15
+      },
+      {
+       "cand_ms": 150.36,
+       "cell": "16/k3",
+       "change_pct": 0.74,
+       "k": 3,
+       "n_steps": [
+        87,
+        61
+       ],
+       "ref_ms": 149.25,
+       "streams": 16
+      },
+      {
+       "cand_ms": 165.86,
+       "cell": "16/k4",
+       "change_pct": 0.27,
+       "k": 4,
+       "n_steps": [
+        255,
+        274
+       ],
+       "ref_ms": 165.41,
+       "streams": 16
+      }
+     ],
+     "min_steps_per_cell": 30,
+     "summary": {
+      "max": 1.53,
+      "mean": -0.0,
+      "median": 0.04,
+      "min": -2.12,
+      "n": 29
+     }
+    },
+    "hours_apart": 0.47,
+    "id": "tp4-same-plan-0.5h",
+    "kind": "same plan file, same campaign, 0.5 hours apart",
+    "lab_plans": [
+     "7308f795",
+     "7308f795"
+    ],
+    "lab_receipts": [
+     "2026-09-23-topk-tiles-campaign-1",
+     "2026-09-23-topk-tiles-campaign-2"
+    ],
+    "same_campaign_command": true,
+    "same_plan_file": true,
+    "single_stream_decode_tok_s": {
+     "change_pct": {
+      "code": -10.52,
+      "prose": 0.06,
+      "structured": -6.93
+     },
+     "first": {
+      "code": 114.37,
+      "prose": 57.92,
+      "structured": 148.775
+     },
+     "note": "single samples that move with speculative acceptance; not a step-time measure",
+     "second": {
+      "code": 102.339,
+      "prose": 57.955,
+      "structured": 138.462
+     }
+    },
+    "sources": [
+     "outputs/2026-09-23-scoring/window-steps-20.json",
+     "outputs/2026-09-23-scoring/window-steps-21.json",
+     "outputs/2026-09-23-topk-tiles-campaign-1/native/code-full.json",
+     "outputs/2026-09-23-topk-tiles-campaign-2/native/code-full.json"
+    ],
+    "topology": "TP4"
+   }
+  ],
+  "same_plan_without_step_records": {
+   "code_full_started": [
+    "2026-09-24T08:59:07+07:00",
+    "2026-09-24T12:53:58+07:00"
+   ],
+   "cold_ttft_s": {
+    "change_pct": {
+     "32768": 0.28,
+     "65536": 0.3,
+     "8192": 0.0
+    },
+    "first": {
+     "32768": 6.9,
+     "65536": 13.59,
+     "8192": 2.062
+    },
+    "second": {
+     "32768": 6.919,
+     "65536": 13.631,
+     "8192": 2.062
+    }
+   },
+   "decode_step_time": null,
+   "decode_step_time_note": "no fixed-(streams, K) step records were extracted for the earlier window (its campaign was the final protocol suite, not the step-recorded campaign)",
+   "hours_apart": 3.91,
+   "id": "tp4-same-plan-4h-no-step-records",
+   "lab_plans": [
+    "9e4f793a",
+    "9e4f793a"
+   ],
+   "lab_receipts": [
+    "2026-09-24-final-full-protocol-3",
+    "2026-09-24-kda-ckpt-ref-tp4-1"
+   ],
+   "single_stream_decode_tok_s": {
+    "change_pct": {
+     "code": -2.3,
+     "prose": -2.73,
+     "structured": -3.12
+    },
+    "first": {
+     "code": 101.665,
+     "prose": 59.755,
+     "structured": 149.719
+    },
+    "note": "single samples; they move with speculative acceptance on this non-deterministic profile, so they do not isolate drift",
+    "second": {
+     "code": 99.322,
+     "prose": 58.126,
+     "structured": 145.047
+    }
+   },
+   "sources": [
+    "outputs/2026-09-24-final-full-protocol-3/native/code-full.json",
+    "outputs/2026-09-24-kda-ckpt-ref-tp4-1/native/code-full.json"
+   ],
+   "topology": "TP4"
+  }
+ },
+ "verdict": "differs",
+ "verdict_detail": "No same-code pair moved 1 to 2 % in median decode step time. Same-plan TP4 repeats moved the median by +0.47 % (2.5 h apart), +0.04 % (0.5 h) and +0.07 % (same effective configuration, 0.8 h); single cells moved by up to 4.22 % (tp4-same-plan-2.5h, cell 1/k5). The page figures match windows of different code whose differences the lab judged not to slow decode: compose-12b against compose-6 2.1 h apart, median +1.21 %, max cell +3.24 % (judged to be drift with the air conditioning off), and a shift of about -1.9 % against a stored reference. Room temperature was not logged.",
+ "what": "Evidence behind the \"Room temperature\" caveat of the results page: repeat windows of one plan and the decode step time they measured, plus the inferred window shift the caveat appears to describe."
+}

@@ -1,0 +1,1014 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/sample/ops/topk_topp_triton.py
+Preimage:    sha256 255619f699898ddaaac959d9bef4494294c76d730abb8e90549afac83a9bcbe9
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256
+Postimage:   sha256 6d7a945290ebb64e59a43e6b6c3d64f2aa4c953cea2e47bd5232422850d6490c (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/sample/ops/topk_topp_triton.py b/vllm/v1/sample/ops/topk_topp_triton.py
+index d8f8c8956d25ddd1f1f006e8efc4f7295b06bc2a..2abcaaa340c6a0a79ee3ab19978d7de09fa1e5a2 100644
+--- a/vllm/v1/sample/ops/topk_topp_triton.py
++++ b/vllm/v1/sample/ops/topk_topp_triton.py
+@@ -1,14 +1,21 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): exact top-p recompute of rows the estimated cut cannot guarantee.
+ """
+ Combined Top-K and Top-P Triton kernels.
+ 
++Top-p fix (2026-09-25): rows whose estimated normaliser, search exit or
++reconstructed cutoff cannot guarantee the cut are recomputed exactly in the
++logit domain (_exact_topp_row / _exact_topk_row); other rows are unchanged.
++
+ Based on the paper "Qrita: High-performance Top-k and Top-p Algorithm for GPUs
+ using Pivot-based Truncation and Selection" By Park et al.
+ (https://arxiv.org/abs/2602.01518)
+ 
+ """
+ 
++import os
++
+ import torch
+ 
+ from vllm.triton_utils import tl, triton
+@@ -18,6 +25,18 @@ from vllm.utils.platform_utils import num_compute_units
+ 
+ _TRITON_TABLE_CACHE: dict[tuple[torch.device], tuple[torch.Tensor, torch.Tensor]] = {}
+ _TRITON_BUFFER_CACHE: dict[tuple[torch.device, torch.dtype, int], torch.Tensor] = {}
++_TRITON_SCRATCH_CACHE: dict[tuple[torch.device, int], torch.Tensor] = {}
++# GLM53_SAMPLER_AUDIT=1 (off by default): the kernel writes a [batch, 4] float32 record per
++# row (flags, kept mass fraction, kept count, estimate - max) into LAST_AUDIT[0].
++TOPP_AUDIT = os.environ.get("GLM53_SAMPLER_AUDIT", "").strip() == "1"
++# Top-p search steps before an unfinished search hands the row to the exact
++# fallback (served: 18; GLM53_TOPP_SEARCH_ITERS overrides, 1..18).
++TOPP_ITERS = max(1, min(18, int(os.environ.get("GLM53_TOPP_SEARCH_ITERS", "18") or 18)))
++# GLM53_TOPP_FIX=0: the served behaviour (no fallback), flags still recorded for the audit.
++TOPP_FIX = os.environ.get("GLM53_TOPP_FIX", "1").strip() != "0"
++if TOPP_AUDIT:
++    print(f"GLM53_TOPP_FIX loaded audit=1 iters={TOPP_ITERS} fix={int(TOPP_FIX)}", flush=True)
++LAST_AUDIT: list[torch.Tensor | None] = [None]
+ 
+ # fmt: off
+ _NORMAL_CDF_TO_SIGMA_TABLE = [
+@@ -91,6 +110,276 @@ def _update_min_larger_stats(data, above_mask, min_larger, num_min_larger, senti
+     return min_larger, num_min_larger
+ 
+ 
++# --------------------------------------------------------------------------------------
++# Exact fallback (top-p fix, 2026-09-25). The passes above estimate the normaliser from
++# the first tile and search the cut with at most 18 bisection steps; a row where that
++# cannot be trusted (see `need_fb` in the kernel) is recomputed here in the logit domain,
++# normalised with the true maximum, with exact comparisons against real logit values.
++# --------------------------------------------------------------------------------------
++@triton.jit
++def _f32_key(x):
++    """Monotone int64 key of a float32 (float order == key order)."""
++    b = x.to(tl.int32, bitcast=True)
++    return tl.where(b >= 0, b, b ^ 0x7FFFFFFF).to(tl.int64)
++
++
++@triton.jit
++def _key_f32(key):
++    b = key.to(tl.int32)
++    return tl.where(b >= 0, b, b ^ 0x7FFFFFFF).to(tl.float32, bitcast=True)
++
++
++@triton.jit
++def _exact_pivot(lo, hi, floor_x):
++    """A float strictly inside (lo, hi): the value midpoint of [max(lo, floor_x), hi],
++    else the midpoint of the ordered keys; lo itself when lo and hi are adjacent."""
++    lv = tl.maximum(lo, floor_x)
++    t = lv + (hi - lv) * 0.5
++    klo = _f32_key(lo)
++    khi = _f32_key(hi)
++    tk = _key_f32(klo + (khi - klo) // 2)
++    return tl.where((t > lo) & (t < hi), t, tk)
++
++
++@triton.jit
++def _exact_topp_row(
++    LOGITS_ROW,
++    SCRATCH_ROW,
++    p,
++    m,
++    hint_lo,
++    hint_hi,
++    VOCAB_SIZE: tl.constexpr,
++    BLOCK_SIZE: tl.constexpr,
++    SCRATCH_SIZE: tl.constexpr,
++):
++    """Exact top-p cut of one row: returns (tau, n) such that keeping every logit > tau
++    and the first n tokens (vocab order) with logit == tau is the smallest prefix of the
++    (logit desc, index asc) order with mass >= p, the mass normalised with the true
++    maximum m. Bisection over (lo, hi] with mass(> lo) >= p * total > mass(> hi): full-row
++    passes until the bracket holds at most SCRATCH_SIZE tokens, which are then compacted
++    into SCRATCH_ROW and searched there. (hint_lo, hint_hi] is an optional bracket from
++    the served search; the first pass verifies it and compacts its tokens, and it is
++    used only when both bounds hold and it fits the scratch tile."""
++    NUM_TILES: tl.constexpr = (VOCAB_SIZE + BLOCK_SIZE - 1) // BLOCK_SIZE
++    floor_x = m - 88.0
++    lo = tl.full((), float("-inf"), tl.float32)
++    hi = m
++    a_hi = tl.zeros((), dtype=tl.float32)
++    total = tl.zeros((), dtype=tl.float32)
++    target = tl.zeros((), dtype=tl.float32)
++    tau = m
++    n = tl.full((), 1, tl.int32)
++    cand = tl.full((), VOCAB_SIZE, tl.int32)
++    nw = tl.zeros((), dtype=tl.int32)
++    stage = tl.zeros((), dtype=tl.int32)
++    first = tl.full((), 1, tl.int32)
++    iters = tl.zeros((), dtype=tl.int32)
++    m_hlo = tl.zeros((), dtype=tl.float32)
++    m_hhi = tl.zeros((), dtype=tl.float32)
++    c_h = tl.zeros((), dtype=tl.int32)
++    hint_taken = tl.zeros((), dtype=tl.int32)
++    hint_apply = tl.zeros((), dtype=tl.int32)
++    h_lo_ok = tl.zeros((), dtype=tl.int32)
++    h_hi_ok = tl.zeros((), dtype=tl.int32)
++    while stage < 2:
++        t = _exact_pivot(lo, hi, floor_x)
++        mass = tl.zeros((), dtype=tl.float32)
++        minl = tl.full((), float("inf"), tl.float32)
++        cm = tl.zeros((), dtype=tl.int32)
++        c_down = tl.zeros((), dtype=tl.int32)
++        c_up = tl.zeros((), dtype=tl.int32)
++        compact = tl.zeros((), dtype=tl.int32)
++        if stage == 0:
++            compact = (cand <= SCRATCH_SIZE).to(tl.int32)
++            nw = tl.zeros((), dtype=tl.int32)
++            acc = tl.zeros((), dtype=tl.float32)
++            for i in range(0, NUM_TILES):
++                offs = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
++                x = tl.load(
++                    LOGITS_ROW + offs, mask=offs < VOCAB_SIZE, other=-float("inf")
++                )
++                fin = x > -float("inf")
++                e = tl.where(fin, tl.exp(x - m), 0.0)
++                acc += tl.sum(e)
++                above = fin & (x > t)
++                mass += tl.sum(tl.where(above, e, 0.0))
++                xa = tl.where(above, x, float("inf"))
++                tmin = tl.min(xa)
++                tcnt = tl.sum((above & (xa == tmin)).to(tl.int32))
++                cm = tl.where(
++                    tmin < minl, tcnt, tl.where(tmin == minl, cm + tcnt, cm)
++                )
++                minl = tl.minimum(minl, tmin)
++                inb = fin & (x > lo) & (x <= hi)
++                c_down += tl.sum((inb & (x <= t)).to(tl.int32))
++                c_up += tl.sum((inb & (x > t)).to(tl.int32))
++                if compact == 1:
++                    pos = tl.cumsum(inb.to(tl.int32), 0) - 1 + nw
++                    tl.store(SCRATCH_ROW + pos, x, mask=inb & (pos < SCRATCH_SIZE))
++                    nw += tl.sum(inb.to(tl.int32))
++                if VOCAB_SIZE > SCRATCH_SIZE:
++                    if first == 1:
++                        m_hlo += tl.sum(tl.where(fin & (x > hint_lo), e, 0.0))
++                        m_hhi += tl.sum(tl.where(fin & (x > hint_hi), e, 0.0))
++                        hin = fin & (x > hint_lo) & (x <= hint_hi)
++                        pos_h = tl.cumsum(hin.to(tl.int32), 0) - 1 + c_h
++                        tl.store(
++                            SCRATCH_ROW + pos_h, x, mask=hin & (pos_h < SCRATCH_SIZE)
++                        )
++                        c_h += tl.sum(hin.to(tl.int32))
++            if first == 1:
++                total = acc
++                target = p * total
++                first = tl.zeros((), dtype=tl.int32)
++                h_lo_ok = ((m_hlo >= target) & (hint_lo > -float("inf"))).to(tl.int32)
++                h_hi_ok = ((m_hhi < target) & (hint_hi < float("inf"))).to(tl.int32)
++                if (h_lo_ok == 1) & (h_hi_ok == 1) & (c_h > 0) & (c_h <= SCRATCH_SIZE):
++                    lo = hint_lo
++                    hi = hint_hi
++                    a_hi = m_hhi
++                    nw = c_h
++                    hint_taken = tl.full((), 1, tl.int32)
++                elif (h_lo_ok | h_hi_ok) == 1:
++                    hint_apply = tl.full((), 1, tl.int32)
++        else:
++            o = tl.arange(0, SCRATCH_SIZE)
++            xs = tl.load(SCRATCH_ROW + o, mask=o < nw, other=-float("inf"))
++            ab_s = (xs > lo) & (xs <= hi) & (xs > t)
++            mass = a_hi + tl.sum(tl.where(ab_s, tl.exp(xs - m), 0.0))
++            xa_s = tl.where(ab_s, xs, float("inf"))
++            minl = tl.min(xa_s)
++            cm = tl.sum((ab_s & (xa_s == minl)).to(tl.int32))
++        e_min = tl.exp(minl - m)
++        rest = mass - e_min * cm.to(tl.float32)
++        iters += 1
++        exact = (mass >= target) & (rest < target)
++        if hint_taken == 1:
++            stage = tl.full((), 1, tl.int32)
++            hint_taken = tl.zeros((), dtype=tl.int32)
++            compact = tl.zeros((), dtype=tl.int32)
++        elif exact | (t == lo) | (iters >= 160):
++            tau = minl
++            need = (target - rest) / e_min
++            need = tl.where(need == need, tl.minimum(tl.maximum(need, 0.0), 2.0e9), 1.0)
++            nf = need.to(tl.int32)
++            n = nf + (nf.to(tl.float32) < need).to(tl.int32)
++            n = tl.maximum(1, tl.minimum(n, cm))
++            if not exact:
++                n = cm
++            stage = tl.full((), 2, tl.int32)
++        elif mass >= target:
++            lo = minl
++            cand = c_up - cm
++        else:
++            hi = t
++            a_hi = mass
++            cand = c_down
++        if (hint_apply == 1) & (stage == 0):
++            # a hint bound that holds but whose bracket is too wide for the scratch
++            # tile still narrows the full-row search
++            if (h_lo_ok == 1) & (hint_lo > lo):
++                lo = hint_lo
++                cand = tl.full((), VOCAB_SIZE, tl.int32)
++            if (h_hi_ok == 1) & (hint_hi < hi):
++                hi = hint_hi
++                a_hi = m_hhi
++                cand = tl.full((), VOCAB_SIZE, tl.int32)
++            if (lo == hint_lo) & (hi == hint_hi):
++                cand = c_h
++            compact = tl.zeros((), dtype=tl.int32)
++            hint_apply = tl.zeros((), dtype=tl.int32)
++        if (stage == 0) & (compact == 1):
++            stage = tl.full((), 1, tl.int32)
++    if tau > m:
++        tau = m
++        n = tl.full((), 1, tl.int32)
++    return tau, n
++
++
++@triton.jit
++def _exact_topk_row(
++    LOGITS_ROW,
++    k,
++    m,
++    min_x,
++    VOCAB_SIZE: tl.constexpr,
++    BLOCK_SIZE: tl.constexpr,
++):
++    """Exact top-k cut of one row (k < number of finite logits): (tau, n) with n =
++    k - count(logit > tau) tokens kept at tau in vocab order."""
++    NUM_TILES: tl.constexpr = (VOCAB_SIZE + BLOCK_SIZE - 1) // BLOCK_SIZE
++    lo = tl.full((), float("-inf"), tl.float32)
++    hi = m
++    tau = m
++    n = tl.full((), 1, tl.int32)
++    done = tl.zeros((), dtype=tl.int32)
++    iters = tl.zeros((), dtype=tl.int32)
++    while done == 0:
++        t = _exact_pivot(lo, hi, min_x)
++        cnt = tl.zeros((), dtype=tl.int32)
++        minl = tl.full((), float("inf"), tl.float32)
++        cm = tl.zeros((), dtype=tl.int32)
++        for i in range(0, NUM_TILES):
++            offs = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
++            x = tl.load(LOGITS_ROW + offs, mask=offs < VOCAB_SIZE, other=-float("inf"))
++            above = (x > -float("inf")) & (x > t)
++            cnt += tl.sum(above.to(tl.int32))
++            xa = tl.where(above, x, float("inf"))
++            tmin = tl.min(xa)
++            tcnt = tl.sum((above & (xa == tmin)).to(tl.int32))
++            cm = tl.where(tmin < minl, tcnt, tl.where(tmin == minl, cm + tcnt, cm))
++            minl = tl.minimum(minl, tmin)
++        iters += 1
++        if ((cnt >= k) & (cnt - cm < k)) | (t == lo) | (iters >= 160):
++            tau = minl
++            n = tl.maximum(1, tl.minimum(k - (cnt - cm), cm))
++            done = tl.full((), 1, tl.int32)
++        elif cnt >= k:
++            lo = minl
++        else:
++            hi = t
++    if tau > m:
++        tau = m
++        n = tl.full((), 1, tl.int32)
++    return tau, n
++
++
++@triton.jit
++def _exact_mask_row(
++    LOGITS_ROW,
++    tau,
++    n,
++    m,
++    MASK_VALUE: tl.constexpr,
++    VOCAB_SIZE: tl.constexpr,
++    BLOCK_SIZE: tl.constexpr,
++    AUDIT: tl.constexpr,
++):
++    """Keeps every logit > tau and the first n (vocab order) equal to tau; the rest
++    becomes MASK_VALUE. Returns (kept exp-mass, total exp-mass, kept count) for AUDIT."""
++    NUM_TILES: tl.constexpr = (VOCAB_SIZE + BLOCK_SIZE - 1) // BLOCK_SIZE
++    rank = tl.zeros((), dtype=tl.int32)
++    kept_e = tl.zeros((), dtype=tl.float32)
++    all_e = tl.zeros((), dtype=tl.float32)
++    n_kept = tl.zeros((), dtype=tl.int32)
++    for i in range(0, NUM_TILES):
++        offs = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
++        msk = offs < VOCAB_SIZE
++        x = tl.load(LOGITS_ROW + offs, mask=msk, other=-float("inf"))
++        eq = msk & (x == tau)
++        r = tl.cumsum(eq.to(tl.int32), 0) + rank
++        keep = msk & ((x > tau) | (eq & (r <= n)))
++        rank += tl.sum(eq.to(tl.int32))
++        tl.store(LOGITS_ROW + offs, tl.where(keep, x, MASK_VALUE), mask=msk)
++        if AUDIT:
++            e = tl.where(msk & (x > -float("inf")), tl.exp(x - m), 0.0)
++            kept_e += tl.sum(tl.where(keep, e, 0.0))
++            all_e += tl.sum(e)
++            n_kept += tl.sum(keep.to(tl.int32))
++    return kept_e, all_e, n_kept
++
++
+ @triton.jit
+ def _topk_topp_kernel(
+     LOGITS,
+@@ -101,12 +390,18 @@ def _topk_topp_kernel(
+     K,
+     P,
+     BATCH_SIZE,
++    SCRATCH,
++    AUDIT_PTR,
+     VOCAB_SIZE: tl.constexpr,
+     MASK_VALUE: tl.constexpr,
+     BLOCK_SIZE: tl.constexpr,
+     BLOCK_SIZE_TRUNC: tl.constexpr,
+     TOPK_ENABLED: tl.constexpr,
+     TOPP_ENABLED: tl.constexpr,
++    SCRATCH_SIZE: tl.constexpr,
++    AUDIT: tl.constexpr,
++    TOPP_ITERS: tl.constexpr,
++    FIX: tl.constexpr,
+ ):
+     NUM_TILES: tl.constexpr = (VOCAB_SIZE + BLOCK_SIZE - 1) // BLOCK_SIZE
+     pid = tl.program_id(0)
+@@ -124,6 +419,27 @@ def _topk_topp_kernel(
+         max_logit = -float("inf")
+         min_logit = float("inf")
+ 
++        # Top-p fix (2026-09-25): exit status of the served passes. A row whose cut they
++        # cannot guarantee (need_fb) is recomputed by the exact fallback before the sixth
++        # pass. flags (GLM53_SAMPLER_AUDIT record): 1 estimated normaliser out of range,
++        # 2 its sum of exponentials 0/inf/NaN (the served NaN cutoff), 4 top-p search left
++        # by the iteration/width limit, 8 cutoff NaN or not below the maximum (served: no
++        # masking), 16 cutoff inside a tie group (reconstructed duplicate logit), 32 exact
++        # fallback ran, 64 top-k search left by the iteration/width limit; bits 8..15
++        # the top-p search's step count. FIX 0 (GLM53_TOPP_FIX=0) records the flags only.
++        need_fb = tl.zeros((), dtype=tl.int32)
++        flags = tl.zeros((), dtype=tl.int32)
++        topk_active = tl.zeros((), dtype=tl.int32)
++        p_applied = tl.zeros((), dtype=tl.int32)
++        k_exact = tl.zeros((), dtype=tl.int32)
++        p_exact = tl.zeros((), dtype=tl.int32)
++        est_gap = tl.full((), float("inf"), tl.float32)
++        fb_lo = tl.full((), float("-inf"), tl.float32)
++        fb_hi = tl.full((), float("inf"), tl.float32)
++        kept_e = tl.zeros((), dtype=tl.float32)
++        all_e = tl.zeros((), dtype=tl.float32)
++        n_kept = tl.zeros((), dtype=tl.int32) - 1
++
+         if TOPK_ENABLED:
+             k = tl.load(K + row_id)
+             if k < VOCAB_SIZE:
+@@ -186,6 +502,7 @@ def _topk_topp_kernel(
+                 # If no finite logits exist (all -inf), clamp min to
+                 # max so the search converges to -inf (no masking).
+                 min_logit = tl.minimum(min_logit, max_logit)
++                topk_active = (num_finite_total > k).to(tl.int32)
+ 
+                 # Second passes: Ternary search for pivot
+                 num_iters = 0
+@@ -256,6 +573,7 @@ def _topk_topp_kernel(
+                             min_larger = min_larger_0
+                             num_min_larger = num_min_larger_0
+                             found_pivot = 1
++                            k_exact = tl.full((), 1, tl.int32)
+                         if (
+                             k_pivots_num_1 >= k
+                             and k_pivots_num_1 - num_min_larger_1 < k
+@@ -265,6 +583,7 @@ def _topk_topp_kernel(
+                             min_larger = min_larger_1
+                             num_min_larger = num_min_larger_1
+                             found_pivot = 1
++                            k_exact = tl.full((), 1, tl.int32)
+ 
+                         # Update range
+                         if k_pivots_num_1 > k:
+@@ -283,6 +602,7 @@ def _topk_topp_kernel(
+                             min_larger = min_larger_0
+                             num_min_larger = num_min_larger_0
+                             found_pivot = 1
++                            k_exact = tl.zeros((), dtype=tl.int32)
+                 else:
+                     # If top-k outlier gathering failed, search whole logit space
+                     max_range = max_logit
+@@ -338,6 +658,7 @@ def _topk_topp_kernel(
+                             min_larger = min_larger_0
+                             num_min_larger = num_min_larger_0
+                             found_pivot = 1
++                            k_exact = tl.full((), 1, tl.int32)
+                         if (
+                             k_pivots_num_1 >= k
+                             and k_pivots_num_1 - num_min_larger_1 < k
+@@ -347,6 +668,7 @@ def _topk_topp_kernel(
+                             min_larger = min_larger_1
+                             num_min_larger = num_min_larger_1
+                             found_pivot = 1
++                            k_exact = tl.full((), 1, tl.int32)
+ 
+                         # Update range
+                         if k_pivots_num_1 > k:
+@@ -365,6 +687,7 @@ def _topk_topp_kernel(
+                             min_larger = min_larger_0
+                             num_min_larger = num_min_larger_0
+                             found_pivot = 1
++                            k_exact = tl.zeros((), dtype=tl.int32)
+ 
+                 duplicate_logit = min_larger
+                 num_duplicate_logit = num_min_larger
+@@ -374,11 +697,15 @@ def _topk_topp_kernel(
+                 # Top-k only path.  If there are fewer finite values
+                 # than k (e.g. grammar mask), keep everything.
+                 final_pivot = k_pivot if num_finite_total > k else -float("inf")
++                if (topk_active == 1) & (k_exact == 0):
++                    need_fb = tl.full((), FIX, tl.int32)
++                    flags = flags | 64
+ 
+                 if TOPP_ENABLED and num_finite_total > k:
+                     #### TOP-P SAMPLING AFTER TOP-K ####
+                     p = tl.load(P + row_id)
+                     if p < 1.0:
++                        p_applied = tl.full((), 1, tl.int32)
+                         min_logit = k_pivot
+                         sum_exp_logits = 0.0
+                         num_outliers_2 = tl.zeros((), dtype=tl.uint32)
+@@ -565,6 +892,7 @@ def _topk_topp_kernel(
+                                 num_min_larger = num_min_larger_0
+                                 p_pivots_sum = p_pivots_sum_0
+                                 found_pivot = 1
++                                p_exact = tl.full((), 1, tl.int32)
+ 
+                             # Update range
+                             if p_pivots_sum_0 > p:
+@@ -573,12 +901,13 @@ def _topk_topp_kernel(
+                                 max_range = p_pivot_0
+ 
+                             num_iters += 1
+-                            if (max_range - min_range) < 1e-9 or num_iters >= 18:
++                            if (max_range - min_range) < 1e-9 or num_iters >= TOPP_ITERS:
+                                 p_pivot = (max_range + min_range) / 2.0
+                                 min_larger_prob = min_larger_0
+                                 num_min_larger = num_min_larger_0
+                                 p_pivots_sum = p_pivots_sum_0
+                                 found_pivot = 1
++                                p_exact = tl.zeros((), dtype=tl.int32)
+ 
+                         duplicate_logit = (
+                             tl.log(min_larger_prob * sum_exp_logits) + max_logit
+@@ -591,11 +920,27 @@ def _topk_topp_kernel(
+ 
+                         # Top-k + Top-p path
+                         final_pivot = tl.log(p_pivot * sum_exp_logits) + max_logit
++                        flags = flags | (tl.minimum(num_iters, 255) << 8)
++                        if p_exact == 0:
++                            need_fb = tl.full((), FIX, tl.int32)
++                            flags = flags | 4
++                        if num_keep < num_duplicate_logit:
++                            need_fb = tl.full((), FIX, tl.int32)
++                            flags = flags | 16
++                        if need_fb == 1:
++                            # the search bracket as a hint for the fallback (verified there)
++                            fb_lo = tl.log(min_range * sum_exp_logits) + max_logit
++                            fb_hi = tl.log(max_range * sum_exp_logits) + max_logit
++                            fb_lo = fb_lo - (tl.abs(fb_lo) + 1.0) * 1e-5
++                            fb_hi = fb_hi + (tl.abs(fb_hi) + 1.0) * 1e-5
++                            fb_lo = tl.where(fb_lo == fb_lo, fb_lo, -float("inf"))
++                            fb_hi = tl.where(fb_hi == fb_hi, fb_hi, float("inf"))
+ 
+         if TOPP_ENABLED and final_pivot == -float("inf"):
+             #### STANDALONE TOP-P SAMPLING ####
+             p = tl.load(P + row_id)
+             if p < 1.0:
++                p_applied = tl.full((), 1, tl.int32)
+                 # Zeroth pass: Compute avg and std from a sample block
+                 offs = tl.arange(0, BLOCK_SIZE)
+                 mask_n = offs < VOCAB_SIZE
+@@ -644,111 +989,36 @@ def _topk_topp_kernel(
+                 # max so the search converges to -inf (no masking).
+                 min_logit = tl.minimum(min_logit, max_logit)
+ 
+-                idx = tl.cast(p * 200, tl.int32)
+-                idx = tl.maximum(0, tl.minimum(idx, 199))
+-                sigma = tl.load(NORMAL_CDF_TO_SIGMA_TABLE + idx)
+-                sigma = sigma + tl.abs(sigma) * -0.25
+-                outlier_pivot = avg_logit + std_logit * sigma
+-
+-                outlier_prob = tl.exp(outlier_pivot - max_sample) / sum_exp_logits
+-                sum_outlier_probs = 0.0
+-                num_outliers = tl.zeros((), dtype=tl.uint32)
+-
+-                # Second pass: Calculate softmax and gather outliers
+-                for i in range(0, NUM_TILES):
+-                    offs_n = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+-                    mask_n = offs_n < VOCAB_SIZE
+-
+-                    probs_blk = tl.load(
+-                        LOGITS_ROW + offs_n, mask=mask_n, other=-float("inf")
+-                    )
+-                    probs_blk = tl.exp(probs_blk - max_sample)
+-                    probs_blk = probs_blk / sum_exp_logits
+-
+-                    outlier_mask = (probs_blk > outlier_prob) & mask_n
+-                    sum_outlier_probs += tl.sum(outlier_mask * probs_blk)
+-                    cumulative_pos = tl.cast(
+-                        tl.cumsum(outlier_mask) - 1 + num_outliers, tl.int32
+-                    )
+-                    num_outliers += tl.sum(outlier_mask)
+-                    write_pos = tl.where(outlier_mask, cumulative_pos, -1)
+-                    tl.store(BUFFER_ROW + write_pos, probs_blk, mask=outlier_mask)
+-
+-                max_range = tl.exp(max_logit - max_sample) / sum_exp_logits
+-                min_range = tl.exp(min_logit - max_sample) / sum_exp_logits
+-
+-                p_pivot = 1.0
+-                num_iters = 0
+-                min_larger_prob = 1.0
+-                num_min_larger = tl.zeros((), dtype=tl.uint32)
+-                p_pivots_sum = 0.0
+-
+-                # Third pass: Search for p_pivot
+-                if sum_outlier_probs > p:
+-                    min_range = outlier_prob
+-                    search_range = tl.cast(num_outliers, tl.int32)
+-                    search_iters = tl.cast(
+-                        (num_outliers + BLOCK_SIZE_TRUNC - 1) // BLOCK_SIZE_TRUNC,
+-                        tl.int32,
+-                    )
+-
+-                    found_pivot = 0
+-                    while found_pivot == 0:
+-                        p_pivot_0 = (max_range - min_range) * 0.5 + min_range
+-                        p_pivots_sum_0 = 0.0
+-                        min_larger_0 = 1.0
+-                        num_min_larger_0 = tl.zeros((), dtype=tl.uint32)
+-
+-                        # Single fused pass: compute p_pivots_sum,
+-                        # min_larger, and num_min_larger together.
+-                        # See _update_min_larger_stats for the
+-                        # tile-level merge logic.
+-                        for i in range(0, search_iters):
+-                            offs_n = i * BLOCK_SIZE_TRUNC + tl.arange(
+-                                0, BLOCK_SIZE_TRUNC
+-                            )
+-                            mask_n_2 = offs_n < search_range
+-                            probs_blk = tl.load(
+-                                BUFFER_ROW + offs_n, mask=mask_n_2, other=0.0
+-                            )
+-
+-                            above_0 = probs_blk > p_pivot_0
+-                            p_pivots_sum_0 += tl.sum(probs_blk * above_0)
+-
+-                            min_larger_0, num_min_larger_0 = _update_min_larger_stats(
+-                                probs_blk,
+-                                above_0,
+-                                min_larger_0,
+-                                num_min_larger_0,
+-                                1.0,
+-                            )
+-
+-                        # Check if the pivot satisfies termination condition
+-                        if (
+-                            p_pivots_sum_0 >= p
+-                            and p_pivots_sum_0 - (min_larger_0 * num_min_larger_0) < p
++                # Top-p fix: the normaliser above is exp(x - estimate), estimate = mean + 10 std
++                # of the first tile. Far from the true maximum the sum underflows to 0 or
++                # overflows (NaN cutoff: no filtering) or flushes the tail: fallback instead.
++                est_gap = max_sample - max_logit
++                if not (
++                    (sum_exp_logits > 0.0)
++                    & (sum_exp_logits < float("inf"))
++                    & (est_gap <= 60.0)
++                    & (est_gap >= -60.0)
++                ):
++                    if (max_logit > -float("inf")) & (max_logit < float("inf")):
++                        need_fb = tl.full((), FIX, tl.int32)
++                        flags = flags | 1
++                        if not (
++                            (sum_exp_logits > 0.0) & (sum_exp_logits < float("inf"))
+                         ):
+-                            p_pivot = p_pivot_0
+-                            min_larger_prob = min_larger_0
+-                            num_min_larger = num_min_larger_0
+-                            p_pivots_sum = p_pivots_sum_0
+-                            found_pivot = 1
++                            flags = flags | 2
++                if need_fb == 0:
+ 
+-                        # Update range
+-                        if p_pivots_sum_0 > p:
+-                            min_range = p_pivot_0
+-                        elif p_pivots_sum_0 < p:
+-                            max_range = p_pivot_0
++                    idx = tl.cast(p * 200, tl.int32)
++                    idx = tl.maximum(0, tl.minimum(idx, 199))
++                    sigma = tl.load(NORMAL_CDF_TO_SIGMA_TABLE + idx)
++                    sigma = sigma + tl.abs(sigma) * -0.25
++                    outlier_pivot = avg_logit + std_logit * sigma
+ 
+-                        num_iters += 1
+-                        if (max_range - min_range) < 1e-9 or num_iters >= 18:
+-                            p_pivot = (max_range + min_range) / 2.0
+-                            min_larger_prob = min_larger_0
+-                            num_min_larger = num_min_larger_0
+-                            p_pivots_sum = p_pivots_sum_0
+-                            found_pivot = 1
+-                else:
+-                    # Re-populate the buffer with full softmax probabilities
++                    outlier_prob = tl.exp(outlier_pivot - max_sample) / sum_exp_logits
++                    sum_outlier_probs = 0.0
++                    num_outliers = tl.zeros((), dtype=tl.uint32)
++
++                    # Second pass: Calculate softmax and gather outliers
+                     for i in range(0, NUM_TILES):
+                         offs_n = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+                         mask_n = offs_n < VOCAB_SIZE
+@@ -758,72 +1028,239 @@ def _topk_topp_kernel(
+                         )
+                         probs_blk = tl.exp(probs_blk - max_sample)
+                         probs_blk = probs_blk / sum_exp_logits
+-                        tl.store(BUFFER_ROW + offs_n, probs_blk, mask=mask_n)
+ 
+-                    found_pivot = 0
+-                    while found_pivot == 0:
+-                        p_pivot_0 = (max_range - min_range) * 0.5 + min_range
+-                        p_pivots_sum_0 = 0.0
+-                        min_larger_0 = 1.0
+-                        num_min_larger_0 = tl.zeros((), dtype=tl.uint32)
++                        outlier_mask = (probs_blk > outlier_prob) & mask_n
++                        sum_outlier_probs += tl.sum(outlier_mask * probs_blk)
++                        cumulative_pos = tl.cast(
++                            tl.cumsum(outlier_mask) - 1 + num_outliers, tl.int32
++                        )
++                        num_outliers += tl.sum(outlier_mask)
++                        write_pos = tl.where(outlier_mask, cumulative_pos, -1)
++                        tl.store(BUFFER_ROW + write_pos, probs_blk, mask=outlier_mask)
++
++                    max_range = tl.exp(max_logit - max_sample) / sum_exp_logits
++                    min_range = tl.exp(min_logit - max_sample) / sum_exp_logits
++
++                    p_pivot = 1.0
++                    num_iters = 0
++                    min_larger_prob = 1.0
++                    num_min_larger = tl.zeros((), dtype=tl.uint32)
++                    p_pivots_sum = 0.0
++
++                    # Third pass: Search for p_pivot
++                    if sum_outlier_probs > p:
++                        min_range = outlier_prob
++                        search_range = tl.cast(num_outliers, tl.int32)
++                        search_iters = tl.cast(
++                            (num_outliers + BLOCK_SIZE_TRUNC - 1) // BLOCK_SIZE_TRUNC,
++                            tl.int32,
++                        )
+ 
+-                        # Single fused pass: compute p_pivots_sum,
+-                        # min_larger, and num_min_larger together.
+-                        # See _update_min_larger_stats for the
+-                        # tile-level merge logic.
++                        found_pivot = 0
++                        while found_pivot == 0:
++                            p_pivot_0 = (max_range - min_range) * 0.5 + min_range
++                            p_pivots_sum_0 = 0.0
++                            min_larger_0 = 1.0
++                            num_min_larger_0 = tl.zeros((), dtype=tl.uint32)
++
++                            # Single fused pass: compute p_pivots_sum,
++                            # min_larger, and num_min_larger together.
++                            # See _update_min_larger_stats for the
++                            # tile-level merge logic.
++                            for i in range(0, search_iters):
++                                offs_n = i * BLOCK_SIZE_TRUNC + tl.arange(
++                                    0, BLOCK_SIZE_TRUNC
++                                )
++                                mask_n_2 = offs_n < search_range
++                                probs_blk = tl.load(
++                                    BUFFER_ROW + offs_n, mask=mask_n_2, other=0.0
++                                )
++
++                                above_0 = probs_blk > p_pivot_0
++                                p_pivots_sum_0 += tl.sum(probs_blk * above_0)
++
++                                min_larger_0, num_min_larger_0 = _update_min_larger_stats(
++                                    probs_blk,
++                                    above_0,
++                                    min_larger_0,
++                                    num_min_larger_0,
++                                    1.0,
++                                )
++
++                            # Check if the pivot satisfies termination condition
++                            if (
++                                p_pivots_sum_0 >= p
++                                and p_pivots_sum_0 - (min_larger_0 * num_min_larger_0) < p
++                            ):
++                                p_pivot = p_pivot_0
++                                min_larger_prob = min_larger_0
++                                num_min_larger = num_min_larger_0
++                                p_pivots_sum = p_pivots_sum_0
++                                found_pivot = 1
++                                p_exact = tl.full((), 1, tl.int32)
++
++                            # Update range
++                            if p_pivots_sum_0 > p:
++                                min_range = p_pivot_0
++                            elif p_pivots_sum_0 < p:
++                                max_range = p_pivot_0
++
++                            num_iters += 1
++                            if (max_range - min_range) < 1e-9 or num_iters >= TOPP_ITERS:
++                                p_pivot = (max_range + min_range) / 2.0
++                                min_larger_prob = min_larger_0
++                                num_min_larger = num_min_larger_0
++                                p_pivots_sum = p_pivots_sum_0
++                                found_pivot = 1
++                                p_exact = tl.zeros((), dtype=tl.int32)
++                    else:
++                        # Re-populate the buffer with full softmax probabilities
+                         for i in range(0, NUM_TILES):
+                             offs_n = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+                             mask_n = offs_n < VOCAB_SIZE
++
+                             probs_blk = tl.load(
+-                                BUFFER_ROW + offs_n, mask=mask_n, other=0.0
++                                LOGITS_ROW + offs_n, mask=mask_n, other=-float("inf")
+                             )
++                            probs_blk = tl.exp(probs_blk - max_sample)
++                            probs_blk = probs_blk / sum_exp_logits
++                            tl.store(BUFFER_ROW + offs_n, probs_blk, mask=mask_n)
+ 
+-                            above_0 = probs_blk > p_pivot_0
+-                            p_pivots_sum_0 += tl.sum(probs_blk * above_0)
++                        found_pivot = 0
++                        while found_pivot == 0:
++                            p_pivot_0 = (max_range - min_range) * 0.5 + min_range
++                            p_pivots_sum_0 = 0.0
++                            min_larger_0 = 1.0
++                            num_min_larger_0 = tl.zeros((), dtype=tl.uint32)
+ 
+-                            min_larger_0, num_min_larger_0 = _update_min_larger_stats(
+-                                probs_blk,
+-                                above_0,
+-                                min_larger_0,
+-                                num_min_larger_0,
+-                                1.0,
+-                            )
++                            # Single fused pass: compute p_pivots_sum,
++                            # min_larger, and num_min_larger together.
++                            # See _update_min_larger_stats for the
++                            # tile-level merge logic.
++                            for i in range(0, NUM_TILES):
++                                offs_n = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
++                                mask_n = offs_n < VOCAB_SIZE
++                                probs_blk = tl.load(
++                                    BUFFER_ROW + offs_n, mask=mask_n, other=0.0
++                                )
+ 
+-                        # Check if the pivot satisfies termination condition
+-                        if (
+-                            p_pivots_sum_0 >= p
+-                            and p_pivots_sum_0 - (min_larger_0 * num_min_larger_0) < p
+-                        ):
+-                            p_pivot = p_pivot_0
+-                            min_larger_prob = min_larger_0
+-                            num_min_larger = num_min_larger_0
+-                            p_pivots_sum = p_pivots_sum_0
+-                            found_pivot = 1
++                                above_0 = probs_blk > p_pivot_0
++                                p_pivots_sum_0 += tl.sum(probs_blk * above_0)
+ 
+-                        # Update range
+-                        if p_pivots_sum_0 > p:
+-                            min_range = p_pivot_0
+-                        elif p_pivots_sum_0 < p:
+-                            max_range = p_pivot_0
++                                min_larger_0, num_min_larger_0 = _update_min_larger_stats(
++                                    probs_blk,
++                                    above_0,
++                                    min_larger_0,
++                                    num_min_larger_0,
++                                    1.0,
++                                )
+ 
+-                        num_iters += 1
+-                        if (max_range - min_range) < 1e-9 or num_iters >= 18:
+-                            p_pivot = (max_range + min_range) / 2.0
+-                            min_larger_prob = min_larger_0
+-                            num_min_larger = num_min_larger_0
+-                            p_pivots_sum = p_pivots_sum_0
+-                            found_pivot = 1
++                            # Check if the pivot satisfies termination condition
++                            if (
++                                p_pivots_sum_0 >= p
++                                and p_pivots_sum_0 - (min_larger_0 * num_min_larger_0) < p
++                            ):
++                                p_pivot = p_pivot_0
++                                min_larger_prob = min_larger_0
++                                num_min_larger = num_min_larger_0
++                                p_pivots_sum = p_pivots_sum_0
++                                found_pivot = 1
++                                p_exact = tl.full((), 1, tl.int32)
+ 
+-                duplicate_logit = tl.log(min_larger_prob * sum_exp_logits) + max_sample
+-                num_duplicate_logit = num_min_larger
+-                num_keep = num_duplicate_logit - tl.cast(
+-                    (p_pivots_sum - p) / min_larger_prob, tl.uint32
+-                )
+-                num_kept = tl.zeros((), dtype=tl.uint32)
++                            # Update range
++                            if p_pivots_sum_0 > p:
++                                min_range = p_pivot_0
++                            elif p_pivots_sum_0 < p:
++                                max_range = p_pivot_0
+ 
+-                # Top-p only path
+-                final_pivot = tl.log(p_pivot * sum_exp_logits) + max_sample
++                            num_iters += 1
++                            if (max_range - min_range) < 1e-9 or num_iters >= TOPP_ITERS:
++                                p_pivot = (max_range + min_range) / 2.0
++                                min_larger_prob = min_larger_0
++                                num_min_larger = num_min_larger_0
++                                p_pivots_sum = p_pivots_sum_0
++                                found_pivot = 1
++                                p_exact = tl.zeros((), dtype=tl.int32)
+ 
++                    duplicate_logit = tl.log(min_larger_prob * sum_exp_logits) + max_sample
++                    num_duplicate_logit = num_min_larger
++                    num_keep = num_duplicate_logit - tl.cast(
++                        (p_pivots_sum - p) / min_larger_prob, tl.uint32
++                    )
++                    num_kept = tl.zeros((), dtype=tl.uint32)
++
++                    # Top-p only path
++                    final_pivot = tl.log(p_pivot * sum_exp_logits) + max_sample
++                    flags = flags | (tl.minimum(num_iters, 255) << 8)
++                    if p_exact == 0:
++                        need_fb = tl.full((), FIX, tl.int32)
++                        flags = flags | 4
++                    if num_keep < num_duplicate_logit:
++                        need_fb = tl.full((), FIX, tl.int32)
++                        flags = flags | 16
++                    if need_fb == 1:
++                        # the search bracket as a hint for the fallback (verified there)
++                        fb_lo = tl.log(min_range * sum_exp_logits) + max_sample
++                        fb_hi = tl.log(max_range * sum_exp_logits) + max_sample
++                        fb_lo = fb_lo - (tl.abs(fb_lo) + 1.0) * 1e-5
++                        fb_hi = fb_hi + (tl.abs(fb_hi) + 1.0) * 1e-5
++                        fb_lo = tl.where(fb_lo == fb_lo, fb_lo, -float("inf"))
++                        fb_hi = tl.where(fb_hi == fb_hi, fb_hi, float("inf"))
++
++
++        # Top-p fix: the served sixth pass skips masking when the cutoff is NaN or not
++        # below the maximum; where a filter was meant to apply that row is recomputed too.
++        if ((topk_active | p_applied) == 1) & (need_fb == 0):
++            if (max_logit > -float("inf")) & (max_logit < float("inf")):
++                if not (final_pivot < max_logit):
++                    need_fb = tl.full((), FIX, tl.int32)
++                    flags = flags | 8
++                elif final_pivot == -float("inf"):
++                    need_fb = tl.full((), FIX, tl.int32)
++                    flags = flags | 8
++        if need_fb == 1:
++            if (max_logit > -float("inf")) & (max_logit < float("inf")):
++                flags = flags | 32
++                if TOPK_ENABLED:
++                    if topk_active == 1:
++                        tau_k, n_k = _exact_topk_row(
++                            LOGITS_ROW, k, max_logit, min_logit, VOCAB_SIZE, BLOCK_SIZE
++                        )
++                        kept_e, all_e, n_kept = _exact_mask_row(
++                            LOGITS_ROW,
++                            tau_k,
++                            n_k,
++                            max_logit,
++                            MASK_VALUE,
++                            VOCAB_SIZE,
++                            BLOCK_SIZE,
++                            AUDIT,
++                        )
++                if TOPP_ENABLED:
++                    p_fb = tl.load(P + row_id)
++                    if p_fb < 1.0:
++                        tau_p, n_p = _exact_topp_row(
++                            LOGITS_ROW,
++                            SCRATCH + pid * SCRATCH_SIZE,
++                            p_fb,
++                            max_logit,
++                            fb_lo,
++                            fb_hi,
++                            VOCAB_SIZE,
++                            BLOCK_SIZE,
++                            SCRATCH_SIZE,
++                        )
++                        kept_e, all_e, n_kept = _exact_mask_row(
++                            LOGITS_ROW,
++                            tau_p,
++                            n_p,
++                            max_logit,
++                            MASK_VALUE,
++                            VOCAB_SIZE,
++                            BLOCK_SIZE,
++                            AUDIT,
++                        )
++                final_pivot = -float("inf")
+         # Sixth pass: Apply mask and store final output.
+         # If the pivot >= max logit (or is NaN), no token would
+         # survive the strict `>` keep_mask.  Skip masking.
+@@ -831,6 +1268,7 @@ def _topk_topp_kernel(
+         if not (final_pivot < max_logit):
+             final_pivot = -float("inf")
+         elif final_pivot != -float("inf"):
++            n_kept = tl.zeros((), dtype=tl.int32)
+             for i in range(0, NUM_TILES):
+                 offs_n = i * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+                 mask_n = offs_n < VOCAB_SIZE
+@@ -849,9 +1287,26 @@ def _topk_topp_kernel(
+                     duplicate_remove_mask = duplicate_mask & ~duplicate_keep_mask
+                     num_kept += tl.sum(duplicate_keep_mask)
+                     keep_mask = keep_mask & (~duplicate_remove_mask)
++                if AUDIT:
++                    e_a = tl.where(
++                        mask_n & (logits_blk > -float("inf")),
++                        tl.exp(logits_blk - max_logit),
++                        0.0,
++                    )
++                    kept_e += tl.sum(tl.where(keep_mask, e_a, 0.0))
++                    all_e += tl.sum(e_a)
++                    n_kept += tl.sum(keep_mask.to(tl.int32))
+ 
+                 logits_blk = tl.where(keep_mask, logits_blk, MASK_VALUE)
+                 tl.store(LOGITS_ROW + offs_n, logits_blk, mask=mask_n)
++        if AUDIT:
++            tl.store(AUDIT_PTR + row_id * 4, flags.to(tl.float32))
++            tl.store(
++                AUDIT_PTR + row_id * 4 + 1,
++                tl.where(all_e > 0.0, kept_e / all_e, 1.0),
++            )
++            tl.store(AUDIT_PTR + row_id * 4 + 2, n_kept.to(tl.float32))
++            tl.store(AUDIT_PTR + row_id * 4 + 3, est_gap)
+ 
+ 
+ def apply_top_k_top_p_triton(
+@@ -946,6 +1401,17 @@ def apply_top_k_top_p_triton(
+         # faster on every arch measured (SM90, SM100, SM120, gfx950); 16 is not.
+         launch_kwargs["num_warps"] = 8
+ 
++    # One BLOCK_SIZE_TRUNC scratch tile per program for the exact fallback.
++    scratch_key = (logits.device, block_size_trunc)
++    scratch = _TRITON_SCRATCH_CACHE.get(scratch_key)
++    if scratch is None or scratch.shape[0] < NUM_PROGRAMS:
++        rows = min(next_power_of_2(NUM_PROGRAMS), num_sm)
++        scratch = torch.empty(
++            (rows, block_size_trunc), dtype=torch.float32, device=logits.device
++        )
++        _TRITON_SCRATCH_CACHE[scratch_key] = scratch
++    audit = logits.new_empty((batch_size, 4)) if TOPP_AUDIT else scratch
++
+     _topk_topp_kernel[(NUM_PROGRAMS,)](
+         logits,
+         logits.stride(0),
+@@ -955,19 +1421,28 @@ def apply_top_k_top_p_triton(
+         k_ptr,
+         p_ptr,
+         BATCH_SIZE=batch_size,
++        SCRATCH=scratch,
++        AUDIT_PTR=audit,
+         MASK_VALUE=mask_value,
+         VOCAB_SIZE=vocab_size,
+         BLOCK_SIZE=block_size,
+         BLOCK_SIZE_TRUNC=block_size_trunc,
+         TOPK_ENABLED=topk_enabled,
+         TOPP_ENABLED=topp_enabled,
++        SCRATCH_SIZE=block_size_trunc,
++        AUDIT=TOPP_AUDIT,
++        TOPP_ITERS=TOPP_ITERS,
++        FIX=int(TOPP_FIX),
+         **launch_kwargs,
+     )
++    if TOPP_AUDIT:
++        LAST_AUDIT[0] = audit
+ 
+     return logits
+ 
+ 
+ def reset_buffer_cache():
+     _TRITON_BUFFER_CACHE.clear()
++    _TRITON_SCRATCH_CACHE.clear()
+     _TRITON_TABLE_CACHE.clear()
+     torch.accelerator.empty_cache()

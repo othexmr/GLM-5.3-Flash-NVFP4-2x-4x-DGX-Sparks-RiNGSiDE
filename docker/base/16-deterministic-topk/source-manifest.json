@@ -1,0 +1,14 @@
+{
+  "scope": "Exact stage-15 callsite to deterministic prefill/decode selection; same score threshold, deterministic lower-index tie break and ascending support.",
+  "files": {
+    "vllm/model_executor/layers/sparse_attn_indexer_kpool.py": {
+      "before": "dcc6ee328105710056e7187197abd648e170fcae92f250ae22779dc2d02e8ef2",
+      "after": "6bafcd75ba4ab75b91278fc73669e012e99cda5bd33071258d11e02c1edc98fb"
+    },
+    "deterministic_sparse_topk.py": {
+      "before": null,
+      "after": "05465edb40173003004eaeaeb00c2763e9f6a9d721c9d6daec9f1e1c99feb7d3"
+    }
+  },
+  "patch_sha256": "87ca8999875e8a1b3dee2c802ece30a718577718d086df0a5ca41ae442f0305c"
+}

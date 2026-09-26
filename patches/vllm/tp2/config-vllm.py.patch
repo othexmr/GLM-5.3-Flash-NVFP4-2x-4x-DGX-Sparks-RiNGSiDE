@@ -1,0 +1,33 @@
+RiNGSiDE overlay patch, profile tp2
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/config/vllm.py
+Preimage:    sha256 3b2032e46fe6839bbbf64a48d32dc6d3f97a0b6e20b40aa4a550c3096ca4ed08
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    recorded as the image file (3b2032e4) by the lab RecoverSSM work; equals the v0.29.0 port source tree
+Postimage:   sha256 3351141f82067c9ed37b274bc954c8a6d982d0869a1cc43d799e630842c9932d (the file the tp2 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/config/vllm.py b/vllm/config/vllm.py
+index 89aa74728447c819f2f270c4503160131dee2053..3ef437d8fb7483f24d76e59036308a65f473f4fd 100644
+--- a/vllm/config/vllm.py
++++ b/vllm/config/vllm.py
+@@ -1,5 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): RecoverSSM is also accepted for the GLM-5.3 (Glm5Next)
++# architectures.
+ 
+ import copy
+ import getpass
+@@ -2865,6 +2867,10 @@ class VllmConfig:
+             if self.model_config is not None and self.model_config.architecture not in (
+                 "KimiLinearForCausalLM",
+                 "KimiK3ForConditionalGeneration",
++                # 2026-09-23: GLM-5.3-Flash's KDA layers (glm5next kda.py) use Kimi-K3's RecoverSSM kernels
++                # and metadata builder.
++                "Glm5NextForCausalLM",
++                "Glm5NextForConditionalGeneration",
+             ):
+                 raise ValueError("RecoverSSM is only supported for Kimi-K3 KDA")
+             if self.mamba_config.enable_stochastic_rounding:

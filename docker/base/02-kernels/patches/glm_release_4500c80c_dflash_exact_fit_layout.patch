@@ -1,0 +1,121 @@
+--- a/vllm/v1/core/kv_cache_utils.py
++++ b/vllm/v1/core/kv_cache_utils.py
+@@ -1338,6 +1338,7 @@
+         int,
+         list[str],
+         int,
++        KVCacheGroupSpec | None,
+     ]
+     | None
+ ):
+@@ -1352,12 +1353,18 @@
+     ]
+     attn_group: KVCacheGroupSpec | None = None
+     tail_group: KVCacheGroupSpec | None = None
++    drafter_group: KVCacheGroupSpec | None = None
+     for group in uniform_groups:
+         inner = cast(UniformTypeKVCacheSpecs, group.kv_cache_spec).kv_cache_specs
+         if all(type(spec) is MLAAttentionSpec for spec in inner.values()):
+             attn_group = group
+         elif all(isinstance(spec, KpoolTailSpec) for spec in inner.values()):
+             tail_group = group
++        elif inner and all(type(spec) is SlidingWindowSpec for spec in inner.values()):
++            if drafter_group is not None:
++                # The layout places one drafter group.
++                return None
++            drafter_group = group
+     if attn_group is None or not mamba_groups:
+         return None
+     if len(uniform_groups) + len(mamba_groups) != len(kv_cache_groups):
+@@ -1402,6 +1409,26 @@
+         if tail_page > idx_page:
+             return None
+ 
++    # A drafter group joins the layout only as exact-fit, unpadded pages of one MLA
++    # page each, at most one layer per MLA slot, with the window the layout was
++    # qualified for (the served DFlash2 drafter's 2048 tokens). Anything else
++    # sends all three consumers to the generic computation.
++    if drafter_group is not None:
++        if len(drafter_group.layer_names) > len(mla_names):
++            return None
++        drafter_inner = cast(
++            UniformTypeKVCacheSpecs, drafter_group.kv_cache_spec
++        ).kv_cache_specs
++        for spec in drafter_inner.values():
++            window_spec = cast(SlidingWindowSpec, spec)
++            if (
++                window_spec.page_size_padded is not None
++                or window_spec.page_size_bytes != mla_page
++                or window_spec.block_size % 64
++                or window_spec.sliding_window != 2048
++            ):
++                return None
++
+     return (
+         attn_group,
+         mamba_groups,
+@@ -1411,6 +1438,7 @@
+         idx_page,
+         tail_names,
+         tail_page,
++        drafter_group,
+     )
+ 
+ 
+@@ -1642,7 +1670,8 @@
+ ) -> int:
+     """Return the largest cache group's bytes per block."""
+     if (glm5_layout := _glm5_next_tensor_layout(kv_cache_groups)) is not None:
+-        _, _, mla_names, idx_names, mla_page, idx_page, _, _ = glm5_layout
++        # A drafter group lives in MLA slots and adds no bytes per block.
++        _, _, mla_names, idx_names, mla_page, idx_page, _, _, _ = glm5_layout
+         return len(mla_names) * mla_page + len(idx_names) * idx_page
+ 
+     bytes_per_block = max(
+@@ -1728,8 +1757,16 @@
+             idx_page,
+             tail_names,
+             _,
++            drafter_group,
+         ) = glm5_layout
+         bytes_per_block = len(mla_names) * mla_page + len(idx_names) * idx_page
++        drafter_names: list[str] = []
++        drafter_specs: dict[str, KVCacheSpec] = {}
++        if drafter_group is not None:
++            drafter_names = list(drafter_group.layer_names)
++            drafter_specs = cast(
++                UniformTypeKVCacheSpecs, drafter_group.kv_cache_spec
++            ).kv_cache_specs
+         num_blocks = may_override_num_blocks(
+             vllm_config, available_memory // bytes_per_block
+         )
+@@ -1757,6 +1794,9 @@
+             for group in mamba_groups:
+                 if index < len(group.layer_names):
+                     add_tensor(group.layer_names[index], group.kv_cache_spec, offset)
++            if index < len(drafter_names):
++                drafter_name = drafter_names[index]
++                add_tensor(drafter_name, drafter_specs[drafter_name], offset)
+ 
+         idx_base = len(mla_names) * mla_page * num_blocks
+         for index, idx_name in enumerate(idx_names):
+@@ -2427,6 +2467,7 @@
+             idx_page,
+             tail_names,
+             _,
++            drafter_group,
+         ) = glm5_layout
+         uniform_spec = cast(UniformTypeKVCacheSpecs, attn_group.kv_cache_spec)
+         total_blocks = uniform_spec.max_memory_usage_pages(vllm_config)
+@@ -2439,6 +2480,11 @@
+         )
+         if tail_names:
+             total_blocks += 1
++        if drafter_group is not None:
++            # Window-bounded: the sliding-window admission cap, in pool blocks.
++            total_blocks += cast(
++                UniformTypeKVCacheSpecs, drafter_group.kv_cache_spec
++            ).max_memory_usage_pages(vllm_config)
+         return total_blocks * (len(mla_names) * mla_page + len(idx_names) * idx_page)
+ 
+     bytes_per_block = _pool_bytes_per_block(kv_cache_groups)

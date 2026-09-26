@@ -1,0 +1,14 @@
+{
+  "status": "Truncated tool calls are delivered as valid JSON and the parser reports truncation; streaming and non-streaming agree. Serving-side finish_reason/status wiring is a separate change.",
+  "patch_sha256": "11e9185d0bbd1e350225f48b971ddf6d15a52de059da430e61f999c037bdc6aa",
+  "files": {
+    "vllm/parser/engine/parser_engine.py": {
+      "before": "ef42fb624d7a3fe0fada2c6235b0bea7de54136dcc3289e28ae2e3bfa6649e64",
+      "after": "f984fbe64b10fe66a0e02438e225ce1e50cc6687c2f85e04ce9864bcc3997a99"
+    },
+    "vllm/parser/engine/streaming_parser_engine.py": {
+      "before": "497fffefd9da3accd0c4b2097949265952f233f3dad92b08cad9b93db0be8223",
+      "after": "6608446acf9906154a8624e646c0313e6317e6565f0b746b5d9c76702a06b60f"
+    }
+  }
+}

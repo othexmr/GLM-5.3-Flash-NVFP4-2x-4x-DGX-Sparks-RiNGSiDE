@@ -1,0 +1,418 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/b12x/moe/_shared/kernels/dynamic.py
+Preimage:    sha256 2ebe82bd221aacf915b4d2cc0b50e52dc77c7b7b73aea720ad17941a85d1a060
+             image file: b12x (local-inference-lab/b12x) as installed in the base image
+Upstream:    image-baked lab change (deterministic output, atomic prefill, decode fast path) on b12x 1.3.0, whose file equals local-inference-lab/b12x@3a437ab5
+Evidence:    pinned as the image file by the lab tile-major work (runtime image 017fd0ba)
+Postimage:   sha256 48986ac2f49593fe64f05ef12eac3c20d14483d4d1971f25dc1b9ba921783c84 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (b12x file)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/b12x/moe/_shared/kernels/dynamic.py b/b12x/moe/_shared/kernels/dynamic.py
+index 539c828e3cec97e3f724e9bd521e42e18c9d9319..d44d5d8d051e277ebeb96234cbe671e41d1e4cd9 100644
+--- a/b12x/moe/_shared/kernels/dynamic.py
++++ b/b12x/moe/_shared/kernels/dynamic.py
+@@ -1,3 +1,6 @@
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): GLM-5.3 NVFP4 decode fast path (B12X_GLM53_DECODE_FASTPATH),
++# tile-major expert weights, an 8-MMA-warp M128 tile (B12X_GLM53_M128_MMA_WARPS) and an FC2 L2 prefetch
++# (B12X_GLM53_PREFILL_PREFETCH).
+ """
+ MoEDynamicKernel — fused routed low-precision MoE kernel for SM120.
+ 
+@@ -39,6 +42,7 @@ route histogram and task queue while consuming the same prepared weights.
+ 
+ from __future__ import annotations
+ 
++import os
+ from typing import Tuple
+ 
+ import cuda.bindings.driver as cuda
+@@ -141,6 +145,58 @@ from b12x.moe._shared.kernels.w4a8_phase2 import (
+ 
+ 
+ _SF_VEC_SIZE = 16
++# GLM-5.3 lab (2026-09-23): MMA warps of the W4A4 NVFP4 gated M128 tile. 4 keeps the (2,2,1) atom (default,
++# unchanged). 8 selects the (4,2,1) atom: each warp owns 32x64 instead of 64x64 of every accumulator, i.e. half the
++# accumulator registers, and every SM sub-partition runs two MMA warps. The N atom stays 2 warps wide: the generic
++# SFB copy cannot be retiled for a 4-warp N atom (leaf 2: (2,4,1) fails to compile at the SFB retile, as this file's
++# W4A8 comment warns). (4,2,1) is the atom of the proven M64 tile. Read once at import.
++_GLM53_W4A4_M128_MMA_WARPS = int(os.environ.get("B12X_GLM53_M128_MMA_WARPS", "4"))
++if _GLM53_W4A4_M128_MMA_WARPS not in (4, 8):
++    raise ValueError("B12X_GLM53_M128_MMA_WARPS must be 4 or 8")
++_GLM53_M128_LOGGED = False
++
++
++def _glm53_log_m128_warps() -> None:
++    """Serving engagement marker: printed once per process when an 8-warp M128 W4A4 kernel is built."""
++    global _GLM53_M128_LOGGED
++    if not _GLM53_M128_LOGGED:
++        import sys
++        print("GLM53_B12X_M128_MMA_WARPS=8 atom=(4,2,1) W4A4 kernel built", file=sys.stderr, flush=True)
++        _GLM53_M128_LOGGED = True
++
++# GLM-5.3 lab (2026-09-24, moe-prefill-kernel): compile-time knob of the W4A4 NVFP4 prefill path. Read once at
++# import; the backend copies it at construction, and _impl.py appends a non-default value to the dynamic kernel's
++# compile key (memory and disk caches). The default leaves every build and every key byte-identical.
++#   B12X_GLM53_PREFILL_PREFETCH=d (1, 2 or 4): during FC2 of the 8-MMA-warp tiles, every MMA thread issues one
++#     `prefetch.global.L2` per output tile for the 128-byte line it will reduce into d tiles later (tile_m rows x
++#     two lines of the 256-byte row piece; the first d tiles are prefetched right after FC1). With routes that spread a
++#     token's experts in time, output rows have left L2 before each visit, so today every first reduction of a piece
++#     waits for a DRAM fill inside the L2 while the issuing MMA warps stall on the reduction queue. The prefetch moves
++#     that fill ahead of the reduction. Values are untouched (prefetch has no architectural effect).
++#     A trailing "a" (e.g. "2a") restricts the prefetch to the atomic accumulation (pure prefill); the deterministic
++#     path (mixed batches) is then built exactly as without the knob.
++_GLM53_PREFILL_PREFETCH = os.environ.get("B12X_GLM53_PREFILL_PREFETCH", "")
++if _GLM53_PREFILL_PREFETCH not in ("", "1", "2", "4", "1a", "2a", "4a"):
++    raise ValueError("B12X_GLM53_PREFILL_PREFETCH must be empty, 1, 2, 4, 1a, 2a or 4a")
++_GLM53_PREFILL_LOGGED: set = set()
++
++
++def _glm53_log_prefill_knobs(tile_m: int, knobs: tuple) -> None:
++    """Serving engagement marker: printed once per process and (tile, knobs) when a knob-enabled prefill kernel is
++    built."""
++    if knobs and (tile_m, knobs) not in _GLM53_PREFILL_LOGGED:
++        import sys
++        print(f"GLM53_B12X_PREFILL_KNOBS tile_m={tile_m} {' '.join(f'{k}={v}' for k, v in knobs)} kernel built",
++              file=sys.stderr, flush=True)
++        _GLM53_PREFILL_LOGGED.add((tile_m, knobs))
++
++
++def _glm53_prefill_key() -> tuple:
++    """The non-default prefill knobs, as compile-key items (empty for the default build)."""
++    out = []
++    if _GLM53_PREFILL_PREFETCH:
++        out.append(("glm53_prefill_prefetch", _GLM53_PREFILL_PREFETCH))
++    return tuple(out)
+ _TASK_SLICE_CHUNK = 1
+ _WORK_ITEM_FIELDS = 5
+ _WORK_EXPERT = 0
+@@ -554,6 +610,20 @@ def _ld_shared_i32(addr, *, loc=None, ip=None):
+     )
+ 
+ 
++@dsl_user_op
++def _glm53_prefetch_l2(addr, *, loc=None, ip=None):
++    """GLM-5.3 prefill: prefetch the global line holding addr into L2 (no architectural effect)."""
++    llvm.inline_asm(
++        None,
++        [Int64(addr).ir_value(loc=loc, ip=ip)],
++        "prefetch.global.L2 [$0];",
++        "l",
++        has_side_effects=True,
++        is_align_stack=False,
++        asm_dialect=llvm.AsmDialect.AD_ATT,
++    )
++
++
+ @dsl_user_op
+ def _ld_global_u64(addr, *, loc=None, ip=None):
+     return Uint64(
+@@ -836,6 +906,15 @@ class MoEDynamicKernelBackend:
+             raise ValueError("trellis_coupled requires quant_recipe='w4a8_trellis'")
+         self.trellis_coupled = bool(trellis_coupled)
+         self.trellis_direct_lut = bool(trellis_direct_lut) and self.w4a8_trellis
++        # TP4 tile-major weight layout: off until configure_tile_major_b().
++        self.tile_major_b = False
++        self.tm_n = 0
++        self.tm_k = 0
++        self.tm_k_tiles = 0
++        self.tm_gate_tiles = 0
++        self.tm_out_tiles = 0
++        self.tm_w13_rows = 0
++        self.tm_w2_rows = 0
+         self.w4a8_repacked = bool(w4a8_repacked)
+         self.direct_routing = bool(direct_routing)
+         self.materialize_intermediate = bool(materialize_intermediate)
+@@ -1005,6 +1084,15 @@ class MoEDynamicKernelBackend:
+                 # warps retain enough registers to avoid local-memory spills.
+                 self.atom_shape = (2, 4, 1)
+                 self.num_mma_warps = 8
++            elif (
++                _GLM53_W4A4_M128_MMA_WARPS == 8
++                and quant_recipe == "nvfp4"
++                and self.is_gated
++                and not self.swap_ab
++            ):
++                self.atom_shape = (4, 2, 1)
++                self.num_mma_warps = 8
++                _glm53_log_m128_warps()
+             else:
+                 self.atom_shape = (2, 2, 1)
+                 self.num_mma_warps = 4
+@@ -1030,6 +1118,25 @@ class MoEDynamicKernelBackend:
+         else:  # 64
+             self.atom_shape = (4, 2, 1)
+             self.num_mma_warps = 8
++        # GLM-5.3 prefill knob (see _GLM53_PREFILL_PREFETCH): plain NVFP4 only.
++        _glm53_plain_nvfp4 = quant_recipe == "nvfp4" and not self.is_w4a8 and not self.is_w6a8
++        self.glm53_prefetch = (
++            int(_GLM53_PREFILL_PREFETCH.rstrip("a"))
++            if (
++                _GLM53_PREFILL_PREFETCH
++                and not (_GLM53_PREFILL_PREFETCH.endswith("a") and bool(deterministic_output))
++                and _glm53_plain_nvfp4
++                and self.num_mma_warps == 8
++                and mma_tiler_mn[0] in (64, 128)
++                and mma_tiler_mn[1] == 128
++                and not bool(swap_ab)
++            )
++            else 0
++        )
++        _glm53_log_prefill_knobs(
++            int(mma_tiler_mn[0]),
++            (("prefetch", str(self.glm53_prefetch)),) if self.glm53_prefetch else (),
++        )
+         self.tma_load_warp_id = self.num_mma_warps
+         self.num_threads_per_warp = 32
+         # Give W4A8 two producer streams, with buffer epochs split by parity,
+@@ -1156,6 +1263,46 @@ class MoEDynamicKernelBackend:
+         ) // self.threads_per_cta
+         self.fastpath_k_splits = k_splits
+ 
++    def configure_tile_major_b(self, *, intermediate_size: int, hidden_size: int) -> None:
++        """Enable the TP4 tile-major FC1/FC2 weight operands (default off).
++
++        The operands arrive as [tiles*128, 128, E] FP4 views whose every
++        (128-row, 128-element) TMA box is one contiguous 8 KB range, ordered
++        per intermediate slice as gate k-tiles, up k-tiles, then FC2 output
++        tiles -- the order the producer warp issues them.  Shared-memory
++        contents, scale operands, MMA and epilogue are unchanged.
++        """
++        if (
++            self.quant_recipe != "nvfp4"
++            or self.is_w4a8
++            or self.is_w6a8
++            or self.w4a8_repacked
++            or self.materialize_intermediate
++            or self.direct_routing
++            or self.swap_ab
++            or self.work_source != _WORK_SOURCE_MATERIALIZED_QUEUE
++        ):
++            raise ValueError(
++                "tile-major weights require the plain grouped NVFP4 dynamic kernel "
++                "on the materialized work queue"
++            )
++        n = int(intermediate_size)
++        k = int(hidden_size)
++        if self.tile_shape_mnk[1] != 128 or self.tile_shape_mnk[2] != 128:
++            raise ValueError("tile-major weights require 128x128 FP4 weight boxes")
++        if not self.is_gated:
++            raise ValueError("tile-major weights require the gated FC1")
++        if n % 128 != 0 or k % 128 != 0 or k % 256 != 0:
++            raise ValueError("tile-major weights require n % 128 == 0 and k % 256 == 0")
++        self.tile_major_b = True
++        self.tm_n = n
++        self.tm_k = k
++        self.tm_k_tiles = k // 128
++        self.tm_gate_tiles = n // 128
++        self.tm_out_tiles = k // 128
++        self.tm_w13_rows = 2 * n * k // 128
++        self.tm_w2_rows = k * n // 128
++
+     def _thrfrg_SFA(self, sfa_tensor, tiled_mma):
+         return self._dense_cls._thrfrg_SFA(self, sfa_tensor, tiled_mma)
+ 
+@@ -2267,6 +2414,11 @@ class MoEDynamicKernelBackend:
+             )
+         else:
+             b_w13_sf_shape = b_w13.shape
++        if cutlass.const_expr(self.tile_major_b):
++            assert self.tm_n > 0, "configure_tile_major_b() must precede the launch"
++            assert b_w13.shape[0] == self.tm_w13_rows
++            assert b_w13.shape[1] == 128
++            b_w13_sf_shape = (2 * self.tm_n, self.tm_k, b_w13.shape[2])
+         sfb_w13_layout = blockscaled_utils.tile_atom_to_shape_SF(
+             b_w13_sf_shape, self.sf_vec_size
+         )
+@@ -2320,6 +2472,11 @@ class MoEDynamicKernelBackend:
+             )
+         else:
+             b_down_sf_shape = b_down.shape
++        if cutlass.const_expr(self.tile_major_b):
++            assert b_down.shape[0] == self.tm_w2_rows
++            assert b_down.shape[1] == 128
++            assert b_down.shape[2] == b_w13.shape[2]
++            b_down_sf_shape = (self.tm_k, self.tm_n, b_down.shape[2])
+         sfb_down_layout = blockscaled_utils.tile_atom_to_shape_SF(
+             b_down_sf_shape, self.sf_vec_size
+         )
+@@ -2368,6 +2525,8 @@ class MoEDynamicKernelBackend:
+             gate_tile_cnt = (n_int + Int32(self.tile_shape_mnk[1]) - Int32(1)) // Int32(
+                 self.tile_shape_mnk[1]
+             )
++        if cutlass.const_expr(self.tile_major_b):
++            gate_tile_cnt = Int32(self.tm_gate_tiles)
+         launch_params = DynamicLaunchParams(row_counts, gate_tile_cnt)
+         if cutlass.const_expr(self.is_w4a8):
+             assert sfb_w13_mx is not None and sfb_down_mx is not None, (
+@@ -4514,6 +4673,12 @@ class MoEDynamicKernelBackend:
+         if self.is_gated:
+             gate_tile_cnt = intermediate_tile_cnt // Int32(2)
+         output_tile_cnt = cute.size(gB_down, mode=[2])
++        if cutlass.const_expr(self.tile_major_b):
++            # Tile-major operands are [tiles*128, 128, E]: the tiled K extent
++            # is one box, so the logical counts come from the configuration.
++            intermediate_tile_cnt = 2 * self.tm_gate_tiles
++            gate_tile_cnt = intermediate_tile_cnt // Int32(2)
++            output_tile_cnt = self.tm_out_tiles
+         phase1_output_tile_cnt = output_tile_cnt
+         if cutlass.const_expr(self.materialize_intermediate):
+             # Phase A stops after activation quantization.  Phase B below owns
+@@ -6955,6 +7120,24 @@ class MoEDynamicKernelBackend:
+                                                 tCrB[None, _nt, k_block_idx],
+                                                 up_acc[None, _mt, _nt],
+                                             )
++                        if cutlass.const_expr(self.glm53_prefetch > 0):
++                            # GLM-5.3 scatter prefetch: thread t owns row t >> 1 and 128-byte line t & 1 of every
++                            # output tile's 256-byte row piece. Warm the first d tiles before the activation.
++                            pf_row = Int32(tidx) >> Int32(1)
++                            pf_tok = Int32(-1)
++                            if pf_row < valid_rows:
++                                pf_tok = ld_shared_i32_relaxed(
++                                    scatter_tok_base_addr + pf_row * Int32(4)
++                                )
++                            pf_row_addr = scatter_base + Int64(pf_tok) * Int64(
++                                scatter_output.shape[1] * 2
++                            ) + Int64((Int32(tidx) & Int32(1)) * Int32(128))
++                            if pf_tok >= Int32(0):
++                                for _pf_t in cutlass.range_constexpr(self.glm53_prefetch):
++                                    _glm53_prefetch_l2(
++                                        pf_row_addr
++                                        + Int64(_pf_t * self.tile_shape_mnk[1] * 2)
++                                    )
+                         # Activation + quant into sA
+                         sA_u8 = cute.recast_tensor(sA[None, None, 0], cutlass.Uint8)
+                         if cutlass.const_expr(self.is_w6a8):
+@@ -7380,6 +7563,19 @@ class MoEDynamicKernelBackend:
+                         self.w4a8_fc2_compute_width,
+                         unroll=4,
+                     ):
++                        if cutlass.const_expr(self.glm53_prefetch > 0):
++                            # GLM-5.3 scatter prefetch: the line this thread reduces into d tiles later.
++                            if pf_tok >= Int32(0):
++                                if output_tile_idx + Int32(self.glm53_prefetch) < Int32(
++                                    phase1_output_tile_cnt
++                                ):
++                                    _glm53_prefetch_l2(
++                                        pf_row_addr
++                                        + Int64(
++                                            (output_tile_idx + Int32(self.glm53_prefetch))
++                                            * Int32(self.tile_shape_mnk[1] * 2)
++                                        )
++                                    )
+                         if cutlass.const_expr(not self.is_w4a8):
+                             phase2_peek = phase2_pipeline.consumer_try_wait(
+                                 phase2_cons_state
+@@ -9012,12 +9208,22 @@ class MoEDynamicKernelBackend:
+                             tAsSFA[(None, prod_state.index)],
+                             tma_bar_ptr=ml_pipeline.producer_get_barrier(prod_state),
+                         )
+-                        cute.copy(
+-                            tma_b_w13,
+-                            tBgB_w13_gate_nk[(None, k_tile)],
+-                            tBsB_w13[(None, prod_state.index)],
+-                            tma_bar_ptr=ml_pipeline.producer_get_barrier(prod_state),
+-                        )
++                        if cutlass.const_expr(self.tile_major_b):
++                            cute.copy(
++                                tma_b_w13,
++                                tBgB_w13[(None, intermediate_slice * Int32(2 * self.tm_k_tiles) + k_tile, None, task_expert_idx)][
++                                    (None, Int32(0))
++                                ],
++                                tBsB_w13[(None, prod_state.index)],
++                                tma_bar_ptr=ml_pipeline.producer_get_barrier(prod_state),
++                            )
++                        else:
++                            cute.copy(
++                                tma_b_w13,
++                                tBgB_w13_gate_nk[(None, k_tile)],
++                                tBsB_w13[(None, prod_state.index)],
++                                tma_bar_ptr=ml_pipeline.producer_get_barrier(prod_state),
++                            )
+                         cute.copy(
+                             tma_sfb_w13,
+                             tBgSFB_w13_gate_nk[(None, k_tile)],
+@@ -9080,14 +9286,26 @@ class MoEDynamicKernelBackend:
+                                     up_prod_state
+                                 ),
+                             )
+-                            cute.copy(
+-                                tma_b_w13,
+-                                tBgB_w13_up_nk[(None, k_tile)],
+-                                tBsB_w13_up[(None, up_prod_state.index)],
+-                                tma_bar_ptr=up_pipeline.producer_get_barrier(
+-                                    up_prod_state
+-                                ),
+-                            )
++                            if cutlass.const_expr(self.tile_major_b):
++                                cute.copy(
++                                    tma_b_w13,
++                                    tBgB_w13[(None, intermediate_slice * Int32(2 * self.tm_k_tiles) + Int32(self.tm_k_tiles) + k_tile, None, task_expert_idx)][
++                                        (None, Int32(0))
++                                    ],
++                                    tBsB_w13_up[(None, up_prod_state.index)],
++                                    tma_bar_ptr=up_pipeline.producer_get_barrier(
++                                        up_prod_state
++                                    ),
++                                )
++                            else:
++                                cute.copy(
++                                    tma_b_w13,
++                                    tBgB_w13_up_nk[(None, k_tile)],
++                                    tBsB_w13_up[(None, up_prod_state.index)],
++                                    tma_bar_ptr=up_pipeline.producer_get_barrier(
++                                        up_prod_state
++                                    ),
++                                )
+                             cute.copy(
+                                 tma_sfa,
+                                 tAgSFA_mk[(None, k_tile)],
+@@ -9122,21 +9340,33 @@ class MoEDynamicKernelBackend:
+                         unroll=4,
+                     ):
+                         phase2_pipeline.producer_acquire(phase2_prod_state)
+-                        cute.copy(
+-                            tma_b_down,
+-                            tBgB_down[
+-                                (
+-                                    None,
+-                                    output_tile_idx,
+-                                    intermediate_slice,
+-                                    task_expert_idx,
+-                                )
+-                            ],
+-                            tBsB_down[(None, phase2_prod_state.index)],
+-                            tma_bar_ptr=phase2_pipeline.producer_get_barrier(
+-                                phase2_prod_state
+-                            ),
+-                        )
++                        if cutlass.const_expr(self.tile_major_b):
++                            cute.copy(
++                                tma_b_down,
++                                tBgB_down[
++                                    (None, intermediate_slice * Int32(self.tm_out_tiles) + output_tile_idx, None, task_expert_idx)
++                                ][(None, Int32(0))],
++                                tBsB_down[(None, phase2_prod_state.index)],
++                                tma_bar_ptr=phase2_pipeline.producer_get_barrier(
++                                    phase2_prod_state
++                                ),
++                            )
++                        else:
++                            cute.copy(
++                                tma_b_down,
++                                tBgB_down[
++                                    (
++                                        None,
++                                        output_tile_idx,
++                                        intermediate_slice,
++                                        task_expert_idx,
++                                    )
++                                ],
++                                tBsB_down[(None, phase2_prod_state.index)],
++                                tma_bar_ptr=phase2_pipeline.producer_get_barrier(
++                                    phase2_prod_state
++                                ),
++                            )
+                         cute.copy(
+                             tma_sfb_down,
+                             tBgSFB_down[

@@ -1,0 +1,31 @@
+--- a/vllm/entrypoints/openai/responses/utils.py
++++ b/vllm/entrypoints/openai/responses/utils.py
+@@ -181,17 +181,26 @@
+         # The current request's instructions (if any) were already added above.
+         messages.extend(m for m in prev_msg if m.get("role") != "system")
+     if prev_response_output is not None:
+-        # Add the previous output.
++        # Build this turn separately so tool merging cannot mutate prior turns.
++        output_messages: list[ChatCompletionMessageParam] = []
+         for output_item in prev_response_output:
+             # NOTE: We skip the reasoning output.
+             if isinstance(output_item, ResponseOutputMessage):
+                 for content in output_item.content:
+-                    messages.append(
++                    output_messages.append(
+                         {
+                             "role": "assistant",
+                             "content": content.text,
+                         }
+                     )
++            elif isinstance(output_item, ResponseFunctionToolCall):
++                message = _construct_message_from_response_item(
++                    output_item,
++                    prev_msg=output_messages[-1] if output_messages else None,
++                )
++                if message is not None:
++                    output_messages.append(message)
++        messages.extend(output_messages)
+ 
+     # Append the new input.
+     # Responses API supports simple text inputs without chat format.

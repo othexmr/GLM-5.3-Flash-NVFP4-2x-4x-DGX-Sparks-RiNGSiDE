@@ -1,0 +1,92 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/backend.py
+Preimage:    sha256 8bb063484493ab998278e0f19883c0263b67dc8e299f4cad86402e5685f403a0
+             image file: glm53_sparse_mla plugin (Libertai/vllm-sparse-mla-blackwell) as installed in the base image (atomic-prefill backend stage)
+Upstream:    image-baked lab change (atomic-prefill and NoPE backend stages) on Libertai/vllm-sparse-mla-blackwell@b1f20638
+Evidence:    sha256 read inside the image by the lab mixed-batch work preflight
+Postimage:   sha256 d88307d733afd7979ea892c266f4118dfb66a628e53a60c2950b45400df509f6 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/glm53_sparse_mla/backend.py b/glm53_sparse_mla/backend.py
+index 77405ecbb5fb8f6e1c20f1e388a35dab3852925b..b55612d14b3c2420270b5c94416069fe1a2f7d84 100644
+--- a/glm53_sparse_mla/backend.py
++++ b/glm53_sparse_mla/backend.py
+@@ -1,4 +1,6 @@
+ # SPDX-License-Identifier: Apache-2.0
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): scheduler-phase markers for the MoE atomic-prefill and mixed-batch
++# split policies, a request-id buffer sized for CUDA-graph capture, and the full KPool tail kept in the top-k indices.
+ """vLLM attention backend for NoPE sparse MLA on sm_120 / sm_121.
+ 
+ Fills the gap that stops GLM-5.3-Flash from running under vLLM on GB10: the
+@@ -203,6 +205,58 @@ class Glm53SparseMLAMetadata(AttentionMetadata):
+     # Actual scheduler phase; independent of the all-MQA attention convention.
+     glm53_moe_all_prefill: bool = False
+ 
++    # Mixed-step MoE row split (B12X_GLM53_MIXED_SPLIT=1, moe-mixed-batch 2026-09-24): > 0 is the token count of the
++    # leading non-prefilling (decode / spec-verify) requests of a batch laid out exactly as those requests followed
++    # by prefilling requests; -1 marks any other batch that mixes both phases; 0 a single-phase batch or the knob off.
++    glm53_moe_decode_prefix_tokens: int = 0
++
++
++_GLM53_MIXED_SPLIT = (
++    os.environ.get("B12X_GLM53_MIXED_SPLIT", "0") == "1"
++    and os.environ.get("B12X_GLM53_ATOMIC_PREFILL", "0") == "1"
++)
++
++
++def _glm53_prefix_split(prefilling: list, starts: list, num_actual_tokens: int) -> int:
++    """Pure-Python core of the mixed-step marker: prefilling[i] is request i's CPU scheduler phase, starts its
++    query_start_loc (n + 1 entries). Returns the token count of the leading non-prefilling requests when the batch
++    is exactly [non-prefilling requests][prefilling requests], both groups non-empty, every request carrying tokens
++    and the starts covering num_actual_tokens; -1 for any other batch mixing both phases; 0 for one phase."""
++    n = len(prefilling)
++    if n == 0 or len(starts) != n + 1:
++        return 0
++    decodes = sum(1 for p in prefilling if not p)
++    if decodes == 0 or decodes == n:
++        return 0
++    if any(prefilling[:decodes]):
++        return -1
++    if any(b <= a for a, b in zip(starts, starts[1:])) or starts[n] - starts[0] != num_actual_tokens:
++        return -1
++    return starts[decodes] - starts[0]
++
++
++def _glm53_decode_prefix_tokens(common: CommonAttentionMetadata) -> int:
++    """The mixed-step marker from CPU scheduler state only (is_prefilling, query_start_loc_cpu); absent or
++    device-resident inputs give 0, and the batch keeps its baseline MoE plan."""
++    flags = common.is_prefilling
++    starts = common.query_start_loc_cpu
++    n = common.num_reqs
++    if not (
++        flags is not None
++        and flags.device.type == "cpu"
++        and flags.dtype == torch.bool
++        and flags.ndim == 1
++        and 1 < n <= flags.numel()
++        and starts is not None
++        and starts.device.type == "cpu"
++        and starts.ndim == 1
++        and starts.numel() > n
++    ):
++        return 0
++    return _glm53_prefix_split(
++        flags[:n].tolist(), starts[: n + 1].tolist(), int(common.num_actual_tokens)
++    )
++
+ 
+ def _glm53_all_requests_prefilling(common: CommonAttentionMetadata) -> bool:
+     """Read CPU scheduler phase only; absent/device metadata stays deterministic."""
+@@ -296,6 +350,11 @@ class Glm53SparseMLAMetadataBuilder(
+                 os.environ.get("B12X_GLM53_ATOMIC_PREFILL", "0") == "1"
+                 and _glm53_all_requests_prefilling(common_attn_metadata)
+             ),
++            glm53_moe_decode_prefix_tokens=(
++                _glm53_decode_prefix_tokens(common_attn_metadata)
++                if _GLM53_MIXED_SPLIT
++                else 0
++            ),
+         )
+ 
+ 

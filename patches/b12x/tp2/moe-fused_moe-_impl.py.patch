@@ -1,0 +1,407 @@
+RiNGSiDE overlay patch, profile tp2
+Target:      /usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_impl.py
+Preimage:    sha256 6984ff84435121222490e776022365158bdee1ee1ed5bbf0a61007424fda24ee
+             image file: b12x (local-inference-lab/b12x) as installed in the base image
+Upstream:    image-baked lab change (deterministic output, atomic prefill, decode fast path) on b12x 1.3.0, whose file equals local-inference-lab/b12x@3a437ab5
+Evidence:    pinned as the image file by the lab tile-major work (runtime image 017fd0ba)
+Postimage:   sha256 5d1f2b027e2c916dca63ad3c80ac4ff44a429153e82cbaa38a0bc2bf1a9bbe68 (the file the tp2 profile serves)
+Licence:     Apache-2.0 (b12x file)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/b12x/moe/fused_moe/_impl.py b/b12x/moe/fused_moe/_impl.py
+index e3da4beea379baef0a4e7b8346d13a231ceed277..cd7fb0684d423c712279a3538ed78977bf8f9e30 100644
+--- a/b12x/moe/fused_moe/_impl.py
++++ b/b12x/moe/fused_moe/_impl.py
+@@ -1,3 +1,6 @@
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): GLM-5.3 NVFP4 decode fast path selection
++# (B12X_GLM53_DECODE_FASTPATH), tile-major expert weights (B12X_TP2_TILE_MAJOR_WEIGHTS, B12X_TP4_TILE_MAJOR_WEIGHTS) and
++# TP2/TP4 cluster maps.
+ """Tensor-parallel MoE entrypoints backed by fused CuTe DSL kernels."""
+ 
+ from __future__ import annotations
+@@ -1168,6 +1171,8 @@ class _WeightViews:
+     sfb_down_mx: torch.Tensor | None = None
+     w13_residual: torch.Tensor | None = None
+     down_residual: torch.Tensor | None = None
++    # TP4 tile-major payload (default False): w13/down are [tiles*128, 64, E].
++    tile_major: bool = False
+ 
+ 
+ @dataclass(frozen=True)
+@@ -4596,6 +4601,231 @@ def _swap_w13_scale_halves_inplace(
+ _W13_NORMALIZED_STORAGES: Dict[Tuple[int, int], Tuple[torch.Tensor, torch.Tensor]] = {}
+ 
+ 
++# --------------------------------------------------------------------------
++# TP4 tile-major expert-weight layout (default off; see _tp4_tile_major.py)
++# --------------------------------------------------------------------------
++
++_TP4_TILE_MAJOR_ENV = "B12X_TP4_TILE_MAJOR_WEIGHTS"
++# storage key (w1 data_ptr, w2 data_ptr) -> (geometry, w1_fp4, w2_fp4)
++_TP4_TILE_MAJOR_STORAGES: Dict[Tuple[int, int], Tuple[object, torch.Tensor, torch.Tensor]] = {}
++
++
++def _tp4_tile_major_lookup(w1_fp4: torch.Tensor, w2_fp4: torch.Tensor):
++    return _TP4_TILE_MAJOR_STORAGES.get((w1_fp4.data_ptr(), w2_fp4.data_ptr()))
++
++
++def _tp4_tile_major_geometry(*, n: int, k: int, E: int):
++    from ._tp4_tile_major import Geometry
++
++    return Geometry(hidden=int(k), intermediate=int(n), experts=int(E))
++
++
++def _tp4_tile_major_register(
++    w1_fp4: torch.Tensor,
++    w1_blockscale: torch.Tensor,
++    w2_fp4: torch.Tensor,
++    geometry,
++) -> None:
++    w1_u8 = w1_fp4.view(torch.uint8)
++    w2_u8 = w2_fp4.view(torch.uint8)
++    if tuple(w1_u8.shape) != (geometry.e, geometry.rows13, geometry.k // 2):
++        raise ValueError("tile-major W13 storage must keep the canonical [E, 2n, k//2] shape")
++    if tuple(w2_u8.shape) != (geometry.e, geometry.k, geometry.n // 2):
++        raise ValueError("tile-major W2 storage must keep the canonical [E, k, n//2] shape")
++    if not w1_u8.is_contiguous() or not w2_u8.is_contiguous():
++        raise ValueError("tile-major storage must be contiguous")
++    # The payload is already in kernel [up; gate] order: never flip it again.
++    _W13_NORMALIZED_STORAGES[(w1_fp4.data_ptr(), w1_blockscale.data_ptr())] = (
++        w1_fp4,
++        w1_blockscale,
++    )
++    _TP4_TILE_MAJOR_STORAGES[(w1_fp4.data_ptr(), w2_fp4.data_ptr())] = (
++        geometry,
++        w1_fp4,
++        w2_fp4,
++    )
++
++
++def _tp4_tile_major_supported(plan: MoEWeightPreparationPlan) -> bool:
++    return bool(
++        plan.quant_modes == frozenset({"nvfp4"})
++        and _normalize_fp4_source_format(plan.source_format) == "modelopt_nvfp4"
++        and plan.activation == "silu"
++        and int(plan.hidden_size) % 256 == 0
++        and int(plan.intermediate_size) % 128 == 0
++    )
++
++
++def _tp4_tile_major_prepare_enabled(plan: MoEWeightPreparationPlan) -> bool:
++    tp2 = _env_flag("B12X_TP2_TILE_MAJOR_WEIGHTS", default=False)
++    if tp2 and (int(plan.hidden_size), int(plan.intermediate_size), int(plan.num_experts)) != (4096, 1024, 288):
++        raise ValueError("TP2 tile-major selector requires E288/H4096/N1024")
++    if not tp2 and not _env_flag(_TP4_TILE_MAJOR_ENV, default=False):
++        return False
++    if not _tp4_tile_major_supported(plan):
++        raise ValueError(
++            f"{_TP4_TILE_MAJOR_ENV}=1 requires a single-recipe modelopt NVFP4 silu "
++            "plan with hidden % 256 == 0 and intermediate % 128 == 0"
++        )
++    return True
++
++
++def _tp4_tile_major_preparation_state(w1_fp4, w1_blockscale, w2_fp4, geometry):
++    """Return True for the same registered representation; reject mixed pairs.
++
++    Repeating the in-place preparation on already-packed storage would permute
++    the payload a second time (repeat-preparation defect found in the 2026-09-17
++    Pro review); the registry, not a flag, is the source of truth.  This guard
++    does not replace a model-owner teardown/generation protocol: one model
++    generation per worker; replace the worker on model replacement or a failed
++    partial conversion.  The existing strong-reference registry is unchanged.
++    """
++    key = (w1_fp4.data_ptr(), w2_fp4.data_ptr())
++    entry = _TP4_TILE_MAJOR_STORAGES.get(key)
++    if entry is not None:
++        if entry[0].as_dict() != geometry.as_dict():
++            raise ValueError("tile-major storage reused with a different geometry")
++        if tuple(w1_fp4.view(torch.uint8).shape) != (geometry.e, geometry.rows13, geometry.k // 2):
++            raise ValueError("registered tile-major W13 shape changed")
++        if tuple(w2_fp4.view(torch.uint8).shape) != (geometry.e, geometry.k, geometry.n // 2):
++            raise ValueError("registered tile-major W2 shape changed")
++        if not w1_fp4.is_contiguous() or not w2_fp4.is_contiguous():
++            raise ValueError("registered tile-major storage must remain contiguous")
++        normalized_key = (w1_fp4.data_ptr(), w1_blockscale.data_ptr())
++        if normalized_key not in _W13_NORMALIZED_STORAGES:
++            raise ValueError("registered tile-major W13 paired with unregistered scales")
++        return True
++    # Repacking just one member of an already-tile-major pair is also unsafe.
++    for registered_w1, registered_w2 in _TP4_TILE_MAJOR_STORAGES:
++        if key[0] == registered_w1 or key[1] == registered_w2:
++            raise ValueError("tile-major preparation received a mixed storage pair")
++    return False
++
++
++def _tp4_tile_major_repack_inplace(
++    plan: MoEWeightPreparationPlan,
++    w1_fp4: torch.Tensor,
++    w1_blockscale: torch.Tensor,
++    w2_fp4: torch.Tensor,
++) -> None:
++    """Load-time serving path: rewrite the canonical storage in place, a bounded
++    chunk of experts at a time (no full duplicate), then register it.  A second
++    call on the same registered storage is a no-op; a mixed pair is an error."""
++    from ._tp4_tile_major import repack_inplace_torch, repack_w13_torch, repack_w2_torch
++
++    n = int(plan.intermediate_size)
++    k = int(plan.hidden_size)
++    geometry = _tp4_tile_major_geometry(n=n, k=k, E=int(w1_fp4.shape[0]))
++    if _tp4_tile_major_preparation_state(w1_fp4, w1_blockscale, w2_fp4, geometry):
++        return
++    if plan.w13_layout == "w31":
++        _ensure_w13_kernel_order_inplace(w1_fp4, w1_blockscale, n=n, k=k, quant_mode="nvfp4")
++    repack_inplace_torch(w1_fp4.view(torch.uint8), repack_w13_torch, geometry)
++    repack_inplace_torch(w2_fp4.view(torch.uint8), repack_w2_torch, geometry)
++    _tp4_tile_major_register(w1_fp4, w1_blockscale, w2_fp4, geometry)
++
++
++def tp4_tile_major_copy(experts: B12XFP4ExpertWeights) -> B12XFP4ExpertWeights:
++    """Leaf/diagnostic path: a second expert-weight object whose FC1/FC2 payload
++    is a tile-major copy (same canonical shapes, same scales).  The original
++    storage is normalized to kernel order first (idempotent) and left stock."""
++    from ._tp4_tile_major import repack_w13_torch, repack_w2_torch
++
++    if not isinstance(experts, B12XFP4ExpertWeights):
++        raise TypeError("experts must come from prepare_b12x_fp4_moe_weights")
++    plan = experts.plan
++    if not _tp4_tile_major_supported(plan):
++        raise ValueError("tile-major copy requires a single-recipe modelopt NVFP4 silu plan")
++    if experts.representation is not None:
++        raise ValueError("tile-major copy requires source-native expert weights")
++    n = int(plan.intermediate_size)
++    k = int(plan.hidden_size)
++    geometry = _tp4_tile_major_geometry(n=n, k=k, E=int(experts.w1_fp4.shape[0]))
++    if _tp4_tile_major_preparation_state(
++        experts.w1_fp4, experts.w1_blockscale, experts.w2_fp4, geometry
++    ):
++        raise ValueError("tile-major copy expects stock source storage, not a packed copy")
++    if plan.w13_layout == "w31":
++        _ensure_w13_kernel_order_inplace(
++            experts.w1_fp4, experts.w1_blockscale, n=n, k=k, quant_mode="nvfp4"
++        )
++    w1_u8 = experts.w1_fp4.view(torch.uint8)
++    w2_u8 = experts.w2_fp4.view(torch.uint8)
++    w1_tm = repack_w13_torch(w1_u8, geometry).reshape(w1_u8.shape).contiguous()
++    w2_tm = repack_w2_torch(w2_u8, geometry).reshape(w2_u8.shape).contiguous()
++    copy = replace(experts, w1_fp4=w1_tm.view(experts.w1_fp4.dtype), w2_fp4=w2_tm.view(experts.w2_fp4.dtype))
++    _tp4_tile_major_register(copy.w1_fp4, copy.w1_blockscale, copy.w2_fp4, geometry)
++    return copy
++
++
++def _get_tile_major_weight_views(
++    geometry,
++    w1_fp4: torch.Tensor,
++    w1_blockscale: torch.Tensor,
++    w2_fp4: torch.Tensor,
++    w2_blockscale: torch.Tensor,
++    w1_alphas: torch.Tensor,
++    w2_alphas: torch.Tensor,
++    n: int,
++    k: int,
++    *,
++    activation_spec: _ActivationKernelSpec,
++) -> _WeightViews:
++    global _LAST_WEIGHTS
++    if not activation_spec.is_gated or int(n) != geometry.n or int(k) != geometry.k:
++        raise ValueError("tile-major storage geometry does not match the launch")
++    key = (
++        w1_fp4.data_ptr(),
++        w1_blockscale.data_ptr(),
++        w2_fp4.data_ptr(),
++        w2_blockscale.data_ptr(),
++        w1_alphas.data_ptr(),
++        w2_alphas.data_ptr(),
++        activation_spec.activation,
++        "nvfp4-tile-major",
++    )
++    cached = _WEIGHT_CACHE.get(key)
++    if cached is not None:
++        _LAST_WEIGHTS = (key, cached)
++        return cached
++    E = int(w1_fp4.shape[0])
++    # [E, 2n, k//2] bytes viewed as [E, tiles*128, 64] boxes -> [rows, 64, E]
++    w13 = w1_fp4.view(torch.uint8).reshape(E, geometry.tm_rows13, 64).permute(1, 2, 0)
++    down = w2_fp4.view(torch.uint8).reshape(E, geometry.tm_rows2, 64).permute(1, 2, 0)
++    w1_n = activation_spec.w1_rows(n)
++    bs_u8 = w1_blockscale.view(torch.uint8)
++    w13_sf = as_grouped_scale_view(bs_u8, w1_n, k)
++    down_sf = as_grouped_scale_view(w2_blockscale.view(torch.uint8), k, n)
++    if not w1_alphas.is_contiguous() or not w2_alphas.is_contiguous():
++        raise ValueError("w1_alphas and w2_alphas must be contiguous")
++    sf_dtype = cutlass.Float8E4M3FN
++    views = _WeightViews(
++        w13=w13,
++        down=down,
++        w13_sf=w13_sf,
++        down_sf=down_sf,
++        w1_alpha=w1_alphas,
++        w2_alpha=w2_alphas,
++        w1_storage=w1_fp4,
++        w1_scale_storage=w1_blockscale,
++        w2_storage=w2_fp4,
++        w2_scale_storage=w2_blockscale,
++        tile_major=True,
++    )
++    views.w13_fp4 = w13
++    views.down_fp4 = down
++    views.sfb_w13_ptr = make_ptr(
++        sf_dtype, w13_sf.data_ptr(), cute.AddressSpace.gmem, assumed_align=16
++    )
++    views.sfb_down_ptr = make_ptr(
++        sf_dtype, down_sf.data_ptr(), cute.AddressSpace.gmem, assumed_align=16
++    )
++    _WEIGHT_CACHE[key] = views
++    _LAST_WEIGHTS = (key, views)
++    return views
++
++
++
+ def _ensure_w13_kernel_order_inplace(
+     w1_fp4: torch.Tensor,
+     w1_blockscale: torch.Tensor,
+@@ -4795,6 +5025,22 @@ def _get_weight_views(
+         )
+         w2_blockscale = w2_blockscale.view(torch.uint8).reshape(e_dim, k, n_pad // 32)
+         w13_layout = "w13"
++    tile_major_storage = _tp4_tile_major_lookup(w1_fp4, w2_fp4)
++    if tile_major_storage is not None:
++        if quant_mode != "nvfp4":
++            raise ValueError("tile-major expert weights are NVFP4 only")
++        return _get_tile_major_weight_views(
++            tile_major_storage[0],
++            w1_fp4,
++            w1_blockscale,
++            w2_fp4,
++            w2_blockscale,
++            w1_alphas,
++            w2_alphas,
++            n,
++            k,
++            activation_spec=activation_spec,
++        )
+     w13_layout = _normalize_w13_layout_for_activation(
+         activation_spec.activation,
+         w13_layout,
+@@ -5579,6 +5825,8 @@ def prepare_b12x_fp4_moe_weights(
+                 "prepared representation is missing canonical runtime tensors"
+             )
+ 
++    if representation is None and _tp4_tile_major_prepare_enabled(plan):
++        _tp4_tile_major_repack_inplace(plan, canonical_w1, canonical_s1, canonical_w2)
+     return B12XFP4ExpertWeights(
+         plan=plan,
+         a1_gscale=a1_gscale,
+@@ -9410,6 +9658,7 @@ def _get_dynamic_kernel(
+     trellis_bits: int = 0,
+     trellis_coupled: bool = False,
+     decode_fastpath: bool = False,
++    tile_major_b: bool = False,
+ ):
+     quant_mode = _normalize_quant_mode(quant_mode)
+     # w6a8_mx rides the nvfp4-shaped launch ABI (no repack/residual operands)
+@@ -9435,6 +9684,19 @@ def _get_dynamic_kernel(
+     # the FP4 recipes keep the NVFP4 vec16 scale granularity.
+     sf_vec_size = 32 if is_w6a8 else 16
+     mac = mac_override if mac_override is not None else _get_impl_mac("dynamic")
++    # TP4 local candidate: preserve weights/arithmetic and vary resident CTAs.
++    from ._tp4_cluster_candidate import select_clusters
++    mac = select_clusters(os.environ.get("B12X_TP4_CLUSTER_MAP", "0"),
++        experts=E, tokens=m, hidden=k, intermediate=n, topk=num_topk,
++        quant_mode=quant_mode, activation=activation,
++        deterministic=bool(deterministic_output), requested=mac,
++        hardware_limit=min(get_max_active_clusters(1), get_num_sm(torch.device("cuda"))))
++    from ._tp2_cluster import select_clusters as select_tp2_clusters
++    mac = select_tp2_clusters(os.environ.get("B12X_TP2_CLUSTER_MAP", "0"),
++        experts=E, tokens=m, hidden=k, intermediate=n, topk=num_topk,
++        quant_mode=quant_mode, activation=activation,
++        deterministic=bool(deterministic_output), requested=mac,
++        hardware_limit=min(get_max_active_clusters(1), get_num_sm(torch.device("cuda"))))
+     is_w4a8 = _is_w4a8_quant_mode(quant_mode)
+     # w4a8 is self-ranging; the dynamic per-tile FC2 scale does not apply.
+     dynamic_down_scale = _dynamic_down_scale_enabled() and not is_w4a8
+@@ -9487,6 +9749,7 @@ def _get_dynamic_kernel(
+         int(trellis_bits),
+         bool(trellis_coupled),
+         bool(decode_fastpath),
++        bool(tile_major_b),
+     )
+     last_kkey, last_kval = _LAST_KERNEL
+     if last_kkey == cache_key:
+@@ -9547,6 +9810,15 @@ def _get_dynamic_kernel(
+         # activations against "e2m3" FP6 weights).
+         kernel_kwargs["quant_recipe"] = quant_mode
+     kernel = activation_spec.make_dynamic_kernel(**kernel_kwargs)
++    if tile_major_b:
++        kernel.configure_tile_major_b(intermediate_size=n, hidden_size=k)
++        logger.info(
++            "B12X TP4 tile-major weight layout compiled: E=%d k=%d n=%d tile=%s",
++            E,
++            k,
++            n,
++            mma_tiler_mn,
++        )
+     if decode_fastpath:
+         kernel.configure_decode_fastpath(
+             num_experts=E,
+@@ -9670,14 +9942,14 @@ def _get_dynamic_kernel(
+     # byte-containers in smem).
+     b_w13_fake = cute.runtime.make_fake_compact_tensor(
+         weight_dtype,
+-        (w1_n, 3 * k // 4 if is_w6a8 else k, E),
++        (w1_n * k // 128, 128, E) if tile_major_b else (w1_n, 3 * k // 4 if is_w6a8 else k, E),
+         stride_order=(1, 0, 2),
+         assumed_align=16,
+     )
+     sfb_w13_fake = make_ptr(sf_dtype, 16, cute.AddressSpace.gmem, assumed_align=16)
+     b_down_fake = cute.runtime.make_fake_compact_tensor(
+         weight_dtype,
+-        (k, 3 * n // 4 if is_w6a8 else n, E),
++        (k * n // 128, 128, E) if tile_major_b else (k, 3 * n // 4 if is_w6a8 else n, E),
+         stride_order=(1, 0, 2),
+         assumed_align=16,
+     )
+@@ -9888,8 +10160,11 @@ def _launch_dynamic_flat(
+     swiglu_alpha: float,
+     swiglu_beta: float,
+     volatile_launch_state: bool,
++    tile_major_b: bool = False,
+ ) -> None:
+     quant_mode = _normalize_quant_mode(quant_mode)
++    if tile_major_b and (quant_mode != "nvfp4" or w4a8_repacked):
++        raise ValueError("tile-major expert weights require the plain NVFP4 dynamic kernel")
+     # A trellis-native w4a8 binding carries the fp16 boundary rotations in
+     # the sfb slot (the QMMA repack stores int32 scale words there); the
+     # trellis geometry is recovered from the operand extents.
+@@ -10060,7 +10335,12 @@ def _launch_dynamic_flat(
+         trellis_bits=trellis_bits,
+         trellis_coupled=trellis_coupled,
+         decode_fastpath=decode_fastpath,
++        tile_major_b=tile_major_b,
+     )
++    if not multicta_enabled:
++        mac = 1
++    if tile_major_b and (direct_routing or materialize_intermediate):
++        raise ValueError("tile-major expert weights exclude direct/materialized regimes")
+     if volatile_launch_state:
+         barrier_count.zero_()
+         barrier_epoch.zero_()
+@@ -10290,6 +10570,7 @@ def _tp_moe_dynamic_launch_op(
+         swiglu_alpha=swiglu_alpha,
+         swiglu_beta=swiglu_beta,
+         volatile_launch_state=volatile_launch_state,
++        tile_major_b=_tp4_tile_major_lookup(w13_fp4, down_fp4) is not None,
+     )
+ 
+ 
+@@ -11520,6 +11801,10 @@ def b12x_moe_fp4(*, binding: TPMoEFP4Binding) -> torch.Tensor:
+ 
+     if impl == "micro":
+         assert isinstance(s, TPMicroWorkspace)
++        if _tp4_tile_major_lookup(w1_fp4, w2_fp4) is not None:
++            raise RuntimeError(
++                "tile-major expert weights require the dynamic implementation"
++            )
+         flat_ids = _flatten_routing_ids(topk_ids)
+         flat_weights = _flatten_routing_weights(topk_weights)
+ 

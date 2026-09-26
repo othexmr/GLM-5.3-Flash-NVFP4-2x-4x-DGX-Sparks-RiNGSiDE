@@ -1,0 +1,104 @@
+{
+ "schema": 1,
+ "window": "2026-09-24-rigmark5-tp4-1",
+ "lab_commit": "aa40e297c6",
+ "lab_plan_sha256": "50e80d44835b8c5938a640bc3e839d0d4dbfe1b4f519718acad0f8097ecdec0d",
+ "rigmark": {
+  "repository": "othexmr/rigmark",
+  "branch": "feat/staggered-arrival",
+  "commit": "40fabcaf6e963ac27ab347f61d54a225dbd07419",
+  "measured_revision": "6e0e24a6ff5061721b83a482d1967c6b4e07517f"
+ },
+ "included": [
+  {
+   "path": "rigmark/code-full.json",
+   "status": "unedited",
+   "sha256": "6ea47a2a16ab67419c7457358f334503469faf9ef3c8dd059457b3f620d5081e",
+   "bytes": 732050,
+   "window_path": "native/code-full.json"
+  },
+  {
+   "path": "rigmark/code-full.card.txt",
+   "status": "unedited",
+   "sha256": "537854c09fdd6c4fea340ac3408dbd893d49c0279626c6541968daa0f56fb238",
+   "bytes": 3692,
+   "window_path": "native/code-full.card.txt"
+  },
+  {
+   "path": "rigmark/prose-concurrency.card.txt",
+   "status": "unedited",
+   "sha256": "e2295fbc349f24b5d5658412c927f60cfca253978b4fa379f6197d9371676f20",
+   "bytes": 3876,
+   "window_path": "native/prose-concurrency.card.txt"
+  },
+  {
+   "path": "rigmark/metadata.json",
+   "status": "unedited",
+   "sha256": "15f7ab907bc359dd40bfd66757c157600c48350ef2b439162a1d16d5a4ca5a64",
+   "bytes": 1430,
+   "window_path": "native/metadata.json"
+  },
+  {
+   "path": "llama-benchy/passA.json",
+   "status": "unedited",
+   "sha256": "ed19cbd27fd2bf235b7017780e63987ea409ac02d54695183db698ff3d1108af",
+   "bytes": 25315,
+   "window_path": "llama-benchy/passA.json"
+  },
+  {
+   "path": "llama-benchy/passB.json",
+   "status": "unedited",
+   "sha256": "49eff65d4ce311920ce49a555e9a7067881474d4b445616602368d88b55ded36",
+   "bytes": 8600,
+   "window_path": "llama-benchy/passB.json"
+  },
+  {
+   "path": "llama-benchy/summary.json",
+   "status": "unedited",
+   "sha256": "88a480a52e5c9aee3833e301fce6852334d566eda67f05b79868873edd4a8fbf",
+   "bytes": 3706,
+   "window_path": "llama-benchy/summary.json"
+  },
+  {
+   "path": "rigmark/prose-concurrency.rounds.json",
+   "status": "extract",
+   "sha256": "595f87319d643f62ac7777d1015cb6a1f86837f2b239784d44b56bf9f1464db1",
+   "bytes": 137014,
+   "window_path": "native/prose-concurrency.json",
+   "original_sha256": "c106f69b0daa86c075a0d6f0806cdf5b6c85f22b04718d626263f37d7e3ae793",
+   "original_bytes": 7146506
+  }
+ ],
+ "omitted": [
+  {
+   "window_path": "native/prose-concurrency.json",
+   "sha256": "c106f69b0daa86c075a0d6f0806cdf5b6c85f22b04718d626263f37d7e3ae793",
+   "bytes": 7146506,
+   "why": "too large for this repository (7 MB); rigmark/prose-concurrency.rounds.json keeps every summary statistic and the per-round metrics"
+  },
+  {
+   "window_path": "native/code-full-command.json",
+   "sha256": "ec35761b1d7b73ed37c6d95240b334b871afdb68ddd8eca88aaf594f7e647ac1",
+   "bytes": 877,
+   "why": "names the lab host and paths; the command is shown above with placeholders"
+  },
+  {
+   "window_path": "native/prose-concurrency-command.json",
+   "sha256": "2388673cce2950b248b7589c1da1f43c28b49c493681445959dd6409e020845a",
+   "bytes": 1177,
+   "why": "names the lab host and paths; the command is shown above with placeholders"
+  },
+  {
+   "window_path": "llama-benchy/passA.command.json",
+   "sha256": "72392928d4d4a63400f489c9605a52434e5dc46638991b503ef01fbb39bd0f5b",
+   "bytes": 1643,
+   "why": "names the lab host and paths; the arguments are listed above"
+  },
+  {
+   "window_path": "llama-benchy/passB.command.json",
+   "sha256": "d2c0b50e75edc261bb2f7c9f983a837ab8cf688eaafb7fefd2b86859d9d09d62",
+   "bytes": 1627,
+   "why": "names the lab host and paths; the arguments are listed above"
+  }
+ ]
+}

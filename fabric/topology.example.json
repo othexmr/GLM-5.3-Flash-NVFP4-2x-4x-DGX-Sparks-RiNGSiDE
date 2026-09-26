@@ -1,0 +1,18 @@
+{
+ "schema": 2,
+ "topology": "tp4-ring",
+ "note": "Example of the measured cabling. Management addresses are placeholders; fabric subnets are the ones the TP4 NCCL build accepts.",
+ "functions": ["rocep1s0f0", "rocep1s0f1", "roceP2p1s0f0", "roceP2p1s0f1"],
+ "nodes": [
+  {"rank": 0, "management_address": "192.0.2.10"},
+  {"rank": 1, "management_address": "192.0.2.11"},
+  {"rank": 2, "management_address": "192.0.2.12"},
+  {"rank": 3, "management_address": "192.0.2.13"}
+ ],
+ "links": [
+  {"ranks": [0, 1], "port": "f1", "lanes": ["rocep1s0f1", "roceP2p1s0f1"], "subnet": "10.100.224.0/24"},
+  {"ranks": [1, 2], "port": "f0", "lanes": ["rocep1s0f0", "roceP2p1s0f0"], "subnet": "10.100.225.0/24"},
+  {"ranks": [2, 3], "port": "f1", "lanes": ["rocep1s0f1", "roceP2p1s0f1"], "subnet": "10.100.226.0/24"},
+  {"ranks": [3, 0], "port": "f0", "lanes": ["rocep1s0f0", "roceP2p1s0f0"], "subnet": "10.100.227.0/24"}
+ ]
+}

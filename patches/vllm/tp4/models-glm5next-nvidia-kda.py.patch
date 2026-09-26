@@ -1,0 +1,1449 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda.py
+Preimage:    sha256 6601dffb13ed76caebf4b4156cb1f0cfdaea1369e4924c6a4d433149b3e9d9d4
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)
+Postimage:   sha256 e8fe4b82417b20ae3148a8fcde10bbdb81e5ff110d77873c842073849303bad1 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Attribution: sparkring-mhc, sparkring-kda-ckpt (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/models/glm5next/nvidia/kda.py b/vllm/models/glm5next/nvidia/kda.py
+index 47d72d02247466f757724181c22686c6a31e89c5..910c8d9637f8e6b66a272af998b9b6702682dd60 100644
+--- a/vllm/models/glm5next/nvidia/kda.py
++++ b/vllm/models/glm5next/nvidia/kda.py
+@@ -1,7 +1,20 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 lab (replay-boundary, 2026-09-24): one complete hybrid state kept at the replay
++# boundary R(P) (outputs/2026-09-24-replay-boundary/DESIGN.md). Inert unless GLM53_REPLAY_BOUNDARY=1.
++# Modified by the GLM-5.3 lab (kda-checkpoints, 2026-09-24): KDA checkpoints saved inside a prefill chunk,
++# after FujitsuPolycom/sparkring runtime/images/sparkring-r35/patches/vllm-sparkring.patch @ 90d510a5
++# (Apache-2.0; see outputs/2026-09-24-kda-prefill-checkpoints/NOTICE). Inert unless GLM53_KDA_CKPT=1.
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): RecoverSSM speculative verify and commit (--use-replayssm); opt-in
++# (GLM53_* switches) in-chunk KDA checkpoints, conv fused into b12x's prepare, direct prefill-kernel output, contiguous
++# mixed batches, fused o_norm + FP8 quantization, FP8 input handoff, an fp16 recurrent-state pool with fp32 slow
++# channels (fp32 staging for b12x prefill) and replay-boundary exports; defer_tp_reduction in forward.
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): exact-landing column and the fused commit's rule-1 host skip.
+ """GLM-5.3-Flash KDA layer with separate convolutions and a bounded safe gate."""
+ 
++import os
++import sys
++import os as _glm53_os
+ from typing import Any
+ 
+ import torch
+@@ -11,6 +24,7 @@ from vllm.compilation.breakable_cudagraph import eager_break_during_capture
+ from vllm.config import VllmConfig, get_current_vllm_config
+ from vllm.distributed import divide
+ from vllm.forward_context import get_forward_context
++from vllm.logger import init_logger as _glm53_init_logger
+ from vllm.model_executor.layers.linear import (
+     ColumnParallelLinear,
+     MergedColumnParallelLinear,
+@@ -59,6 +73,276 @@ else:
+     )
+ 
+ 
++# KDA prefill conv folded into b12x's prepare pass (flashkda lane, 2026-09-24; outputs/2026-09-24-kda-conv-fusion).
++# GLM53_KDA_CONV_FUSED=1 with --kda-prefill-backend b12x: a pure-prefill step of at least GLM53_KDA_CONV_FUSED_MIN_ROWS
++# tokens skips causal_conv1d_fn; glm53_kda_conv runs the conv inside b12x's prepare pass (bit-identical), writes the
++# layer output in place and updates the conv state. Default off: behaviour unchanged.
++_GLM53_KDA_CONV_FUSED = __import__("os").environ.get("GLM53_KDA_CONV_FUSED", "0") == "1"
++_GLM53_KDA_CONV_FUSED_MIN_ROWS = int(__import__("os").environ.get("GLM53_KDA_CONV_FUSED_MIN_ROWS", "2304"))
++_GLM53_KDA_CONV_FUSED_MARKED = [False]
++
++# kda-checkpoints (2026-09-24; outputs/2026-09-24-kda-prefill-checkpoints). GLM53_KDA_CKPT=1: a pure-prompt
++# prefill chunk may run past positions whose KDA state the prefix cache keeps; the scheduler plans them, the mamba
++# managers allocate their blocks, and this layer's b12x prefill exports the recurrent state and the conv history there
++# (glm53_kda_ckpt). Default off: behaviour unchanged.
++_GLM53_KDA_CKPT = __import__("os").environ.get("GLM53_KDA_CKPT", "0") == "1"
++
++
++def _glm53_attach_ckpt(builder, metadata_, m, num_decode_draft_tokens_cpu) -> None:
++    """Builder hook: the KDA exports of this step for this KV cache group, as glm53_kda_ckpt.Checkpoints on
++    metadata_.glm_kda_ckpt (rows = the b12x prefill call's sequences: the active non-spec rows in batch order, as
++    KimiK3KDAMetadataBuilder.build selects them). Export slots come from this group's block table."""
++    metadata_.glm_kda_ckpt = None
++    if not _GLM53_KDA_CKPT:
++        return
++    import glm53_kda_ckpt_plan as P
++
++    rows = P.step()
++    if not rows or not any(rows):
++        return
++    if metadata_.num_prefills == 0:
++        # the managers allocated and hashed the export blocks: a planned step must export, never skip silently
++        raise RuntimeError("KDA checkpoint plans in a step without KDA prefill rows")
++    import glm53_kda_ckpt as KC
++
++    block_size = builder.kv_cache_spec.block_size
++    query_lens = m.query_start_loc_cpu.diff()
++    num_reqs = int(m.num_reqs)
++    if metadata_.num_spec_decodes == 0:
++        seq_rows = list(range(num_reqs))
++    else:
++        spec = num_decode_draft_tokens_cpu[:num_reqs] >= 0
++        if builder.use_recoverssm:
++            spec = spec | ((~m.is_prefilling[:num_reqs]) & (query_lens[:num_reqs] > 0))
++        seq_rows = [i for i in range(num_reqs) if not bool(spec[i]) and int(query_lens[i]) > 0]
++    planned = {i for i, plan in enumerate(rows) if plan is not None}
++    if not planned <= set(seq_rows):
++        raise RuntimeError(f"KDA checkpoint rows {sorted(planned - set(seq_rows))} are not prefill rows of the step")
++    per_seq, starts, token = [], [], 0
++    for i in seq_rows:
++        plan = rows[i] if i < len(rows) else None
++        pairs = []
++        if plan is not None:
++            start, end, exports = P.validate_plan(plan, block_size)
++            if end - start != int(query_lens[i]):
++                raise RuntimeError(f"KDA checkpoint plan [{start}, {end}) differs from row {i}'s query")
++            # replay-boundary: an off-grid export (R(P)) lives in the column of its block; on-grid unchanged
++            pairs = [(position - start, -(-position // block_size) - 1) for position in exports]
++        per_seq.append(pairs)
++        starts.append(token)
++        token += int(query_lens[i])
++    if not any(per_seq):
++        return
++    # one compiled kernel variant per rank (the startup warm-up's 28,672-token prompts already export two states):
++    # the width is the planner's cap, unused pairs are null
++    width = max(P.MAX_EXPORTS, max(len(pairs) for pairs in per_seq))
++    device = m.block_table_tensor.device
++    row_idx = torch.tensor([[r] * width for r in seq_rows], dtype=torch.int64)
++    col_idx = torch.tensor([[c for _, c in p] + [0] * (width - len(p)) for p in per_seq], dtype=torch.int64)
++    valid = torch.tensor([[True] * len(p) + [False] * (width - len(p)) for p in per_seq])
++    gathered = m.block_table_tensor[row_idx.to(device, non_blocking=True), col_idx.to(device, non_blocking=True)]
++    slots = torch.where(valid.to(device, non_blocking=True), gathered, torch.full_like(gathered, NULL_BLOCK_ID))
++    slots = slots.to(torch.int32).contiguous()
++    offsets = torch.tensor([[o for o, _ in p] + [0] * (width - len(p)) for p in per_seq], dtype=torch.int32)
++    conv_rows, conv_flat, conv_cols = [], [], []
++    for s, pairs in enumerate(per_seq):
++        for c, (offset, _) in enumerate(pairs):
++            for j in range(3):
++                conv_rows.append(starts[s] + offset - 3 + j)
++                conv_flat.append(s * width + c)
++                conv_cols.append(j)
++    flat = torch.tensor(conv_flat, dtype=torch.int64).to(device, non_blocking=True)
++    metadata_.glm_kda_ckpt = KC.Checkpoints(
++        slots=slots,
++        offsets=offsets.to(device, non_blocking=True),
++        max_checkpoints=width,
++        conv_rows=torch.tensor(conv_rows, dtype=torch.int64).to(device, non_blocking=True),
++        conv_slots=slots.view(-1).index_select(0, flat).to(torch.int64),
++        conv_cols=torch.tensor(conv_cols, dtype=torch.int64).to(device, non_blocking=True),
++    )
++    _glm53_ckpt_marker(len(planned), width)
++
++
++_GLM53_KDA_CKPT_MARKED = [0]
++
++
++def _glm53_ckpt_marker(requests: int, width: int) -> None:
++    """stderr engagement marker: the first builds and then every power of two (one line per KV cache group)."""
++    _GLM53_KDA_CKPT_MARKED[0] += 1
++    n = _GLM53_KDA_CKPT_MARKED[0]
++    if n <= 8 or n & (n - 1) == 0:
++        print(f"GLM53_KDA_CKPT_ENGAGED build={n} requests={requests} exports={width}",
++              file=__import__("sys").stderr, flush=True)
++
++
++# Narrow recurrent state (kda-bf16-state lane, lever A2b, 2026-09-24; outputs/2026-09-24-kda-fp16-sr-state).
++# GLM53_KDA_STATE=fp16-slow32 with --kda-prefill-backend b12x: the recurrent-state pool is fp16 with each head's
++# SLOW_SLOTS slowest key channels kept exact in fp32 side columns (ops/recoverssm.py); storage only, every kernel
++# computes in fp32. b12x prefill runs on an fp32 staging copy of its rows (kda_state_store.py). fp16 and bf16 (plain
++# round to nearest) exist for leaf comparisons. Unset or fp32: behaviour unchanged.
++_GLM53_KDA_STATE = __import__("os").environ.get("GLM53_KDA_STATE", "").strip().lower()
++_GLM53_KDA_STATE_DTYPE = {"": None, "fp32": None, "fp16": torch.float16, "bf16": torch.bfloat16,
++                          "fp16-slow32": torch.float16}.get(_GLM53_KDA_STATE, "invalid")
++_GLM53_KDA_STATE_SIDE = _GLM53_KDA_STATE == "fp16-slow32"
++
++
++def _kda_state_dtype_checked():
++    if isinstance(_GLM53_KDA_STATE_DTYPE, str):
++        raise ValueError(f"GLM53_KDA_STATE={_GLM53_KDA_STATE!r}: use fp32, fp16-slow32, fp16 or bf16")
++    return _GLM53_KDA_STATE_DTYPE
++
++
++# A2b replay fix (a2b-replay-fix lane, 2026-09-24; outputs/2026-09-24-a2b-replay-fix). On the side layout (a Stage
++# with .fused) a b12x prefill call stages through kda_state_store's two fused launches: stage_in_prefill (state rows,
++# conv rows, b12x's initial indices / num_seqs / num_tokens and the staged checkpoint map) and stage_out_prefill (final
++# rows, their conv rows, the exported states). The b12x binding, the kernels and the pipelines called are the ones the
++# previous code reached through glm53_kda_conv.run_kda_prefill_conv_fused, glm53_kda_ckpt.run_kda_prefill_ckpt /
++# run_kda_prefill_conv_fused_ckpt and api.run, with the same arguments; only the index setup and the staging copies
++# moved into the two launches. Module-level functions of the layer's attributes (the leaves drive them with a fake
++# layer). GLM53_KDA_STATE_FUSED_STAGING=0 (the Stage's .fused False) keeps the previous code.
++_A2B_STORE: list = []
++
++
++def _a2b_store():
++    if not _A2B_STORE:
++        from vllm.models.glm5next.nvidia import kda_state_store
++
++        _A2B_STORE.append(kda_state_store)
++    return _A2B_STORE[0]
++
++
++def _a2b_fused_bind(layer, stage, *, q, k, v, raw_g, raw_beta, cu_seqlens, state_indices, has_initial_state,
++                    recurrent_state, scratch, output, ckpt, keep_conv, conv_pool=None):
++    """stage_in_prefill, then the binding _run_b12x_kda_prefill / glm53_kda_ckpt._bind / run_kda_prefill_conv_fused
++    make (same plan, tensors and metadata buffers)."""
++    api, plan = layer._b12x_prefill_api, layer._b12x_prefill_plan
++    if api is None or plan is None:
++        raise RuntimeError("b12x KDA prefill KV cache was not bound before inference")
++    num_tokens = int(q.shape[0])
++    num_requests = int(state_indices.shape[0])
++    if num_tokens > layer._b12x_prefill_max_tokens or num_requests > layer._b12x_prefill_max_seqs:
++        raise ValueError(
++            "b12x KDA prefill capacity exceeded: "
++            f"tokens={num_tokens}/{layer._b12x_prefill_max_tokens}, "
++            f"requests={num_requests}/{layer._b12x_prefill_max_seqs}"
++        )
++    staged, run_ckpt = stage.stage_in_prefill(
++        recurrent_state, state_indices, has_initial_state, layer._b12x_prefill_initial_indices,
++        layer._b12x_prefill_num_seqs, layer._b12x_prefill_num_tokens, num_tokens, layer._kda_slow_slot,
++        conv_pool=conv_pool, ckpt=ckpt, keep_conv=keep_conv,
++    )
++    binding = api.bind(
++        plan,
++        scratch=scratch,
++        q=q,
++        k=k,
++        v=v,
++        raw_g=raw_g,
++        raw_beta=raw_beta,
++        A_log=layer.A_log.view(-1),
++        dt_bias=layer.dt_bias.view(-1, layer.head_dim),
++        recurrent_state=stage.state,
++        cu_seqlens=cu_seqlens[: num_requests + 1],
++        initial_state_indices=layer._b12x_prefill_initial_indices[:num_requests],
++        final_state_indices=staged,
++        checkpoint_state_indices=layer._b12x_prefill_null_indices[:num_requests],
++        checkpoint_offsets=layer._b12x_prefill_zero_offsets[:num_requests],
++        num_seqs=layer._b12x_prefill_num_seqs,
++        num_tokens=layer._b12x_prefill_num_tokens,
++        output=output,
++    )
++    return binding, run_ckpt, num_tokens, num_requests
++
++
++def _a2b_fused_prefill(layer, stage, *, q, k, v, raw_g, raw_beta, cu_seqlens, state_indices, has_initial_state,
++                       recurrent_state, scratch, output, ckpt=None, conv_x=None) -> None:
++    """_run_b12x_kda_prefill on the side layout with the fused staging (with a checkpoint plan: the
++    glm53_kda_ckpt.run_kda_prefill_ckpt pipeline, the conv history straight into the conv pool)."""
++    binding, run_ckpt, num_tokens, num_requests = _a2b_fused_bind(
++        layer, stage, q=q, k=k, v=v, raw_g=raw_g, raw_beta=raw_beta, cu_seqlens=cu_seqlens,
++        state_indices=state_indices, has_initial_state=has_initial_state, recurrent_state=recurrent_state,
++        scratch=scratch, output=output, ckpt=ckpt, keep_conv=True,
++    )
++    if ckpt is None:
++        layer._b12x_prefill_api.run(
++            binding,
++            lower_bound=layer.kda_lower_bound,
++            max_live_tokens=num_tokens,
++            max_live_seqs=num_requests,
++        )
++    else:
++        import glm53_kda_ckpt
++
++        glm53_kda_ckpt.run_prefill_ckpt(
++            binding, run_ckpt, lower_bound=float(layer.kda_lower_bound), scale=float(layer.head_dim) ** -0.5,
++            eps=1e-6, windows=layer._b12x_prefill_plan.launched_windows(num_tokens, num_requests),
++            conv_x=conv_x, conv_state_sd=layer.kv_cache[0],
++        )
++    stage.stage_out_prefill(recurrent_state, state_indices, layer._kda_slow_slot, ckpt=ckpt)
++    store = _a2b_store()
++    store.mark("FUSED", lambda: f"staging=fused launches_per_call=2 side={stage.side}")
++    if ckpt is None:
++        store.mark("STAGED prefill", lambda: f"tokens={num_tokens} requests={num_requests} side={stage.side} fused=1")
++    else:
++        store.mark("STAGED ckpt", lambda: f"tokens={num_tokens} requests={num_requests} "
++                                          f"entries={int(ckpt.slots.numel())} side={stage.side} fused=1")
++
++
++def _a2b_fused_prefill_conv(layer, stage, *, qkv, conv_weights, raw_g, raw_beta, cu_seqlens, state_indices,
++                            has_initial_state, recurrent_state, core_attn_out, ckpt=None):
++    """_run_b12x_kda_prefill_conv_fused on the side layout with the fused staging: the glm53_kda_conv pipeline (or
++    glm53_kda_ckpt's with a checkpoint plan) on the staging rows and the staged conv rows, as before."""
++    import glm53_kda_conv
++
++    plan = layer._b12x_prefill_plan
++    if plan is None:
++        raise RuntimeError("b12x KDA prefill KV cache was not bound before inference")
++    num_tokens = int(qkv.shape[0])
++    *scratch_buffers, v_out = current_workspace_manager().get_simultaneous(
++        *((spec.shape, spec.dtype) for spec in plan.scratch_specs()),
++        ((layer._b12x_prefill_max_tokens, layer.local_projection_size), layer.model_config.dtype),
++    )
++    scratch = scratch_buffers[0] if len(scratch_buffers) == 1 else scratch_buffers
++    output = core_attn_out[0, :num_tokens]
++    pool_conv = layer.kv_cache[0]
++    heads, head_dim = layer.local_num_heads, layer.head_dim
++    proj = heads * head_dim
++    v_rows = v_out[:num_tokens]
++    binding, run_ckpt, num_tokens, num_requests = _a2b_fused_bind(
++        layer, stage, q=qkv[:, :proj].view(num_tokens, heads, head_dim),
++        k=qkv[:, proj:2 * proj].view(num_tokens, heads, head_dim), v=v_rows.view(num_tokens, heads, head_dim),
++        raw_g=raw_g, raw_beta=raw_beta, cu_seqlens=cu_seqlens, state_indices=state_indices,
++        has_initial_state=has_initial_state, recurrent_state=recurrent_state, scratch=scratch, output=output,
++        ckpt=ckpt, keep_conv=False, conv_pool=pool_conv,
++    )
++    conv = glm53_kda_conv.ConvArgs(qkv, conv_weights, stage.conv, v_rows)
++    windows = plan.launched_windows(num_tokens, num_requests)
++    if ckpt is None:
++        glm53_kda_conv.run_prefill_conv_fused(
++            binding, conv, lower_bound=float(layer.kda_lower_bound), scale=float(head_dim) ** -0.5, eps=1e-6,
++            windows=windows,
++        )
++    else:
++        import glm53_kda_ckpt
++
++        glm53_kda_ckpt.run_prefill_conv_fused_ckpt(
++            binding, conv, run_ckpt, lower_bound=float(layer.kda_lower_bound), scale=float(head_dim) ** -0.5,
++            eps=1e-6, windows=windows,
++        )
++    stage.stage_out_prefill(recurrent_state, state_indices, layer._kda_slow_slot, conv_pool=pool_conv, ckpt=ckpt)
++    store = _a2b_store()
++    store.mark("FUSED", lambda: f"staging=fused launches_per_call=2 side={stage.side}")
++    if ckpt is not None:
++        glm53_kda_ckpt.export_conv_history(pool_conv, qkv, ckpt)
++        store.mark("STAGED ckpt_conv_fused", lambda: f"tokens={num_tokens} requests={num_requests} "
++                                                     f"entries={int(ckpt.slots.numel())} side={stage.side} fused=1")
++    store.mark("STAGED conv_fused", lambda: f"tokens={num_tokens} requests={num_requests} side={stage.side} fused=1")
++    if not _GLM53_KDA_CONV_FUSED_MARKED[0]:
++        _GLM53_KDA_CONV_FUSED_MARKED[0] = True
++        print(f"GLM53_KDA_PREFILL_ENGAGED conv_fused tokens={num_tokens}", file=sys.stderr, flush=True)
++    return output.unsqueeze(0)
++
++
+ def _is_flashkda_supported(
+     head_dim: int,
+     dtype: torch.dtype,
+@@ -126,6 +410,36 @@ def _resolve_kda_prefill_backend(
+     return "flashkda"
+ 
+ 
++# FlashKDA prefill selectors (flashkda lane, 2026-09-23; outputs/2026-09-23-flashkda-prefill). Both default off,
++# which keeps this file's behaviour identical to the RecoverSSM base (e574b6b4).
++# - GLM53_FLASHKDA_STRIDED=1 (with --kda-prefill-backend flashkda): use vllm._flashkda_glm_C, vllm-project/FlashKDA
++#   b59532f1 (the vLLM v0.30.0 pin) built for sm_121a with a host-side patch that lets q/k/v be row-strided views, and
++#   pass the conv output's q/k/v column views without the three .contiguous() copies.
++# - GLM53_B12X_KDA_DIRECT_OUT=1 (with --kda-prefill-backend b12x): a pure-prefill step (no spec tokens) lets b12x write
++#   straight into the layer output buffer instead of a workspace buffer followed by a merge copy. Same kernels.
++_GLM53_FLASHKDA_STRIDED = os.environ.get("GLM53_FLASHKDA_STRIDED", "0") == "1"
++_GLM53_B12X_KDA_DIRECT_OUT = os.environ.get("GLM53_B12X_KDA_DIRECT_OUT", "0") == "1"
++_GLM53_KDA_PREFILL_MARKED: set[str] = set()
++
++
++def _mark_kda_prefill(kind: str, tokens: int) -> None:
++    """One stderr line per process and kind at the first engaged prefill call (serving engagement evidence)."""
++    if kind not in _GLM53_KDA_PREFILL_MARKED:
++        _GLM53_KDA_PREFILL_MARKED.add(kind)
++        print(f"GLM53_KDA_PREFILL_ENGAGED {kind} tokens={tokens}", file=sys.stderr, flush=True)
++
++
++def _flashkda_ops(strided: bool):
++    """The FlashKDA op namespace: the image's vllm._flashkda_C, or the GLM strided build vllm._flashkda_glm_C."""
++    if strided:
++        import vllm._flashkda_glm_C  # noqa: F401
++
++        return torch.ops._flashkda_glm_C
++    import vllm._flashkda_C  # noqa: F401
++
++    return torch.ops._flashkda_C
++
++
+ def _flashkda_prefill(
+     q: torch.Tensor,
+     k: torch.Tensor,
+@@ -140,13 +454,17 @@ def _flashkda_prefill(
+     out: torch.Tensor,
+     final_state: torch.Tensor,
+     workspace: torch.Tensor,
++    strided: bool = False,
++    ops: Any = None,
+ ) -> tuple[torch.Tensor, torch.Tensor]:
+-    import vllm._flashkda_C  # noqa: F401
+-
+-    torch.ops._flashkda_C.fwd(
+-        q.contiguous(),
+-        k.contiguous(),
+-        v.contiguous(),
++    if ops is None:
++        ops = _flashkda_ops(strided)
++    if not strided:
++        q, k, v = q.contiguous(), k.contiguous(), v.contiguous()
++    ops.fwd(
++        q,
++        k,
++        v,
+         g.contiguous(),
+         beta,
+         q.shape[-1] ** -0.5,
+@@ -161,6 +479,8 @@ def _flashkda_prefill(
+         None,
+         None,
+     )
++    if strided:
++        _mark_kda_prefill("flashkda_glm_strided", int(q.shape[1]))
+     return out, final_state
+ 
+ 
+@@ -208,7 +528,11 @@ class _B12xKdaPrefillWarmup:
+                 ),
+                 A_log=layer.A_log.view(-1),
+                 dt_bias=layer.dt_bias.view(-1, head_dim),
+-                recurrent_state=layer.kv_cache[1],
++                recurrent_state=(
++                    layer._kda_state_stage.state  # GLM53_KDA_STATE narrow pool: the fp32 staging pool
++                    if getattr(layer, "_kda_state_narrow", False)
++                    else layer.kv_cache[1]
++                ),
+                 cu_seqlens=torch.tensor(
+                     [0, tokens], dtype=torch.int32, device=device
+                 ),
+@@ -313,19 +637,369 @@ def _cast_sigmoid(x: torch.Tensor) -> torch.Tensor:
+     return x.float().sigmoid()
+ 
+ 
++def _kimi_k3_module(rel: str):
++    """Kimi-K3's RecoverSSM modules (``vllm/models/kimi_k3/nvidia/<rel>.py``), loaded by file path. Importing them
++    through their package would run ``vllm.models.kimi_k3.__init__``, which imports the whole Kimi model; both files
++    import only generic vLLM modules. (2026-09-23, GLM RecoverSSM port.)"""
++    import importlib.util
++    import sys
++    from pathlib import Path
++
++    import vllm.models
++
++    name = "vllm.models.glm5next.nvidia._kimi_k3_" + rel.replace("/", "_")
++    module = sys.modules.get(name)
++    if module is None:
++        path = Path(vllm.models.__file__).parent / "kimi_k3" / "nvidia" / f"{rel}.py"
++        spec = importlib.util.spec_from_file_location(name, path)
++        assert spec is not None and spec.loader is not None
++        module = importlib.util.module_from_spec(spec)
++        sys.modules[name] = module
++        spec.loader.exec_module(module)
++    return module
++
++
++def _glm53_rule1_host_skip(builder, metadata_, common_attn_metadata) -> None:
++    """Fused-commit rule-1 host skip (outputs/2026-09-25-fused-commit-fix, patch A2). Rule 1 of the fused commit
++    (ops/recoverssm.py) commits at once every entry whose final position num_computed + c (c = accepted + 1, at most the
++    row's query length q) crosses its block end or ends within spec_query_len - 1 tokens of it. In a pure spec-decode
++    step (every active row verifies: request_indices is None and the entries are rows 0..n-1) the host knows every row's
++    num_computed and q, exactly under synchronous scheduling without adaptive verification (seq_lens_cpu_upper_bound and
++    query_start_loc_cpu are then precise). If num_computed % block_size + q <= block_size - spec_query_len for every
++    row, no entry of this step's commit can need rule 1, and the wrapper sets rule1_host_skip on the commit context for
++    this one commit: the commit then launches neither the split kernel nor the rule-1 commit. Every other step keeps
++    both launches."""
++    commit = getattr(metadata_, "recoverssm_commit", None)
++    context = getattr(metadata_, "recoverssm_context", None)
++    if commit is None or commit.align is None or commit.request_indices is not None:
++        return
++    if context is None or not getattr(context, "fused", False):
++        return
++    vllm_config = builder.vllm_config
++    if getattr(vllm_config.scheduler_config, "async_scheduling", None) is not False:
++        return
++    if getattr(vllm_config.speculative_config, "enable_adaptive_verification", False):
++        return
++    upper = common_attn_metadata.seq_lens_cpu_upper_bound
++    num_spec = int(metadata_.num_spec_decodes)
++    if upper is None or num_spec <= 0:
++        return
++    block_size = int(commit.align.block_size)
++    limit = block_size - int(context.spec_query_len)
++    qsl = common_attn_metadata.query_start_loc_cpu[: num_spec + 1].tolist()
++    seq_lens = upper[:num_spec].tolist()
++    for i in range(num_spec):
++        query_len = qsl[i + 1] - qsl[i]
++        if (seq_lens[i] - query_len) % block_size + query_len > limit:
++            return
++    commit_state = metadata_.commit_recoverssm_state
++
++    def commit_recoverssm_state(num_accepted_tokens):
++        context.rule1_host_skip = True
++        try:
++            return commit_state(num_accepted_tokens)
++        finally:
++            context.rule1_host_skip = False
++
++    metadata_.commit_recoverssm_state = commit_recoverssm_state
++
++
++class _Glm5NextRecoverSSMLayerView:
++    """The attributes KDARecoverSSMCommitContext.create reads, in Kimi-K3's layout (A_log [H], gate_lower_bound)."""
++
++    def __init__(self, layer: "Glm5NextLinearAttention") -> None:
++        self.kv_cache = layer.kv_cache
++        self.recoverssm_records = layer.recoverssm_records
++        self.A_log = layer.A_log.view(-1)
++        self.dt_bias = layer.dt_bias
++        self.local_num_heads = layer.local_num_heads
++        self.head_dim = layer.head_dim
++        self.gate_lower_bound = layer.kda_lower_bound
++
++
++# --- Contiguous mixed-batch KDA (vLLM v0.30 #56159 port; kda-mixed lane, 2026-09-24) --------------------------------
++# A mixed step (spec-verify rows + prefill rows) is split by the builder with a stable argsort; the forward then
++# gathers q|k|v, g1 and beta per group (six index_select), verifies into a fresh buffer and merges both outputs back
++# through a temporary (two index_copy_ and one copy). When the spec rows and the prefill rows each form one contiguous
++# token range (the V2 runner orders verify rows first), the builder hook below records both starts and the forward
++# takes slices instead: the verify writes into its core_attn_out slice and the prefill output is copied once into its
++# slice. Same kernels on the same values; the slices carry the merged projection's row stride, as pure steps already
++# do. Off unless GLM53_KDA_CONTIGUOUS_MIXED=1; non-contiguous mixed steps keep the gather/merge path.
++import os as _os
++
++from vllm.logger import init_logger as _init_logger
++
++_CONTIGUOUS_MIXED = _os.environ.get("GLM53_KDA_CONTIGUOUS_MIXED", "0") == "1"
++_contiguous_mixed_logger = _init_logger(__name__)
++_CONTIGUOUS_MIXED_COUNTS = {"contiguous": 0, "fallback": 0}
++_CONTIGUOUS_MIXED_ENGAGED_LOGGED = False
++
++
++def _glm_contiguous_mixed_spans(
++    query_start_loc_cpu: torch.Tensor,
++    is_prefilling_cpu: torch.Tensor,
++    num_decode_draft_tokens_cpu: torch.Tensor,
++    num_actual_tokens: int,
++    num_spec_decode_tokens: int,
++    use_recoverssm: bool,
++) -> tuple[int, int] | None:
++    """(spec_token_start, non_spec_token_start) if the spec rows and the other active rows each form one contiguous
++    token range, else None. The spec mask is KimiK3KDAMetadataBuilder.build's, from the same CPU inputs: rows with
++    drafts (num_decode_draft_tokens_cpu >= 0), under RecoverSSM OR every active non-prefilling row. Zero-length rows
++    carry no tokens and are skipped, as in v0.30's check."""
++    query_lens = query_start_loc_cpu.diff()
++    spec_mask = num_decode_draft_tokens_cpu >= 0
++    if use_recoverssm:
++        spec_mask = spec_mask | ((~is_prefilling_cpu) & (query_lens > 0))
++    active_spec = spec_mask[query_lens > 0]
++    if active_spec.numel() < 2 or int((active_spec[1:] != active_spec[:-1]).sum()) != 1:
++        return None
++    num_query_tokens = int(query_start_loc_cpu[-1])
++    num_spec_tokens = int(query_lens[spec_mask].sum())
++    # The two slices must cover exactly the rows the gather/merge path writes.
++    if num_query_tokens != num_actual_tokens or num_spec_tokens != num_spec_decode_tokens:
++        return None
++    if bool(active_spec[0]):
++        return 0, num_spec_tokens
++    return num_query_tokens - num_spec_tokens, 0
++
++
++def _glm_mark_contiguous_mixed(metadata_, common_attn_metadata, num_decode_draft_tokens_cpu, use_recoverssm) -> None:
++    """Builder hook: on a contiguous spec-verify + prefill step, store the two token starts on the metadata
++    (glm_spec_token_start / glm_non_spec_token_start). Counts mixed builds; logs the first fallback and the counts at
++    every power of two from 8 on (a 16-level campaign has about 43 mixed steps per rank)."""
++    is_prefilling = getattr(common_attn_metadata, "is_prefilling", None)
++    if not (
++        _CONTIGUOUS_MIXED
++        and metadata_.num_spec_decodes > 0
++        and metadata_.num_prefills > 0
++        and metadata_.num_decodes == 0
++        and metadata_.non_spec_token_indx is not None
++        and num_decode_draft_tokens_cpu is not None
++        and is_prefilling is not None
++    ):
++        return
++    spans = _glm_contiguous_mixed_spans(
++        common_attn_metadata.query_start_loc_cpu,
++        is_prefilling,
++        num_decode_draft_tokens_cpu,
++        metadata_.num_actual_tokens,
++        metadata_.num_spec_decode_tokens,
++        use_recoverssm,
++    )
++    counts = _CONTIGUOUS_MIXED_COUNTS
++    if spans is None:
++        counts["fallback"] += 1
++        if counts["fallback"] == 1:
++            _contiguous_mixed_logger.info(
++                "GLM53_KDA_CONTIGUOUS_MIXED fallback: first non-contiguous mixed step (%d spec + %d prefill "
++                "requests, %d tokens); it keeps the gather/merge path",
++                metadata_.num_spec_decodes,
++                metadata_.num_prefills,
++                metadata_.num_actual_tokens,
++            )
++    else:
++        counts["contiguous"] += 1
++        metadata_.glm_spec_token_start, metadata_.glm_non_spec_token_start = spans
++    total = counts["contiguous"] + counts["fallback"]
++    if total >= 8 and total & (total - 1) == 0:
++        _contiguous_mixed_logger.info(
++            "GLM53_KDA_CONTIGUOUS_MIXED mixed builds %d: contiguous %d, fallback %d",
++            total,
++            counts["contiguous"],
++            counts["fallback"],
++        )
++
++
++class _GlmContiguousMixedBuild:
++    """Builder mixin, placed before KimiK3KDAMetadataBuilder in the bases: after the parent's build, the hook records
++    the contiguous mixed-step token starts. A subclass's own build() override (e.g. the RecoverSSM fused commit's)
++    composes with it through super()."""
++
++    def build(self, common_prefix_len, common_attn_metadata, num_accepted_tokens=None,
++              num_decode_draft_tokens_cpu=None, fast_build=False):
++        metadata_ = super().build(common_prefix_len, common_attn_metadata, num_accepted_tokens=num_accepted_tokens,
++                                  num_decode_draft_tokens_cpu=num_decode_draft_tokens_cpu, fast_build=fast_build)
++        _glm_mark_contiguous_mixed(metadata_, common_attn_metadata, num_decode_draft_tokens_cpu, self.use_recoverssm)
++        return metadata_
++
++
++def _glm_contiguous_mixed_engaged(prefix: str, spec_slice: slice, non_spec_slice: slice) -> None:
++    """One-time marker from the forward, the first time a layer takes the slice path."""
++    global _CONTIGUOUS_MIXED_ENGAGED_LOGGED
++    if not _CONTIGUOUS_MIXED_ENGAGED_LOGGED:
++        _CONTIGUOUS_MIXED_ENGAGED_LOGGED = True
++        _contiguous_mixed_logger.info(
++            "GLM53_KDA_CONTIGUOUS_MIXED engaged (%s): spec tokens [%d, %d), prefill tokens [%d, %d); slices instead "
++            "of index_select gathers, verify into core_attn_out, one prefill output copy",
++            prefix,
++            spec_slice.start,
++            spec_slice.stop,
++            non_spec_slice.start,
++            non_spec_slice.stop,
++        )
++
++
++# dense-fp8-kernels lane 2026-09-24 (default OFF): GLM53_KDA_ONORM_FP8=1|2 runs the o_norm (FLA gated RMS norm) and the
++# o_proj's per-token FP8 quantization as one Triton kernel (ops/glm53_onorm_fp8.py) and hands the FP8 copy to the
++# o_proj through the dense module's shared-quant slot (GLM53_DENSE_SHARED_QUANT must map kda_onorm>attn_out). It
++# engages only where the o_proj is certain to take that copy (glm53_consumes_shared_quant: unchunked W8A8 branch,
++# > 128 rows) and with 16 local heads (the served kernel's 16-row tile is then one token). 1 = the BF16 output is
++# still written in place (as served), 2 = FP8 only. Mode 2 raises if the o_proj did not take the copy (it would have
++# computed on the un-normalised buffer); mode 1 then only logs (its BF16 output is the served one).
++_GLM53_KDA_ONORM_FP8 = int(_glm53_os.environ.get("GLM53_KDA_ONORM_FP8", "0"))
++if _GLM53_KDA_ONORM_FP8 not in (0, 1, 2):
++    raise ValueError("GLM53_KDA_ONORM_FP8 must be 0, 1 or 2")
++_glm53_logger = _glm53_init_logger(__name__)
++_GLM53_ONORM_FP8_MISSES = 0
++
++
++def _glm53_kda_output(layer, core_attn_out, g2, num_tokens, defer_tp_reduction):
++    """The KDA output tail: o_norm (in place), the [M, H * D] view, o_proj; or the fused o_norm + FP8 quantization."""
++    global _GLM53_ONORM_FP8_MISSES
++    dd = None
++    if _GLM53_KDA_ONORM_FP8 and num_tokens > 128:
++        from vllm.model_executor.layers.quantization import glm53_dual_fp8_dense as dd
++        norm = layer.o_norm
++        if not (dd.glm53_consumes_shared_quant(layer.o_proj, num_tokens, "kda_onorm")
++                and norm.activation == "sigmoid" and norm.weight is not None and norm.bias is None
++                and g2.shape[-2] == 16 and core_attn_out.shape[-1] <= 512):
++            dd = None
++    if dd is None:
++        core_attn_out = layer.o_norm(core_attn_out, g2)
++        core_attn_out = core_attn_out.reshape(core_attn_out.size(1), -1)
++    else:
++        from vllm.models.glm5next.nvidia.ops.glm53_onorm_fp8 import gated_rmsnorm_fp8
++        hits = dd._SHARED_QUANT_HITS.get("kda_onorm", 0)
++        core_attn_out, q, s = gated_rmsnorm_fp8(core_attn_out, g2, norm.weight, norm.eps,
++                                                write_y=_GLM53_KDA_ONORM_FP8 == 1)
++        dd.glm53_register_quant("kda_onorm", core_attn_out, q, s)
++    if defer_tp_reduction:
++        out = layer.o_proj(core_attn_out, defer_tp_reduction=True)[0]
++    else:
++        out = layer.o_proj(core_attn_out)[0]
++    if dd is not None:
++        if dd._SHARED_QUANT_HITS.get("kda_onorm", 0) == hits + 1:
++            _glm53_logger.info_once("GLM53 KDA o_norm with the o_proj FP8 quantization fused (mode %d)",
++                                    _GLM53_KDA_ONORM_FP8, scope="local")
++        elif _GLM53_KDA_ONORM_FP8 == 2:
++            raise RuntimeError("GLM53_KDA_ONORM_FP8=2: the o_proj did not take the fused FP8 quantization")
++        else:
++            _GLM53_ONORM_FP8_MISSES += 1
++            _glm53_logger.warning_once("GLM53_KDA_ONORM_FP8=1: the o_proj did not take the fused FP8 quantization "
++                                       "(served result, no saving)", scope="local")
++    return out
++
++
++_GLM5NEXT_RECOVERSSM_BACKEND = None
++
++
++def _glm53_recoverssm_v1_column(metadata_) -> None:
++    """Exact-landing fix (outputs/2026-09-25-fused-commit-fix, section 4a), with ops/recoverssm.py's final column
++    cdiv(nc', block_size) - 1: after the commit, the image helper (v1/worker/gpu/model_states/recoverssm.py) sets the
++    running column to (num_computed + num_sampled) // block_size and the align postprocess copies from it. Handing it
++    num_computed - 1 makes that cdiv(nc', block_size) - 1, the column the commit wrote: on an exact landing the state
++    stays in the completed block and the next step's pre-copy moves it into the new one, which the scheduler allocates
++    only then. Off the boundary both formulas give the same column."""
++    commit = getattr(metadata_, "recoverssm_commit", None)
++    if commit is None or commit.align is None:
++        return
++    import dataclasses as _dc
++
++    helper_num_computed = commit.align.num_computed_tokens - 1
++    commit_state = metadata_.commit_recoverssm_state
++
++    def commit_recoverssm_state(num_accepted_tokens):
++        post = commit_state(num_accepted_tokens)
++        return None if post is None else _dc.replace(post, num_computed_tokens=helper_num_computed)
++
++    metadata_.commit_recoverssm_state = commit_recoverssm_state
++
++
++def _glm5next_recoverssm_backend():
++    """Kimi-K3's KDA metadata builder (RecoverSSM: one checkpoint slot per spec request, every active decode in the
++    spec group, accepted-state commit after sampling) with the commit context of GLM's RecoverSSM ops (records outside
++    the KV page, ``ops/recoverssm.py``) built from GLM's layers."""
++    global _GLM5NEXT_RECOVERSSM_BACKEND
++    if _GLM5NEXT_RECOVERSSM_BACKEND is not None:
++        return _GLM5NEXT_RECOVERSSM_BACKEND
++    from vllm.models.glm5next.nvidia.ops import recoverssm
++
++    metadata = _kimi_k3_module("kda_metadata")
++
++    class Glm5NextKDARecoverSSMMetadataBuilder(_GlmContiguousMixedBuild, metadata.KimiK3KDAMetadataBuilder):
++        def __init__(self, kv_cache_spec, layer_names, vllm_config, device):
++            super().__init__(kv_cache_spec, layer_names, vllm_config, device)
++            # GDNAttentionMetadataBuilder.__init__ never calls the base __init__, the only place that stores
++            # layer_names, and the commit context needs them (campaign-1 boot: AttributeError at graph capture).
++            self.layer_names = list(layer_names)
++
++        def _get_recoverssm_context(self):
++            if self.recoverssm_context is None:
++                forward_context = self.vllm_config.compilation_config.static_forward_context
++                self.recoverssm_context = recoverssm.KDARecoverSSMCommitContext.create(
++                    [_Glm5NextRecoverSSMLayerView(forward_context[n]) for n in self.layer_names],
++                    spec_query_len=1 + self.vllm_config.num_speculative_tokens,
++                    max_num_reqs=self.vllm_config.scheduler_config.max_num_seqs,
++                    align_mode=self.kv_cache_spec.mamba_cache_mode == "align",
++                )
++            return self.recoverssm_context
++
++        def build(self, common_prefix_len, common_attn_metadata, num_accepted_tokens=None,
++                  num_decode_draft_tokens_cpu=None, fast_build=False):
++            metadata_ = super().build(common_prefix_len, common_attn_metadata,
++                                      num_accepted_tokens=num_accepted_tokens,
++                                      num_decode_draft_tokens_cpu=num_decode_draft_tokens_cpu, fast_build=fast_build)
++            _glm53_recoverssm_v1_column(metadata_)
++            _glm53_attach_ckpt(self, metadata_, common_attn_metadata, num_decode_draft_tokens_cpu)
++            # Fused commit (2026-09-23): before this step's forward, hand the last commit's entries to the rows
++            # that verify from their blocks and flush the rest (ops/recoverssm.py, prepare_fused).
++            if recoverssm.FUSED_COMMIT and self.use_recoverssm:
++                context = self.recoverssm_context
++                num_spec = metadata_.num_spec_decodes
++                if num_spec > 0 or (context is not None and context.pending_active):
++                    context = self._get_recoverssm_context()
++                    rows = metadata_.spec_state_indices_tensor[:num_spec, 0] if num_spec > 0 else None
++                    context.prepare_fused(rows, num_spec)
++            # patch A2: this step's commit skips rule 1's two launches when the host proves they cannot commit anything
++            _glm53_rule1_host_skip(self, metadata_, common_attn_metadata)
++            return metadata_
++
++    class Glm5NextKDARecoverSSMBackend(metadata.KimiK3KDAAttentionBackend):
++        @staticmethod
++        def get_name() -> str:
++            return "GLM5NEXT_KDA_RECOVERSSM"
++
++        @staticmethod
++        def get_builder_cls():
++            return Glm5NextKDARecoverSSMMetadataBuilder
++
++    _GLM5NEXT_RECOVERSSM_BACKEND = Glm5NextKDARecoverSSMBackend
++    return _GLM5NEXT_RECOVERSSM_BACKEND
++
++
+ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+     head_dim: int
+     num_heads: int
+     conv_size: int
+ 
++    def get_attn_backend(self):
++        # RecoverSSM (--use-replayssm with speculative decoding): Kimi-K3's KDA metadata protocol.
++        if self.cache_config is not None and self.cache_config.use_kda_recoverssm:
++            return _glm5next_recoverssm_backend()
++        return super().get_attn_backend()
++
+     def get_state_dtype(
+         self,
+     ) -> tuple[torch.dtype, torch.dtype]:
+         if self.model_config is None or self.cache_config is None:
+             raise ValueError("model_config and cache_config must be set")
+-        return MambaStateDtypeCalculator.kda_state_dtype(
++        conv_dtype, state_dtype = MambaStateDtypeCalculator.kda_state_dtype(
+             self.model_config.dtype, self.cache_config.mamba_cache_dtype
+         )
++        if _kda_state_dtype_checked() is not None:
++            state_dtype = _GLM53_KDA_STATE_DTYPE  # storage only; the page keeps its fp32-sized padding (model.py)
++        return conv_dtype, state_dtype
+ 
+     def get_state_shape(
+         self,
+@@ -334,13 +1008,20 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+         # (causal_conv1d_update with num_accepted_tokens + max_query_len) can
+         # slide the window across the draft-verify tokens without reading past
+         # the allocated width. Matches qwen_gdn_linear_attn.get_state_shape.
+-        return MambaStateShapeCalculator.kda_state_shape(
++        # RecoverSSM's records live outside the page (see ops/recoverssm.py), so the page stays conv + state.
++        conv_shape, state_shape = MambaStateShapeCalculator.kda_state_shape(
+             self.tp_size,
+             self.num_heads,
+             self.head_dim,
+             conv_kernel_size=self.conv_size,
+             num_spec=self.num_spec,
+         )
++        if _GLM53_KDA_STATE_SIDE:
++            # A2b: 2 * SLOW_SLOTS fp16 columns per value row after the key columns hold the slow channels as fp32.
++            from vllm.models.glm5next.nvidia.ops.recoverssm import SLOW_SLOTS
++
++            state_shape = (*state_shape[:-1], state_shape[-1] + 2 * SLOW_SLOTS)
++        return conv_shape, state_shape
+ 
+     def __init__(
+         self,
+@@ -359,6 +1040,13 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+         self.head_dim = config.linear_head_dim
+         self.num_heads = config.linear_num_heads
+         self.conv_size = config.linear_conv_kernel_dim
++        # RecoverSSM: verify the draft window off one checkpoint (no per-token state stores); the accepted state is
++        # committed for all layers after sampling (Kimi-K3's kernels, the V2 runner's RecoverSSMState).
++        self.use_recoverssm = bool(self.cache_config.use_kda_recoverssm)
++        self.spec_query_len = 1 + self.num_spec
++        # Per-token records of the spec window, one row per spec batch position (allocated in bind_kv_cache).
++        self._recoverssm_rows = vllm_config.scheduler_config.max_num_seqs
++        self.recoverssm_records: tuple[torch.Tensor, torch.Tensor] | None = None
+         assert self.num_heads % self.tp_size == 0
+         self.local_num_heads = divide(self.num_heads, self.tp_size)
+ 
+@@ -479,18 +1167,31 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+             self.head_dim,
+             vllm_config.model_config.dtype,
+             self.kda_lower_bound,
+-            self.get_state_dtype()[1],
++            torch.float32 if _kda_state_dtype_checked() is not None else self.get_state_dtype()[1],
+         )
++        # GLM53_KDA_STATE narrow pool: b12x prefill computes on the fp32 staging pool, the only prefill wired for it.
++        self._kda_state_narrow = _kda_state_dtype_checked() is not None
++        self._kda_state_side = _GLM53_KDA_STATE_SIDE
++        self._kda_state_stage = None
++        self._kda_slow_slot = None
++        if self._kda_state_narrow and self.kda_prefill_backend != "b12x":
++            raise RuntimeError("GLM53_KDA_STATE narrow pools require --kda-prefill-backend b12x")
+         self._flashkda_buffer_specs: (
+             tuple[tuple[tuple[int, ...], torch.dtype], ...] | None
+         ) = None
++        self._flashkda_strided = False
++        self._flashkda_ops = None
++        self._b12x_direct_out = (
++            self.kda_prefill_backend == "b12x" and _GLM53_B12X_KDA_DIRECT_OUT
++        )
+         if self.kda_prefill_backend == "flashkda":
+             max_tokens = vllm_config.scheduler_config.max_num_batched_tokens
+             max_seqs = vllm_config.scheduler_config.max_num_seqs
+             num_heads, head_dim = self.local_num_heads, self.head_dim
+-            import vllm._flashkda_C  # noqa: F401
++            self._flashkda_strided = _GLM53_FLASHKDA_STRIDED
++            self._flashkda_ops = _flashkda_ops(self._flashkda_strided)
+ 
+-            workspace_size = torch.ops._flashkda_C.get_workspace_size(
++            workspace_size = self._flashkda_ops.get_workspace_size(
+                 max_tokens, num_heads, max_seqs
+             )
+             self._flashkda_buffer_specs = (
+@@ -507,14 +1208,70 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+         # Process-global conv-state layout, resolved once here instead of on
+         # every _forward call (it reads an env-derived flag each time).
+         self._conv_state_dim_first = is_conv_state_dim_first()
++        self._kda_conv_fused = self.kda_prefill_backend == "b12x" and _GLM53_KDA_CONV_FUSED
++        if self._kda_conv_fused:
++            import glm53_kda_conv  # noqa: F401  (mounted module: fail at boot, not at the first prefill)
++        if _GLM53_KDA_CKPT:
++            if self.kda_prefill_backend != "b12x" or self._conv_state_dim_first:
++                raise RuntimeError("GLM53_KDA_CKPT=1 needs --kda-prefill-backend b12x and the SD conv-state layout")
++            import glm53_kda_ckpt  # noqa: F401  (mounted module: fail at boot, not at the first prefill)
+ 
+     def bind_kv_cache(self, kv_cache: torch.Tensor) -> None:
+         super().bind_kv_cache(kv_cache)
++        if self.use_recoverssm and self.recoverssm_records is None:
++            device = self.kv_cache[1].device
++            rows, heads, s, d = self._recoverssm_rows, self.local_num_heads, self.spec_query_len, self.head_dim
++            from vllm.models.glm5next.nvidia.ops.recoverssm import FUSED_COMMIT
++
++            lead = (2,) if FUSED_COMMIT else ()   # fused commit: this step's records and the pending ones
++            self.recoverssm_records = (
++                torch.zeros((*lead, rows, heads, s, d), dtype=torch.float32, device=device),
++                torch.zeros((*lead, rows, heads, s, 2 * d), dtype=self.model_config.dtype, device=device),
++            )
+         if self._b12x_prefill_api is not None:
++            if self._kda_state_narrow:
++                self._kda_state_stage = self._make_kda_state_stage()
+             self._b12x_prefill_plan = self._make_b12x_kda_prefill_plan(
+-                max_state_slots=int(self.kv_cache[1].shape[0])
++                max_state_slots=(
++                    self._kda_state_stage.slots
++                    if self._kda_state_narrow
++                    else int(self.kv_cache[1].shape[0])
++                )
+             )
+ 
++    def _make_kda_state_stage(self):
++        """GLM53_KDA_STATE narrow pool: the process-wide fp32 staging pool of b12x prefill (with conv rows for the conv
++        fold), shared by every KDA layer of the process; with the side layout also this layer's slow-channel table,
++        built here, before any CUDA graph capture."""
++        from vllm.models.glm5next.nvidia import kda_state_store
++        from vllm.models.glm5next.nvidia.ops import recoverssm
++
++        state = self.kv_cache[1]
++        if state.dtype != _GLM53_KDA_STATE_DTYPE:
++            raise RuntimeError(f"GLM53_KDA_STATE={_GLM53_KDA_STATE} but the recurrent-state pool is {state.dtype}")
++        if self._kda_state_side != recoverssm.side_layout(state, self.head_dim):
++            raise RuntimeError(f"GLM53_KDA_STATE={_GLM53_KDA_STATE}: unexpected state pool shape {tuple(state.shape)}")
++        if self._kda_state_side:
++            self._kda_slow_slot = recoverssm.slow_slot_table(
++                self.A_log.view(-1), self.dt_bias, self.local_num_heads, self.head_dim, self.kda_lower_bound
++            )
++        conv = self.kv_cache[0] if self._kda_conv_fused else None
++        export_rows = 0
++        if _GLM53_KDA_CKPT:
++            # kda-checkpoints: one staging export row per (sequence, checkpoint) entry of a call (the hook's width is the
++            # planner's cap, GLM53_KDA_CKPT_MAX)
++            import glm53_kda_ckpt_plan
++
++            export_rows = self._b12x_prefill_max_seqs * int(glm53_kda_ckpt_plan.MAX_EXPORTS)
++        stage = kda_state_store.get_stage(state, self._b12x_prefill_max_seqs, conv, key_dim=self.head_dim,
++                                          export_rows=export_rows)
++        kda_state_store.mark(
++            "ENGAGED",
++            f"mode={_GLM53_KDA_STATE} dtype={state.dtype} pool={tuple(state.shape)} block_stride={state.stride(0)} "
++            f"staging_slots={stage.slots} export_rows={stage.export_rows} conv_rows={conv is not None} side={stage.side}",
++        )
++        return stage
++
+     def _initialize_b12x_kda_prefill(self, vllm_config: VllmConfig) -> None:
+         """Keep only metadata tensors resident; scratch comes from the manager."""
+         if self.kda_prefill_backend != "b12x":
+@@ -577,7 +1334,11 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+                 heads=self.local_num_heads,
+                 head_dim=self.head_dim,
+                 model_dtype=self.model_config.dtype,
+-                state_dtype=self.get_state_dtype()[1],
++                state_dtype=(
++                    torch.float32  # GLM53_KDA_STATE narrow pool: b12x runs on the fp32 staging pool
++                    if getattr(self, "_kda_state_narrow", False)
++                    else self.get_state_dtype()[1]
++                ),
+                 qk_l2norm=True,
+                 # Preserve A59's state-pool geometry. Ironclad checkpoint
+                 # export belongs to the later connector port, not this A/B.
+@@ -601,8 +1362,45 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+         recurrent_state: torch.Tensor,
+         scratch: torch.Tensor | list[torch.Tensor],
+         output: torch.Tensor,
++        ckpt=None,
++        conv_x: torch.Tensor | None = None,
+     ) -> None:
+         """Run B12X directly against the existing recurrent-state pool."""
++        fused_stage = self._kda_state_stage if getattr(self, "_kda_state_narrow", False) else None
++        if fused_stage is not None and getattr(fused_stage, "fused", False):
++            # A2b replay fix: the side layout's staging in two fused launches (module docstring above _a2b_store)
++            _a2b_fused_prefill(
++                self, fused_stage, q=q, k=k, v=v, raw_g=raw_g, raw_beta=raw_beta, cu_seqlens=cu_seqlens,
++                state_indices=state_indices, has_initial_state=has_initial_state, recurrent_state=recurrent_state,
++                scratch=scratch, output=output, ckpt=ckpt, conv_x=conv_x,
++            )
++            return
++        if ckpt is not None:
++            # kda-checkpoints: the same binding through glm53_kda_ckpt, exporting the planned states and, from the
++            # pre-conv q|k|v rows, their conv history.
++            import glm53_kda_ckpt
++
++            # A2b (GLM53_KDA_STATE narrow pool): the recurrence runs on the fp32 staging rows 1..n and exports into
++            # staging export rows; the rows and the exported states are then stored into the pool (main columns rounded
++            # to nearest, slow channels exact). The conv history goes straight into the conv pool (not narrowed).
++            stage = self._kda_state_stage if getattr(self, "_kda_state_narrow", False) else None
++            run_ckpt, pool_state, pool_indices = ckpt, recurrent_state, state_indices
++            if stage is not None:
++                recurrent_state, state_indices = stage.stage_in(pool_state, pool_indices, slot=self._kda_slow_slot)
++                run_ckpt = stage.export_checkpoints(ckpt, keep_conv=True)
++            glm53_kda_ckpt.run_kda_prefill_ckpt(
++                self, q=q, k=k, v=v, raw_g=raw_g, raw_beta=raw_beta, cu_seqlens=cu_seqlens,
++                state_indices=state_indices, has_initial_state=has_initial_state, recurrent_state=recurrent_state,
++                scratch=scratch, output=output, ckpt=run_ckpt, conv_x=conv_x, conv_state_sd=self.kv_cache[0],
++            )
++            if stage is not None:
++                stage.stage_out(pool_state, pool_indices, slot=self._kda_slow_slot)
++                stage.stage_out_exports(pool_state, ckpt, slot=self._kda_slow_slot)
++                from vllm.models.glm5next.nvidia import kda_state_store
++
++                kda_state_store.mark("STAGED ckpt", f"tokens={int(q.shape[0])} requests={int(pool_indices.shape[0])} "
++                                     f"entries={int(ckpt.slots.numel())} side={stage.side}")
++            return
+         api = self._b12x_prefill_api
+         plan = self._b12x_prefill_plan
+         if api is None or plan is None:
+@@ -620,6 +1418,11 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+                 f"tokens={num_tokens}/{self._b12x_prefill_max_tokens}, "
+                 f"requests={num_requests}/{self._b12x_prefill_max_seqs}"
+             )
++        # GLM53_KDA_STATE narrow pool: b12x runs on the fp32 staging rows 1..n; the pool rows are converted in and out.
++        stage = self._kda_state_stage if getattr(self, "_kda_state_narrow", False) else None
++        if stage is not None:
++            pool_state, pool_indices = recurrent_state, state_indices
++            recurrent_state, state_indices = stage.stage_in(pool_state, pool_indices, slot=self._kda_slow_slot)
+ 
+         initial_indices = self._b12x_prefill_initial_indices[:num_requests]
+         initial_indices.copy_(state_indices)
+@@ -657,15 +1460,120 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+             max_live_tokens=num_tokens,
+             max_live_seqs=num_requests,
+         )
++        if stage is not None:
++            stage.stage_out(pool_state, pool_indices, slot=self._kda_slow_slot)
++            from vllm.models.glm5next.nvidia import kda_state_store
++
++            kda_state_store.mark("STAGED prefill", f"tokens={num_tokens} requests={num_requests} side={stage.side}")
++
++    def _run_b12x_kda_prefill_conv_fused(
++        self,
++        *,
++        qkv: torch.Tensor,
++        conv_weights: torch.Tensor,
++        raw_g: torch.Tensor,
++        raw_beta: torch.Tensor,
++        cu_seqlens: torch.Tensor,
++        state_indices: torch.Tensor,
++        has_initial_state: torch.Tensor,
++        recurrent_state: torch.Tensor,
++        core_attn_out: torch.Tensor,
++        ckpt=None,
++    ) -> torch.Tensor:
++        """Pure-prefill b12x KDA with the causal conv inside its prepare pass (glm53_kda_conv): reads the pre-conv
++        q|k|v projection, writes the layer output rows in place and updates the SD conv state exactly as
++        causal_conv1d_fn does. Workspace: b12x's scratch plus a [max_tokens, H*128] bf16 buffer for post-conv v (the
++        size of b12x's output buffer)."""
++        fused_stage = self._kda_state_stage if getattr(self, "_kda_state_narrow", False) else None
++        if fused_stage is not None and getattr(fused_stage, "fused", False):
++            # A2b replay fix: the side layout's staging in two fused launches (module docstring above _a2b_store)
++            return _a2b_fused_prefill_conv(
++                self, fused_stage, qkv=qkv, conv_weights=conv_weights, raw_g=raw_g, raw_beta=raw_beta,
++                cu_seqlens=cu_seqlens, state_indices=state_indices, has_initial_state=has_initial_state,
++                recurrent_state=recurrent_state, core_attn_out=core_attn_out, ckpt=ckpt,
++            )
++        import glm53_kda_conv
++
++        plan = self._b12x_prefill_plan
++        if plan is None:
++            raise RuntimeError("b12x KDA prefill KV cache was not bound before inference")
++        num_tokens = int(qkv.shape[0])
++        *scratch_buffers, v_out = current_workspace_manager().get_simultaneous(
++            *((spec.shape, spec.dtype) for spec in plan.scratch_specs()),
++            ((self._b12x_prefill_max_tokens, self.local_projection_size), self.model_config.dtype),
++        )
++        scratch = scratch_buffers[0] if len(scratch_buffers) == 1 else scratch_buffers
++        output = core_attn_out[0, :num_tokens]
++        conv_state_sd = self.kv_cache[0]
++        # GLM53_KDA_STATE narrow pool: the recurrent state and the conv rows (the conv kernels index the conv pool with
++        # the same binding indices) run on the staging rows 1..n.
++        stage = self._kda_state_stage if getattr(self, "_kda_state_narrow", False) else None
++        if stage is not None:
++            pool_state, pool_conv, pool_indices = recurrent_state, conv_state_sd, state_indices
++            recurrent_state, state_indices = stage.stage_in(pool_state, pool_indices, pool_conv, slot=self._kda_slow_slot)
++            conv_state_sd = stage.conv
++        if ckpt is not None:  # kda-checkpoints: the fused path with the planned exports
++            import glm53_kda_ckpt
++
++            # A2b narrow pool: the exports go to staging export rows (stored into the pool below); the conv history is
++            # written into the conv pool after the call (the staging conv holds only this call's rows).
++            run_ckpt = ckpt if stage is None else stage.export_checkpoints(ckpt, keep_conv=False)
++
++            def run_fused(*args, **kwargs):
++                glm53_kda_ckpt.run_kda_prefill_conv_fused_ckpt(*args, ckpt=run_ckpt, **kwargs)
++        else:
++            run_fused = glm53_kda_conv.run_kda_prefill_conv_fused
++        run_fused(
++            self,
++            qkv=qkv,
++            conv_weight=conv_weights,
++            conv_state_sd=conv_state_sd,
++            raw_g=raw_g,
++            raw_beta=raw_beta,
++            cu_seqlens=cu_seqlens,
++            state_indices=state_indices,
++            has_initial_state=has_initial_state,
++            recurrent_state=recurrent_state,
++            scratch=scratch,
++            output=output,
++            v_out=v_out,
++        )
++        if stage is not None:
++            stage.stage_out(pool_state, pool_indices, pool_conv, slot=self._kda_slow_slot)
++            from vllm.models.glm5next.nvidia import kda_state_store
++
++            if ckpt is not None:
++                stage.stage_out_exports(pool_state, ckpt, slot=self._kda_slow_slot)
++                glm53_kda_ckpt.export_conv_history(pool_conv, qkv, ckpt)
++                kda_state_store.mark("STAGED ckpt_conv_fused", f"tokens={num_tokens} requests={int(pool_indices.shape[0])} "
++                                     f"entries={int(ckpt.slots.numel())} side={stage.side}")
++            kda_state_store.mark("STAGED conv_fused", f"tokens={num_tokens} requests={int(pool_indices.shape[0])} side={stage.side}")
++        if not _GLM53_KDA_CONV_FUSED_MARKED[0]:
++            _GLM53_KDA_CONV_FUSED_MARKED[0] = True
++            import sys
++
++            print(f"GLM53_KDA_PREFILL_ENGAGED conv_fused tokens={num_tokens}", file=sys.stderr, flush=True)
++        return output.unsqueeze(0)
+ 
+     def forward(
+         self,
+         hidden_states: torch.Tensor,
+         positions: torch.Tensor,
++        *,
++        defer_tp_reduction: bool = False,
++        fp8_input: tuple[torch.Tensor, torch.Tensor] | None = None,
+     ) -> torch.Tensor:
++        if fp8_input is not None:
++            # GLM53_KDA_FP8_HANDOFF: the owner rows were quantized once and gathered as FP8 + per-token scales; the
++            # in-projection runs its W8A8 prefill calls on that pair (bitwise the same GEMM inputs and output).
++            from . import kda_fp8_handoff
++
++            projected = kda_fp8_handoff.project(self.in_proj_qkvbfg_a, *fp8_input)
++            hidden_states = projected           # num_tokens, dtype and device below are the projection's
++        else:
++            # One merged GEMM for q, k, v, b, f_a, g_a (replaces 6 separate GEMMs).
++            projected = self.in_proj_qkvbfg_a(hidden_states)[0]
+         num_tokens = hidden_states.size(0)
+-        # One merged GEMM for q, k, v, b, f_a, g_a (replaces 6 separate GEMMs).
+-        projected = self.in_proj_qkvbfg_a(hidden_states)[0]
+         qkv, beta_raw, f_a, g_a = projected.split(
+             [
+                 3 * self.local_projection_size,
+@@ -702,9 +1610,7 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+             beta=beta,
+             core_attn_out=core_attn_out,
+         )
+-        core_attn_out = self.o_norm(core_attn_out, g2)
+-        core_attn_out = core_attn_out.reshape(core_attn_out.size(1), -1)
+-        return self.o_proj(core_attn_out)[0]
++        return _glm53_kda_output(self, core_attn_out, g2, num_tokens, defer_tp_reduction)
+ 
+     @eager_break_during_capture
+     def _forward(
+@@ -727,6 +1633,8 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+             return
+         assert isinstance(attn_metadata_narrowed, GDNAttentionMetadata)
+         has_initial_state = attn_metadata_narrowed.has_initial_state
++        glm_ckpt = getattr(attn_metadata_narrowed, "glm_kda_ckpt", None)  # kda-checkpoints
++        qkv_ns_pre = None
+         non_spec_query_start_loc = attn_metadata_narrowed.non_spec_query_start_loc
+         non_spec_state_indices_tensor = (
+             attn_metadata_narrowed.non_spec_state_indices_tensor
+@@ -740,7 +1648,9 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+         non_spec_token_indx = attn_metadata_narrowed.non_spec_token_indx
+         num_accepted_tokens = attn_metadata_narrowed.num_accepted_tokens
+         num_spec_decodes = attn_metadata_narrowed.num_spec_decodes
+-        use_spec = spec_sequence_masks is not None and num_spec_decodes > 0
++        use_spec = num_spec_decodes > 0 and (
++            spec_sequence_masks is not None or self.use_recoverssm
++        )
+         # Safe-gate checkpoints use the bounded sigmoid variant.
+         safe_gate = self.kda_safe_gate
+         lower_bound = self.kda_lower_bound
+@@ -781,6 +1691,21 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+         # num_accepted_tokens for rejection-sampling rollback; non-spec tokens
+         # are one-per-request. Mirrors olmo_gdn_linear_attn.py. Projections are
+         # [n, *] (token dim 0); g1/beta are [1, n, h, d] (token dim 1).
++        # Contiguous mixed step (GLM53_KDA_CONTIGUOUS_MIXED, starts set by the
++        # metadata builder): both groups are token ranges, taken as slices.
++        spec_token_start = getattr(attn_metadata_narrowed, "glm_spec_token_start", None)
++        contiguous_mixed = use_spec and spec_token_start is not None
++        if contiguous_mixed:
++            assert attn_metadata_narrowed.num_prefills > 0 and attn_metadata_narrowed.num_decodes == 0
++            non_spec_token_start = attn_metadata_narrowed.glm_non_spec_token_start
++            spec_slice = slice(spec_token_start, spec_token_start + attn_metadata_narrowed.num_spec_decode_tokens)
++            non_spec_slice = slice(
++                non_spec_token_start,
++                non_spec_token_start
++                + attn_metadata_narrowed.num_prefill_tokens
++                + attn_metadata_narrowed.num_decode_tokens,
++            )
++            _glm_contiguous_mixed_engaged(self.prefix, spec_slice, non_spec_slice)
+         if use_spec:
+             # In a pure spec-verify step (no non-spec tokens) the metadata
+             # builder sets spec_token_indx = arange(num_actual_tokens), making
+@@ -792,11 +1717,19 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+                 qkv_spec = qkv_proj_states
+                 g1_spec = g1
+                 beta_spec = beta
++            elif contiguous_mixed:
++                qkv_spec = qkv_proj_states[spec_slice]
++                g1_spec = g1[:, spec_slice]
++                beta_spec = beta[:, spec_slice]
+             else:
+                 qkv_spec = qkv_proj_states.index_select(0, spec_token_indx)
+                 g1_spec = g1.index_select(1, spec_token_indx)
+                 beta_spec = beta.index_select(1, spec_token_indx)
+-            if non_spec_token_indx is not None and non_spec_token_indx.numel() > 0:
++            if contiguous_mixed:
++                qkv_ns = qkv_proj_states[non_spec_slice]
++                g1_ns = g1[:, non_spec_slice]
++                beta_ns = beta[:, non_spec_slice]
++            elif non_spec_token_indx is not None and non_spec_token_indx.numel() > 0:
+                 qkv_ns = qkv_proj_states.index_select(0, non_spec_token_indx)
+                 g1_ns = g1.index_select(1, non_spec_token_indx)
+                 beta_ns = beta.index_select(1, non_spec_token_indx)
+@@ -811,7 +1744,12 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+             assert spec_state_indices_tensor is not None
+             assert num_accepted_tokens is not None
+             conv_idx = spec_state_indices_tensor[:, 0][:num_spec_decodes]
+-            conv_mql = spec_state_indices_tensor.size(-1)
++            # RecoverSSM keeps one checkpoint column; the conv window still spans the whole spec query.
++            conv_mql = (
++                self.spec_query_len
++                if self.use_recoverssm
++                else spec_state_indices_tensor.size(-1)
++            )
+             qkv_spec = causal_conv1d_update(
+                 qkv_spec,
+                 conv_state,
+@@ -827,8 +1765,18 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+ 
+         # --- causal conv1d: non-spec path (prefill or plain decode) ---
+         q_ns = k_ns = v_ns = None
+-        if attn_metadata_narrowed.num_prefills > 0:
++        conv_fused = (
++            self._kda_conv_fused
++            and not use_spec
++            and attn_metadata_narrowed.num_prefills > 0
++            and num_actual_tokens >= _GLM53_KDA_CONV_FUSED_MIN_ROWS
++            and not self._conv_state_dim_first
++        )
++        if conv_fused:
++            pass  # the conv runs inside b12x's prepare pass (_run_b12x_kda_prefill_conv_fused)
++        elif attn_metadata_narrowed.num_prefills > 0:
+             assert qkv_ns is not None
++            qkv_ns_pre = qkv_ns  # kda-checkpoints: the pre-conv rows, source of the exported conv history
+             qkv_ns = causal_conv1d_fn(
+                 qkv_ns.transpose(0, 1),
+                 conv_weights,
+@@ -870,31 +1818,82 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+             if non_spec_token_indx is None or non_spec_token_indx.numel() == 0
+             else None
+         )
++        if contiguous_mixed:
++            # Contiguous mixed step: the verify writes straight into its slice.
++            spec_out = core_attn_out[:, spec_slice]
+         if use_spec:
+             assert spec_state_indices_tensor is not None
+             assert num_accepted_tokens is not None
+             assert spec_query_start_loc is not None
+-            # Gate computed inside the recurrent kernel (COMPUTE_GATE) from
+-            # raw g1 — replicates fused_kda_gate's arithmetic bit-for-bit and
+-            # skips its launch + fp32 [n, H, D] intermediate per layer.
+-            core_attn_out_spec, _ = fused_recurrent_kda(
+-                q=_rearr(q_spec),
+-                k=_rearr(k_spec),
+-                v=_rearr(v_spec),
+-                g=g1_spec,
+-                beta=beta_spec,
+-                initial_state=recurrent_state,
+-                use_qk_l2norm_in_kernel=True,
+-                cu_seqlens=spec_query_start_loc[: num_spec_decodes + 1],
+-                ssm_state_indices=spec_state_indices_tensor,
+-                num_accepted_tokens=num_accepted_tokens,
+-                out=spec_out,
+-                sigmoid_beta=True,
+-                a_log=self.A_log,
+-                g_bias=self.dt_bias,
+-                compute_gate=True,
+-                lower_bound=lower_bound,
+-            )
++            if self.use_recoverssm:
++                from vllm.models.glm5next.nvidia.ops.recoverssm import (
++                    FUSED_COMMIT,
++                    kda_recoverssm_verify,
++                    kda_recoverssm_verify_fused,
++                )
++
++                assert self.recoverssm_records is not None
++                if FUSED_COMMIT:
++                    recoverssm_context = attn_metadata_narrowed.recoverssm_context
++                    assert recoverssm_context is not None and recoverssm_context.fused
++                    core_attn_out_spec = kda_recoverssm_verify_fused(
++                        q=_rearr(q_spec),
++                        k=_rearr(k_spec),
++                        v=_rearr(v_spec),
++                        raw_g=g1_spec,
++                        raw_beta=beta_spec,
++                        A_log=self.A_log.view(-1),
++                        dt_bias=self.dt_bias,
++                        lower_bound=lower_bound,
++                        checkpoint_state=recurrent_state,
++                        correction2=self.recoverssm_records[0],
++                        kg2=self.recoverssm_records[1],
++                        query_start_loc=spec_query_start_loc[: num_spec_decodes + 1],
++                        state_indices=spec_state_indices_tensor[:num_spec_decodes, 0],
++                        spec_query_len=self.spec_query_len,
++                        context=recoverssm_context,
++                        out=spec_out,
++                    )
++                else:
++                    core_attn_out_spec = kda_recoverssm_verify(
++                        q=_rearr(q_spec),
++                        k=_rearr(k_spec),
++                        v=_rearr(v_spec),
++                        raw_g=g1_spec,
++                        raw_beta=beta_spec,
++                        A_log=self.A_log.view(-1),
++                        dt_bias=self.dt_bias,
++                        lower_bound=lower_bound,
++                        checkpoint_state=recurrent_state,
++                        correction_cache=self.recoverssm_records[0],
++                        kg_cache=self.recoverssm_records[1],
++                        query_start_loc=spec_query_start_loc[: num_spec_decodes + 1],
++                        state_indices=spec_state_indices_tensor[:num_spec_decodes, 0],
++                        spec_query_len=self.spec_query_len,
++                        out=spec_out,
++                    )
++            else:
++                # Gate computed inside the recurrent kernel (COMPUTE_GATE) from
++                # raw g1 — replicates fused_kda_gate's arithmetic bit-for-bit and
++                # skips its launch + fp32 [n, H, D] intermediate per layer.
++                core_attn_out_spec, _ = fused_recurrent_kda(
++                    q=_rearr(q_spec),
++                    k=_rearr(k_spec),
++                    v=_rearr(v_spec),
++                    g=g1_spec,
++                    beta=beta_spec,
++                    initial_state=recurrent_state,
++                    use_qk_l2norm_in_kernel=True,
++                    cu_seqlens=spec_query_start_loc[: num_spec_decodes + 1],
++                    ssm_state_indices=spec_state_indices_tensor,
++                    num_accepted_tokens=num_accepted_tokens,
++                    out=spec_out,
++                    sigmoid_beta=True,
++                    a_log=self.A_log,
++                    g_bias=self.dt_bias,
++                    compute_gate=True,
++                    lower_bound=lower_bound,
++                )
+ 
+         # --- core attention: non-spec path (prefill or plain decode) ---
+         core_attn_out_non_spec = None
+@@ -903,7 +1902,7 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+         # stays None there and the merge copy below runs as before.
+         ns_out = None
+         if attn_metadata_narrowed.num_prefills > 0:
+-            assert q_ns is not None
++            assert q_ns is not None or conv_fused
+             assert non_spec_state_indices_tensor is not None
+             assert has_initial_state is not None
+             use_b12x_prefill = self.kda_prefill_backend == "b12x"
+@@ -916,7 +1915,21 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+                     has_initial_state,
+                 )
+             )
+-            if use_b12x_prefill:
++            if conv_fused:
++                core_attn_out_non_spec = self._run_b12x_kda_prefill_conv_fused(
++                    qkv=qkv_ns,
++                    conv_weights=conv_weights,
++                    raw_g=g1_ns[0],
++                    raw_beta=beta_ns[0],
++                    cu_seqlens=non_spec_query_start_loc,
++                    state_indices=non_spec_state_indices_tensor,
++                    has_initial_state=has_initial_state,
++                    recurrent_state=recurrent_state,
++                    core_attn_out=core_attn_out,
++                    ckpt=glm_ckpt,
++                )
++                ns_out = core_attn_out_non_spec  # already in place: skip the merge copy below
++            elif use_b12x_prefill:
+                 assert lower_bound is not None
+                 assert non_spec_query_start_loc is not None
+                 plan = self._b12x_prefill_plan
+@@ -943,6 +1956,10 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+                     else scratch_buffers
+                 )
+                 b12x_out = b12x_out[:num_prefill_tokens]
++                b12x_direct = self._b12x_direct_out and not use_spec
++                if b12x_direct:
++                    # Pure prefill: non-spec tokens are all tokens in order, so the kernel writes the layer output.
++                    b12x_out = core_attn_out[0, :num_prefill_tokens]
+                 self._run_b12x_kda_prefill(
+                     q=_rearr(q_ns)[0],
+                     k=_rearr(k_ns)[0],
+@@ -955,8 +1972,15 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+                     recurrent_state=recurrent_state,
+                     scratch=b12x_scratch,
+                     output=b12x_out,
++                    ckpt=glm_ckpt,
++                    conv_x=qkv_ns_pre,
+                 )
+                 core_attn_out_non_spec = b12x_out.unsqueeze(0)
++                if b12x_direct:
++                    ns_out = b12x_out  # already in place: skip the merge copy below
++                    _mark_kda_prefill("b12x_direct_out", num_prefill_tokens)
++            elif glm_ckpt is not None:
++                raise RuntimeError("KDA checkpoint exports need the b12x KDA prefill backend")
+             elif self.kda_prefill_backend == "flashkda":
+                 assert initial_state is not None
+                 assert lower_bound is not None
+@@ -986,7 +2010,11 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+                     out=flashkda_out,
+                     final_state=final_state[: initial_state.shape[0]],
+                     workspace=workspace,
++                    strided=self._flashkda_strided,
++                    ops=self._flashkda_ops,
+                 )
++                if self._flashkda_strided and not use_spec:
++                    ns_out = flashkda_out  # already in place: skip the merge copy below
+             else:
+                 assert initial_state is not None
+                 (
+@@ -1020,6 +2048,16 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+         elif attn_metadata_narrowed.num_decodes > 0:
+             assert non_spec_query_start_loc is not None
+             assert non_spec_state_indices_tensor is not None
++            # A2b (GLM53_KDA_STATE=fp16-slow32): the plain-decode kernel does not read the fp32 side, so it runs on fp32
++            # staging rows (kda_state_store.py). Under RecoverSSM every active decode is a spec row, so this path sees
++            # only a step of one-token prefill chunks (split_decodes_and_prefills counts them as decodes).
++            decode_state, decode_indices = recurrent_state, non_spec_state_indices_tensor
++            side_stage = self._kda_state_stage if getattr(self, "_kda_state_side", False) else None
++            if side_stage is not None:
++                pool_indices = non_spec_state_indices_tensor[: attn_metadata_narrowed.num_decodes]
++                decode_state, decode_indices = side_stage.stage_in(
++                    recurrent_state, pool_indices, slot=self._kda_slow_slot
++                )
+             # Plain decode step (no spec tokens): token order is dense, so the
+             # kernel can write straight into the layer output buffer. A mixed
+             # step scatters non-spec output via non_spec_token_indx instead.
+@@ -1032,12 +2070,12 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+                 v=_rearr(v_ns),
+                 g=g1_ns,
+                 beta=beta_ns,
+-                initial_state=recurrent_state,
++                initial_state=decode_state,
+                 use_qk_l2norm_in_kernel=True,
+                 cu_seqlens=non_spec_query_start_loc[
+                     : attn_metadata_narrowed.num_decodes + 1
+                 ],
+-                ssm_state_indices=non_spec_state_indices_tensor,
++                ssm_state_indices=decode_indices,
+                 out=ns_out,
+                 sigmoid_beta=True,
+                 a_log=self.A_log,
+@@ -1045,9 +2083,20 @@ class Glm5NextLinearAttention(GatedDeltaNetAttention):
+                 compute_gate=True,
+                 lower_bound=lower_bound,
+             )
++            if side_stage is not None:
++                side_stage.stage_out(recurrent_state, pool_indices, slot=self._kda_slow_slot)
++                from vllm.models.glm5next.nvidia import kda_state_store
++
++                kda_state_store.mark("STAGED decode", f"requests={int(pool_indices.shape[0])} side=True")
+ 
+         # --- merge spec / non-spec outputs back into token order ---
+-        if use_spec and core_attn_out_non_spec is not None:
++        if contiguous_mixed:
++            # The verify already wrote its slice; one contiguous copy of the
++            # prefill output into its slice (no merged buffer, no index_copy_).
++            assert core_attn_out_spec is not None and core_attn_out_non_spec is not None
++            assert core_attn_out_non_spec.shape[1] == non_spec_slice.stop - non_spec_slice.start
++            core_attn_out[:, non_spec_slice].copy_(core_attn_out_non_spec)
++        elif use_spec and core_attn_out_non_spec is not None:
+             assert core_attn_out_spec is not None
+             merged = torch.empty(
+                 (1, num_actual_tokens, *core_attn_out_spec.shape[2:]),

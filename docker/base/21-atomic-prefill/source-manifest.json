@@ -1,0 +1,12 @@
+[
+  {
+    "path": "glm53_sparse_mla/backend.py",
+    "before": "ac27578095b7a9016734369e81711aceb0c424c3b98989d03cb8c652f0d1bb05",
+    "after": "8bb063484493ab998278e0f19883c0263b67dc8e299f4cad86402e5685f403a0"
+  },
+  {
+    "path": "vllm/model_executor/layers/fused_moe/b12x.py",
+    "before": "ee76cc6aa801e24be8ec78a9e8502061ad48667d5ff8711e43f68fba912425bd",
+    "after": "445dfa61c627b4c2baf9c3e47927b8c98c382309102f40fda85df5654d9cbc3e"
+  }
+]

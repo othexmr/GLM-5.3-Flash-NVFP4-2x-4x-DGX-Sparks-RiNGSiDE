@@ -1,0 +1,9 @@
+{
+  "status": "Preserves full padded KPool support. Isolated GPU oracle and metadata-changing graphs passed; service qualification is separate.",
+  "files": {
+    "glm53_sparse_mla/backend.py": {
+      "before": "7fe426aeadf323f040d336d68565119ba6748334f23411b951f13b22058536fb",
+      "after": "f27fc924b86e11a729719a4f9273c1633792df46a83127c80968bd72d0e847d7"
+    }
+  }
+}

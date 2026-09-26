@@ -1,0 +1,49 @@
+--- a/vllm/utils/b12x.py
++++ b/vllm/utils/b12x.py
+@@ -41,6 +41,7 @@
+         "b12x.gemm.mxfp8_linear",
+         "b12x.gemm.tensor_fp8_linear",
+         "b12x.moe.fused_moe",
++        "b12x.sequence.kda_prefill",
+     )
+ }
+ 
+@@ -78,6 +79,10 @@
+     return _get_submodule("b12x.attention.paged")
+ 
+ 
++def get_b12x_kda_prefill() -> ModuleType | None:
++    return _get_submodule("b12x.sequence.kda_prefill")
++
++
+ def b12x_warmup_token_counts(
+     *,
+     max_tokens: int,
+@@ -93,6 +98,27 @@
+     return tuple(sorted(counts))
+ 
+ 
++def get_b12x_scratch_buffers(plan: Any) -> list[torch.Tensor]:
++    """Return caller-owned scratch buffers for a planned B12X operation."""
++    specs = tuple(plan.scratch_specs())
++    if not specs:
++        return []
++
++    from vllm.v1.worker.workspace import (
++        current_workspace_manager,
++        is_workspace_manager_initialized,
++    )
++
++    if is_workspace_manager_initialized():
++        return current_workspace_manager().get_simultaneous(
++            *((spec.shape, spec.dtype) for spec in specs)
++        )
++    return [
++        torch.empty(spec.shape, dtype=spec.dtype, device=spec.device)
++        for spec in specs
++    ]
++
++
+ def _same_packed_layout(current: Any, replacement: Any) -> bool:
+     if type(current) is not type(replacement):
+         return False

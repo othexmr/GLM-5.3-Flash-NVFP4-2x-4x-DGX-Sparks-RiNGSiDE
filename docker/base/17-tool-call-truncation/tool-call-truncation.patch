@@ -1,0 +1,205 @@
+--- a/vllm/parser/engine/parser_engine.py
++++ b/vllm/parser/engine/parser_engine.py
+@@ -123,6 +123,7 @@
+         self._deferred_reasoning: str = ""
+         self._content_has_nonws: bool = False
+         self._suppress_tool_calls: bool = False
++        self._tool_call_truncated: bool = False
+ 
+         self._arg_converter = parser_engine_config.arg_converter
+         self._arg_structural_chars = parser_engine_config.arg_structural_chars
+@@ -187,6 +188,21 @@
+     def reasoning_ended(self) -> bool:
+         return self._reasoning_ended
+ 
++    @property
++    def tool_call_truncated(self) -> bool:
++        """True when a tool call was closed by the parser, not by the model.
++
++        Either the engine had to synthesise ``TOOL_CALL_END`` at
++        :meth:`StreamingParserEngine.finish` (the generation stopped
++        inside ``<tool_call>``), or the last ``<arg_value>`` was still
++        open and its streamed prefix had to be closed.  The delivered
++        tool call is a truncation, so the caller must not report
++        ``finish_reason="tool_calls"`` / ``status="completed"`` for it.
++        """
++        return self._tool_call_truncated or getattr(
++            self._engine, "tool_end_synthesized", False
++        )
++
+     def initialize_streaming(
+         self,
+         initial_state: ParserState | None = None,
+@@ -213,6 +229,7 @@
+         self._deferred_reasoning = ""
+         self._content_has_nonws = False
+         self._prompt_streaming_prepared = False
++        self._tool_call_truncated = False
+ 
+     def adjust_request(
+         self, request: ChatCompletionRequest | ResponsesRequest
+@@ -987,12 +1004,83 @@
+             return diff
+         return None
+ 
+-    def _flush_arg_converter(self, idx: int) -> str | None:
++    @staticmethod
++    def _terminate_json_prefix(prefix: str) -> str | None:
++        """Close *prefix* so it parses as JSON, or ``None`` if impossible.
++
++        Last-resort repair for a streamed argument prefix that no
++        conversion can extend.  Walks the prefix with the same
++        escape-aware scan :meth:`_safe_arg_prefix` uses, closes an open
++        string, and closes every still-open object/array.  A prefix that
++        already parses is returned unchanged, so the caller can tell
++        "nothing to add" from "cannot be closed".
++        """
++        if not prefix:
++            return None
++        in_string = False
++        escape = False
++        pending_escape = False
++        stack: list[str] = []
++        for c in prefix:
++            if escape:
++                escape = False
++                pending_escape = False
++                continue
++            if in_string:
++                if c == "\\":
++                    escape = True
++                    pending_escape = True
++                elif c == '"':
++                    in_string = False
++                continue
++            if c == '"':
++                in_string = True
++            elif c == "{":
++                stack.append("}")
++            elif c == "[":
++                stack.append("]")
++            elif c in ("}", "]"):
++                if not stack or stack.pop() != c:
++                    return None
++        suffix = ""
++        if pending_escape:
++            # The prefix ends mid-escape; complete it as an escaped
++            # backslash so the closing quote is not swallowed.
++            suffix += "\\"
++        if in_string:
++            suffix += '"'
++        suffix += "".join(reversed(stack))
++        closed = prefix + suffix
++        try:
++            json.loads(closed)
++        except (json.JSONDecodeError, ValueError):
++            return None
++        return closed
++
++    def _final_arg_json(
++        self,
++        slot: ToolCallSlot,
++        name: str | None = None,
++    ) -> str | None:
++        """Return the final ``arguments`` JSON for *slot*, or ``None``.
++
++        The non-partial conversion is authoritative whenever it is
++        consistent with what has already been streamed.  When the tool
++        call ended with its last ``<arg_value>`` still open — max_tokens,
++        a stop string or an abort landing inside the value — the
++        non-partial conversion drops that pair entirely, so it neither
++        equals nor extends the streamed prefix.  Length is not a valid
++        test for that: the dropped-pair conversion is usually *shorter*.
++        Fall back to the partial conversion, which keeps the value that
++        was already streamed and closes it, so the delivered
++        ``arguments`` always parse as JSON and the streaming and
++        non-streaming paths agree on the same text.
++        """
+         converter = self._arg_converter
+         if converter is None:
+             return None
+-
+-        slot = self._tool_slots[idx]
++        if name is None:
++            name = slot.name
+         try:
+             final_json = converter(slot.args, False)
+         except (json.JSONDecodeError, ValueError, TypeError):
+@@ -1000,7 +1088,40 @@
+             return None
+ 
+         if final_json:
+-            final_json = self._fix_arg_types(final_json, slot.name)
++            final_json = self._fix_arg_types(final_json, name)
++
++        prev = slot.streamed_json
++        if not prev or (final_json and final_json.startswith(prev)):
++            return final_json
++
++        try:
++            partial_json = converter(slot.args, True)
++        except (json.JSONDecodeError, ValueError, TypeError):
++            logger.debug("arg converter failed (flush partial): %s", slot.args[:80])
++            partial_json = ""
++        if partial_json:
++            partial_json = self._fix_arg_types(partial_json, name)
++        if partial_json and partial_json.startswith(prev):
++            self._tool_call_truncated = True
++            return partial_json
++
++        # Nothing can extend what was streamed (a malformed body, e.g. a
++        # repeated <arg_key>, can also land here).  Closing the prefix the
++        # client already holds is the only self-consistent answer; if even
++        # that fails, keep the pre-existing behaviour.
++        closed = self._terminate_json_prefix(prev)
++        if closed is None:
++            return final_json
++        if closed != prev:
++            self._tool_call_truncated = True
++        return closed
++
++    def _flush_arg_converter(self, idx: int) -> str | None:
++        if self._arg_converter is None:
++            return None
++
++        slot = self._tool_slots[idx]
++        final_json = self._final_arg_json(slot)
+ 
+         prev = slot.streamed_json
+         if final_json and len(final_json) > len(prev):
+@@ -1045,9 +1166,12 @@
+             elif raw_body.strip():
+                 converter = self._arg_converter
+                 if converter is not None:
+-                    try:
+-                        args_json = converter(raw_body, False)
+-                    except (json.JSONDecodeError, ValueError, TypeError):
++                    # Same rule as the streaming flush: when the tool call
++                    # ended with its last value still open, the non-partial
++                    # conversion silently drops that pair, so the two paths
++                    # would report different arguments for one output.
++                    args_json = self._final_arg_json(slot, name)
++                    if args_json is None:
+                         logger.debug(
+                             "arg converter failed (extract): %s", raw_body[:80]
+                         )
+--- a/vllm/parser/engine/streaming_parser_engine.py
++++ b/vllm/parser/engine/streaming_parser_engine.py
+@@ -212,6 +212,9 @@
+         self._message_header_buffer = ""
+         self._message_header_token_count = 0
+         self._in_skipped_tool_span = False
++        # True once ``finish()`` had to close an open tool call itself,
++        # i.e. generation stopped inside ``<tool_call>``.
++        self.tool_end_synthesized = False
+         self._reset_args_state()
+ 
+     def feed(
+@@ -307,6 +310,7 @@
+             ParserState.TOOL_BETWEEN,
+         ):
+             if self.tool_index >= 0:
++                self.tool_end_synthesized = True
+                 events.append(
+                     SemanticEvent(
+                         EventType.TOOL_CALL_END,

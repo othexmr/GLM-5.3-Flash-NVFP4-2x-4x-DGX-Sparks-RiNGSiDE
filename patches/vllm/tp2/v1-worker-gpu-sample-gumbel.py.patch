@@ -1,0 +1,34 @@
+RiNGSiDE overlay patch, profile tp2
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/gumbel.py
+Preimage:    sha256 3ec1df510bdad13e8b0a457b5b67c98affdf6e57369e56cb471246cc8f40dd34
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256
+Postimage:   sha256 8793f30567609af00d8c8c8026558f00ddf90a000a0444068128edded0fd2919 (the file the tp2 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained; its vocabulary clamp is a port of vllm-project/vllm#50843 (alexbi29))
+Attribution: vllm-pr-50843 (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/worker/gpu/sample/gumbel.py b/vllm/v1/worker/gpu/sample/gumbel.py
+index 4bf1f47280cfa69d3f66a6d8350cb4e129c37d08..f7cffa50171ab752b2f1a75d9fba6dd8e6d370ee 100644
+--- a/vllm/v1/worker/gpu/sample/gumbel.py
++++ b/vllm/v1/worker/gpu/sample/gumbel.py
+@@ -1,5 +1,6 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): tile argmax clamped to the vocabulary (vllm-project/vllm#50843).
+ import torch
+ 
+ from vllm.triton_utils import HAS_TRITON, tl, tldevice, triton
+@@ -243,7 +244,10 @@ def _gumbel_sample_kernel(
+         USE_FP64=USE_FP64,
+         PER_TOKEN_COL=PER_TOKEN_COL,
+     )
+-    token_id = block_idx * BLOCK_SIZE + idx
++    # Out-of-vocabulary lanes of the last tile load as -inf; if every in-vocabulary
++    # lane of a tile is -inf or NaN, the argmax can land on one of them. Clamp to
++    # the vocabulary (port of vllm-project/vllm#50843).
++    token_id = tl.minimum(block_idx * BLOCK_SIZE + idx, vocab_size - 1)
+     tl.store(local_argmax_ptr + token_idx * local_argmax_stride + block_idx, token_id)
+     tl.store(local_max_ptr + token_idx * local_max_stride + block_idx, value)
+ 

@@ -1,0 +1,22 @@
+[
+  {
+    "path": "flashinfer/data/csrc/xqa/mha.cu",
+    "before": "fac9c9a116be125b800257c455ee3abe2a2a620b2816a3c254792d3a5033ace4",
+    "after": "a7eb717796e2a6ab6731a38f084a7c15fc454ec22df4f64d75d4534e83758f0d"
+  },
+  {
+    "path": "flashinfer/data/csrc/xqa/mha.h",
+    "before": "e23d3741868ec09c3aa2cb08ffea298db21737362b7ba89bb9d6f9c6533746fa",
+    "after": "1ac3fb156d58625528d778247975f7bb87d90dff45af91a23b1e8c06b586aa11"
+  },
+  {
+    "path": "flashinfer/data/csrc/xqa/xqa_wrapper.cu",
+    "before": "31fbba7d0e912091b9aa16a1fd28338372be56b4543edcf556e21e33924a34aa",
+    "after": "a236496ec0d89569a43a57dfc4ff45289317d621c454597ed52ac27faa0132e3"
+  },
+  {
+    "path": "flashinfer/jit/xqa.py",
+    "before": "b47625e738bcef4324e874a20fa4c3aee91c477dafd72b24480e3d235c3d20cc",
+    "after": "34bd5277e856c155d89b680992c2c220e1c7978414d7241c5839ebb63be11bd8"
+  }
+]

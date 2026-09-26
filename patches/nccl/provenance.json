@@ -1,0 +1,24 @@
+{
+ "schema": 2,
+ "kind": "git-series",
+ "upstream": "https://github.com/NVIDIA/nccl.git",
+ "base_commit": "73cf112295c33aee2b895f329f592f2a9b4b0f97",
+ "patches": [
+  {
+   "path": "0001-switchless-ring-setup-and-listener-hardening.patch",
+   "origin": [
+    "https://github.com/FujitsuPolycom/sparkring/commit/b9b2225363c45ea76139493153c7756769ae5de5",
+    "https://github.com/FujitsuPolycom/sparkring/commit/4155b461e4b58fd37cf9c3c7b46554af8b65ff6c",
+    "https://github.com/alexellis/switchless-nccl/commit/f5ab0a309e63b1773e9bdf9bf6b61e9b65200986"
+   ],
+   "licence": "Apache-2.0"
+  },
+  {
+   "path": "0002-dual-pf-four-gid-routing.patch",
+   "origin": [
+    "the GLM-5.3 Switchless recipe lab (othexmr), measured 2026-09-17"
+   ],
+   "licence": "NCCL LICENSE.txt terms"
+  }
+ ]
+}

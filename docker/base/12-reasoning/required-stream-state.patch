@@ -1,0 +1,37 @@
+--- a/vllm/parser/abstract_parser.py
++++ b/vllm/parser/abstract_parser.py
+@@ -895,6 +895,15 @@
+         # Tool call extraction
+         if self._in_tool_call_phase(state):
+             if not state.tool_call_text_started:
++                # Engine parsers consume deltas, but the generic required-tool
++                # JSON parser needs the complete content prefix across chunks.
++                # Begin accumulation here so earlier reasoning is not retained.
++                if (
++                    request.tool_choice == "required"
++                    and self._tool_parser is not None
++                    and self._tool_parser.supports_required_and_named
++                ):
++                    state.engine_based = False
+                 state.tool_call_text_started = True
+                 state.previous_text = ""
+                 state.previous_token_ids = []
+@@ -926,12 +935,12 @@
+                 elif not delta_message.reasoning:
+                     delta_message.reasoning = reasoning_from_this_batch
+ 
+-            if (
+-                delta_message
+-                and delta_message.tool_calls
+-                and delta_message.tool_calls[0].id is not None
+-            ):
+-                state.history_tool_call_cnt += 1
++            if delta_message and delta_message.tool_calls:
++                # Each announced ID consumes one history index, including
++                # several complete required-tool objects in the same delta.
++                state.history_tool_call_cnt += sum(
++                    tc.id is not None for tc in delta_message.tool_calls
++                )
+ 
+         # No phase active: pass through as content.
+         # Skip when reasoning just ended in this delta — the engine already

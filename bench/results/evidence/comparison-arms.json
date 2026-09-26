@@ -1,0 +1,3050 @@
+{
+ "dates": {
+  "first": "2026-09-21",
+  "last": "2026-09-26",
+  "timezone": "UTC+7"
+ },
+ "lab_receipts": [
+  "2026-09-21-tony-common-capacity-full-2",
+  "2026-09-23-mia-7cded8e-tp2-compact-full-1",
+  "2026-09-23-mia-7cded8e-tp4-full-2",
+  "2026-09-23-tony-tp2-9fea48c-full-1",
+  "2026-09-24-final-full-protocol-3",
+  "2026-09-24-final-tp2-full-1",
+  "2026-09-24-final-weightless-full-1",
+  "2026-09-24-kda-ckpt-tp4-1",
+  "2026-09-24-mia-tp2-longcoding-pairB-full-1",
+  "2026-09-24-rigmark5-tp4-1",
+  "2026-09-24-tp2ws-cand-1",
+  "2026-09-25-ringside-combined-tp4-1",
+  "2026-09-25-tp2-final-1",
+  "2026-09-25-tp4-final-2",
+  "2026-09-26-ringside-redhat-rowsplit-tp4-1"
+ ],
+ "measurement_kind": "configuration records",
+ "naming_policy": "Comparison recipes are named by GitHub owner/repo with the commit measured. Model checkpoints are named by Hugging Face repository and revision; the compared checkpoints were only loaded for these measurements, not built on or redistributed.",
+ "page_text_facts": [
+  {
+   "earlier_page_text": "the decode benchmark shipped in MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks, run unmodified",
+   "fact": "the sparkDash cells come from a lab reproduction in Python of the \"Decode benchmark\" protocol of the MiaAI-Lab/sparkDash repository (server/collectors/DecodeBench.js with its streaming and prompt modules, main branch of 2026-09-18): the same prompt texts, temperature 0, 400 tokens with min_tokens 400, thinking off in the request, one 32-token warm-up stream; not the kit's own script run unmodified",
+   "recorded": {
+    "protocol_field": [
+     "sparkDash DecodeBench (reproduced; see docstring)"
+    ],
+    "windows": [
+     "2026-09-22-sparkdash-tony-4",
+     "2026-09-23-mia-7cded8e-tp2-compact-full-1",
+     "2026-09-23-mia-7cded8e-tp4-full-2",
+     "2026-09-23-tony-tp2-9fea48c-full-1",
+     "2026-09-24-final-full-protocol-3",
+     "2026-09-24-final-tp2-full-1",
+     "2026-09-24-final-weightless-full-1",
+     "2026-09-24-mia-tp2-longcoding-pairB-full-1",
+     "2026-09-25-sparkdash-tp2-final-1",
+     "2026-09-25-sparkdash-tp4-final-1"
+    ]
+   },
+   "sources": [
+    "lab file sparkdash_decode_bench.py (sha256 284a1c072ad0)",
+    "outputs/2026-09-22-sparkdash-tony-4/sparkdash.json",
+    "outputs/2026-09-23-mia-7cded8e-tp2-compact-full-1/sparkdash.json",
+    "outputs/2026-09-23-mia-7cded8e-tp4-full-2/sparkdash.json",
+    "outputs/2026-09-23-tony-tp2-9fea48c-full-1/sparkdash.json",
+    "outputs/2026-09-24-final-full-protocol-3/sparkdash.json",
+    "outputs/2026-09-24-final-tp2-full-1/sparkdash.json",
+    "outputs/2026-09-24-final-weightless-full-1/sparkdash.json",
+    "outputs/2026-09-24-mia-tp2-longcoding-pairB-full-1/sparkdash.json",
+    "outputs/2026-09-25-sparkdash-tp2-final-1/sparkdash.json",
+    "outputs/2026-09-25-sparkdash-tp4-final-1/sparkdash.json"
+   ],
+   "topic": "sparkDash"
+  },
+  {
+   "earlier_page_text": "at most 4 (MiaAI-Lab, MAX_NUM_SEQS=4) or 6 (tonyd2wild, --max-num-seqs 6) concurrent requests, as configured by their authors",
+   "fact": "admission limits as measured: tp2-miaai-71962cd-long-coding 2, tp2-miaai-7cded8e 4, tp2-tonyd2wild-9fea48c 6, tp4-miaai-7cded8e 4, tp4-tonyd2wild-2ac4e8dd 6; tonyd2wild's TP4 6 slots at 262,144 context were the lab's choice (the published launch: 64 at 500,000); the MiaAI-Lab long-coding example admits 2",
+   "topic": "request caps"
+  },
+  {
+   "earlier_page_text": "a newcomer request arrives while L incumbent streams are running",
+   "fact": "prefill-first: one 32,768-token request starts alone and L-1 short requests arrive during its prefill; the cell is the short newcomers' median TTFT. decode-first: L-1 short streams are decoding when one 32,768-token request arrives; the cell is that request's TTFT (RigMark PROTOCOL.md, staggered arrivals; the receipts hold 1 incumbent and L-1 newcomers in prefill-first, L-1 incumbents and one 32,768-token newcomer in decode-first)",
+   "topic": "staggered arrivals"
+  }
+ ],
+ "record": "comparison-arms",
+ "results_json_sha256": "d77238c4abc2f328d27c511ce694429f8c1de1809fd748a88b71ef9d87aff4c9",
+ "rows": [
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "staggered_rounds",
+     "prefill_suite",
+     "decode",
+     "agg",
+     "prose_agg",
+     "staggered",
+     "protocol",
+     "sparkdash"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution; for sparkDash the median over the rounds of each cell's mean stream decode rate",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 16
+     }
+    },
+    "context_length": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "results.json row fields and the plan",
+     "status": "recorded",
+     "value": [
+      "none for the measured plan itself",
+      "RigMark cells are the median of 2 runs",
+      "staggered cells are the median of 2 rounds",
+      "sparkDash cells are the median of 2 rounds in the same boot"
+     ]
+    },
+    "image": {
+     "source": "lab plan 89dfef84 (rank-0 command); recipe docs/image.md",
+     "status": "recorded",
+     "value": {
+      "how": "local image built by the lab in four stages on vLLM v0.29.0 with the GLM-5.3 backport (described in the recipe docs/image.md); no public reference yet",
+      "image_id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 32.0,
+      "kv_cache_memory_bytes_per_rank": 34359738368,
+      "prefix_cache_retention_interval": 2304,
+      "token_capacity": "not recorded in this window"
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-26-ringside-redhat-rowsplit-tp4-1/switch-bytes.json (plan sha256)",
+     "status": "recorded",
+     "value": {
+      "lab_plan": "89dfef84",
+      "note": "the release window of the TP4 profile, lab plan 89dfef84; every RigMark cell is the median of 2 runs"
+     }
+    },
+    "model_checkpoint": {
+     "source": "lab plan 89dfef84 (rank-0 command); checkpoints-public.json of the recipe import",
+     "status": "recorded",
+     "value": {
+      "repository": "RedHatAI/GLM-5.3-Flash-NVFP4",
+      "revision": "18d55bfd5a2194887738da73753975c9d3842f46"
+     }
+    },
+    "moe_accumulation": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "10",
+      "B12X_GLM53_ATOMIC_PREFILL": "1",
+      "B12X_GLM53_MIXED_SPLIT": "1"
+     },
+     "note": "atomic (not bit-reproducible) MoE accumulation: prefill when ATOMIC_PREFILL=1; decode launches of at least ATOMIC_DECODE_MIN_ROWS rows when set; the prefill rows of mixed steps when MIXED_SPLIT=1 (their decode rows stay deterministic)"
+    },
+    "prefix_cache_contract": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "GLM53_PREFIX_CACHE_CONTRACT": "1"
+     },
+     "note": "a host-side startup receipt of the resolved cache geometry; it changes nothing by itself"
+    },
+    "quantisation": {
+     "source": "lab plan 89dfef84 (rank-0 command); checkpoints-public.json of the recipe import",
+     "status": "recorded",
+     "value": {
+      "draft_kv_cache_dtype": "auto",
+      "kv_cache_dtype": "fp8_e4m3",
+      "weights": "RedHatAI NVFP4 checkpoint (compressed-tensors)"
+     }
+    },
+    "repository": {
+     "source": "recipe repository",
+     "status": "recorded",
+     "value": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE"
+    },
+    "runtime": {
+     "source": "lab plan 89dfef84 (rank-0 command); recipe docs/image.md; outputs/2026-09-26-ringside-redhat-rowsplit-tp4-1/native/metadata.json (serving_engine)",
+     "status": "recorded",
+     "value": "vLLM 0.29.0+glm53.local (vLLM v0.29.0 with the GLM-5.3 backport, b12x 1.3.0)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7,
+      "runtime_k_policy": {
+       "GLM53_SPEEDUP_K": "7",
+       "GLM53_SPEEDUP_MODE": "saturation"
+      }
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": 4
+    }
+   },
+   "id": "tp4-ringside",
+   "lab_receipt": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+   "lab_windows": {
+    "benchmark": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+    "replay_matrix": null,
+    "sparkdash": "2026-09-26-ringside-redhat-rowsplit-tp4-1"
+   },
+   "page_admits": 16,
+   "page_checks": [
+    {
+     "claim": "admits 16",
+     "recorded": 16,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "lab plan 89dfef84",
+     "recorded": "89dfef84",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "medians of 2 runs",
+     "recorded": {
+      "runs": 2,
+      "staggered_rounds": 2
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "sparkDash in the same boot",
+     "recorded": {
+      "sparkdash_window": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+      "rounds": 2,
+      "every_stream_ok": true
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "replay matrix not run on it",
+     "recorded": {
+      "results_json_replay_matrix": null
+     },
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "release window of the TP4 profile, lab plan 89dfef84 (the RiNGSiDE release plan); RigMark cells are medians of 2 runs; sparkDash (a Python reproduction of MiaAI-Lab/sparkDash's decode-benchmark protocol) the median of 2 rounds in the same boot; replay matrix not run on it",
+   "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+   "row_index": 0,
+   "table": "main",
+   "tp": "TP4"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "decode",
+     "agg",
+     "staggered",
+     "sparkdash"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan a5196157 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 6
+     }
+    },
+    "context_length": {
+     "source": "lab plan a5196157 (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "outputs/2026-09-21-tony-common-capacity-full-2/native/metadata.json (adaptations, rewritten without addresses or host names)",
+     "status": "recorded",
+     "value": [
+      "this ring's patched NCCL replaces the switched-fabric transport",
+      "the optional prefix-fix overlay is not in the published repository and was not enabled",
+      "drafter pinned to incoai/GLM-5.3-Flash-DFlash2 7d74cdd8 (the recipe does not pin it)",
+      "context 262,144 and 6 request slots instead of the published 500,000 and 64"
+     ]
+    },
+    "image": {
+     "source": "lab plan a5196157",
+     "status": "recorded",
+     "value": {
+      "how": "the recipe author's published image, pulled by digest",
+      "image": "ghcr.io/tonyd2wild/vllm-glm53-flash@sha256:4def0ef644cb2e9814136dcffd5e385e21bc594f48f3b292234051904abe85a6",
+      "image_config_id": "sha256:35c6f70ffcba62fd67d7b9d4b4e8300ad177201792ce9cdb1ea18fd449bc23b6"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan a5196157 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 24.0,
+      "kv_cache_memory_bytes_per_rank": 25769803776,
+      "token_capacity": "not recorded in this window (the boot log tail does not reach the startup lines)"
+     }
+    },
+    "measured_commit": {
+     "source": "lab plan a5196157 (upstream_commit)",
+     "status": "recorded",
+     "value": "2ac4e8dd661b12e6a1d7e69df711707abd6b9cd4"
+    },
+    "model_checkpoint": {
+     "source": "outputs/2026-09-21-tonyd2wild-comparison/upstream-evidence/checksums-laneA.json; outputs/2026-09-21-tonyd2wild-comparison-convert-*/container.log",
+     "status": "recorded",
+     "value": {
+      "derived_from": {
+       "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+       "revision": "423acf37583782c51c142d145aef733d72943d93"
+      },
+      "derived_shard_sha256": "8aa6a422aa33ba6b1b69e5610a91939760e33dfff83f6bfb225c19bcd8f52528",
+      "how": "derived locally with the recipe's own conversion tools (its lane A: NVFP4 experts plus offline-converted NVFP4 dense projections), on each node",
+      "matches_recipe_lane_a_checksums": {
+       "config.json": {
+        "canonical": true,
+        "sha256": true
+       },
+       "model-nvfp4attn2-00001-of-00001.safetensors": {
+        "canonical": true,
+        "sha256": true
+       },
+       "model.safetensors.index.json": {
+        "canonical": true,
+        "sha256": false
+       }
+      },
+      "nodes": 4
+     }
+    },
+    "published_shape": {
+     "source": "outputs/2026-09-21-tonyd2wild-comparison/published-shape/launch-plan.json (the lab's rendering of the published launch)",
+     "status": "recorded",
+     "value": {
+      "--kv-cache-memory": "25769803776",
+      "--max-model-len": "500000",
+      "--max-num-seqs": "64"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-21-tony-common-capacity-full-2/native/metadata.json (quantisation, rewritten); lab plan a5196157 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "kv_cache_dtype": "fp8_e4m3",
+      "moe_backend": "marlin",
+      "weights": "NVFP4 experts and offline-converted NVFP4 dense projections"
+     }
+    },
+    "repository": {
+     "source": "lab plan a5196157",
+     "status": "recorded",
+     "value": "tonyd2wild/GLM-5.3-Flash-NVFP4-1M-KV-4x-DGX-Spark"
+    },
+    "runtime": {
+     "source": "outputs/2026-09-23-tony-tp2-9fea48c-full-1/boot-log-rank0.json (same image digest; this window's log tail has no version line)",
+     "status": "recorded",
+     "value": "vLLM v0.1.dev20051+g487ecf187 (their image)"
+    },
+    "server_settings_as_recorded": {
+     "source": "lab plan a5196157 (rank-0 command); outputs/2026-09-21-tony-common-capacity-full-2/native/code-full.json (reasoning_characters)",
+     "status": "recorded",
+     "value": {
+      "compilation_config": {
+       "cudagraph_mode": "FULL_AND_PIECEWISE"
+      },
+      "default_chat_template_kwargs": {
+       "enable_thinking": false
+      },
+      "enforce_eager": false,
+      "note": "the server default disables thinking (as the recipe launches it); RigMark requests set only reasoning_effort=low",
+      "rigmark_code_full_runs_with_reasoning_text": {
+       "runs": 9,
+       "with_reasoning_text": 0
+      }
+     }
+    },
+    "speculative_decoding": {
+     "source": "lab plan a5196157 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan a5196157 (rank-0 command)",
+     "status": "recorded",
+     "value": 4
+    }
+   },
+   "id": "tp4-tonyd2wild-2ac4e8dd",
+   "lab_receipt": "2026-09-21-tony-common-capacity-full-2",
+   "lab_windows": {
+    "benchmark": "2026-09-21-tony-common-capacity-full-2",
+    "replay_matrix": null,
+    "sparkdash": "2026-09-22-sparkdash-tony-4"
+   },
+   "page_admits": 6,
+   "page_checks": [
+    {
+     "claim": "admits 6",
+     "recorded": 6,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "commit 2ac4e8dd",
+     "recorded": "2ac4e8dd661b12e6a1d7e69df711707abd6b9cd4",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "262,144 context and 6 request slots",
+     "recorded": {
+      "--max-model-len": "262144",
+      "--max-num-seqs": "6"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "published launch uses 500,000 and 64",
+     "recorded": {
+      "--kv-cache-memory": "25769803776",
+      "--max-model-len": "500000",
+      "--max-num-seqs": "64"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "the lab's choice (6 slots at 262,144 context)",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "on this ring's NCCL transport",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "the recipe's optional all-peer RoCE route not used (a ring lacks the connectivity)",
+     "recorded": {
+      "plan_topology": "TP4 switchless Ring adaptation; all-peer RoCEnante disabled"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "sparkDash from a separate window of the same launch plan",
+     "recorded": {
+      "lab_plan": "lab plan a5196157",
+      "sparkdash_window": "2026-09-22-sparkdash-tony-4"
+     },
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "commit 2ac4e8dd, the recipe's image at 262,144 context and 6 request slots (the lab's choice; the published launch uses 500,000 and 64), on this ring's NCCL transport (the recipe's optional all-peer RoCE route needs connectivity a ring does not have); sparkDash from a separate window of the same launch plan",
+   "recipe": "tonyd2wild/GLM-5.3-Flash-NVFP4-1M-KV-4x-DGX-Spark",
+   "row_index": 1,
+   "table": "main",
+   "tp": "TP4"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "decode",
+     "agg",
+     "staggered",
+     "sparkdash"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan c3981315 (rank-0 container environment)",
+     "status": "recorded",
+     "value": {
+      "MAX_NUM_SEQS": 4
+     }
+    },
+    "context_length": {
+     "source": "lab plan c3981315 (rank-0 container environment)",
+     "status": "recorded",
+     "value": 524288
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp4-full-2/native/metadata.json (adaptations, rewritten without addresses or host names)",
+     "status": "recorded",
+     "value": [
+      "image built with one in-build self-test skipped (_check_dflash2 asserts \"compact_block = 64\", which the kit's own later change no longer emits); lab decision",
+      "the kit's default-off speed options switched on (lab decision: every speed option of their kit, never the lab's own kernels), applied by rendering their launcher with the measured environment",
+      "launched by the lab's benchmark runner from the container configuration their launcher renders (their start.sh would remove containers)",
+      "the worker reads the identical checkpoint revision from a local mount instead of their 164 GB rsync copy",
+      "TP4 over this ring's patched NCCL (their TP4 launcher assumes a switched fabric)"
+     ]
+    },
+    "differences_from_env_example": {
+     "source": "lab file recipe-7cded8e.tar (sha256 7ba08e544d16) (repo/.env.example at 7cded8e) against lab plan c3981315 (rank-0 container environment)",
+     "status": "recorded",
+     "value": [
+      {
+       "env_example": "850000",
+       "key": "MAX_MODEL_LEN",
+       "measured": "524288"
+      },
+      {
+       "env_example": "7",
+       "key": "DFLASH_TOKENS",
+       "measured": "4"
+      },
+      {
+       "env_example": "0",
+       "key": "LANGUAGE_MODEL_ONLY",
+       "measured": "1"
+      },
+      {
+       "env_example": "not present in .env.example at 7cded8e",
+       "key": "GLM53_EXL3_MOE_FAST",
+       "measured": "1"
+      },
+      {
+       "env_example": "commented out (off by default; example value dense,kda)",
+       "key": "GLM53_DENSE_FP8",
+       "measured": "dense,kda"
+      },
+      {
+       "env_example": "stock",
+       "key": "GLM53_SPINWAIT_MS",
+       "measured": "16"
+      },
+      {
+       "env_example": "commented out (off by default; example value 1)",
+       "key": "GLM53_COOP_GEOMETRY",
+       "measured": "1"
+      },
+      {
+       "env_example": "commented out (off by default; example value ema)",
+       "key": "GLM53_ADAPTIVE_K",
+       "measured": "ema"
+      },
+      {
+       "env_example": "commented out (off by default; example value 2,4,7)",
+       "key": "GLM53_ADAPTIVE_K_SET",
+       "measured": "2,4"
+      }
+     ]
+    },
+    "image": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp4-full-2/native/metadata.json; lab file build_image.sh (sha256 22c9c97a6c09)",
+     "status": "recorded",
+     "value": {
+      "how": "built by the lab with their Dockerfile at 7cded8e (base vllm/vllm-openai@sha256:905c02933be6021301db2dc284e24e3727467aa3a0f63b41d609885778a07bce, their pinned base) with one in-build self-test skipped; their cooperative MoE extension built from their tree (native sources unchanged)",
+      "image_id": "sha256:a037fb97974b9429babc3ba26084fbc6e6e5aaea2fd9f2d7dc772ecc9a86c3d0"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan c3981315 (rank-0 container environment); outputs/2026-09-23-mia-7cded8e-tp4-full-2/boot-log-rank0.json (GPU KV cache size)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 14.0,
+      "kv_cache_memory_bytes_per_rank": 15032385536,
+      "pool": "fixed (--kv-cache-memory-bytes)",
+      "token_capacity": 1001489
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp4-full-2/native/metadata.json (upstream_commit)",
+     "status": "recorded",
+     "value": "7cded8e2ed9d7502f32591cfeeeea4747db3d393"
+    },
+    "model_checkpoint": {
+     "how": "the MODEL_FALLBACK id of their kit's .env.example; the same file's default MODEL is a mirror that it states holds the same bytes as this snapshot",
+     "source": "lab plan c3981315 (rank-0 container environment); lab file recipe-7cded8e.tar (sha256 7ba08e544d16) (repo/.env.example at 7cded8e)",
+     "status": "recorded",
+     "value": {
+      "repository": "brandonmusic/GLM-5.3-Flash-tr3-4bpw",
+      "revision": "5ab363a8dcf6405955fd5f99671e01a1c9fb124b"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp4-full-2/native/metadata.json; lab plan c3981315 (rank-0 container environment)",
+     "status": "recorded",
+     "value": {
+      "dense_and_kda_projections": "FP8 weight-only (GLM53_DENSE_FP8=dense,kda)",
+      "kv_cache_dtype": "fp8",
+      "weights": "EXL3 4 bpw (their kit)"
+     }
+    },
+    "repository": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp4-full-2/native/metadata.json",
+     "status": "recorded",
+     "value": "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks"
+    },
+    "runtime": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp4-full-2/boot-log-rank0.json",
+     "status": "recorded",
+     "value": "vLLM v0.1.dev20051+g487ecf187 (their image)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan c3981315 (rank-0 container environment)",
+     "status": "recorded",
+     "value": {
+      "adaptive_k": "ema",
+      "adaptive_k_set": "2,4",
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "dc77ff1c99eeb2df044ee3d4f0094eb033fee410"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 4
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan c3981315 (rank-0 container environment)",
+     "status": "recorded",
+     "value": 4
+    }
+   },
+   "id": "tp4-miaai-7cded8e",
+   "lab_receipt": "2026-09-23-mia-7cded8e-tp4-full-2",
+   "lab_windows": {
+    "benchmark": "2026-09-23-mia-7cded8e-tp4-full-2",
+    "replay_matrix": null,
+    "sparkdash": "2026-09-23-mia-7cded8e-tp4-full-2"
+   },
+   "page_admits": 4,
+   "page_checks": [
+    {
+     "claim": "admits 4",
+     "recorded": 4,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "commit 7cded8e",
+     "recorded": "7cded8e2ed9d7502f32591cfeeeea4747db3d393",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "speed options on except KDA_BF16_LARGE_M and DRAFT_KV_COMPACT",
+     "recorded": {
+      "GLM53_ADAPTIVE_K": "ema",
+      "GLM53_COOP_GEOMETRY": "1",
+      "GLM53_DENSE_FP8": "dense,kda",
+      "GLM53_DRAFT_KV_COMPACT": "0",
+      "GLM53_EXL3_MOE_FAST": "1",
+      "GLM53_INDEXER_WORKSPACE": "rightsize",
+      "GLM53_KDA_BF16_LARGE_M": "0",
+      "GLM53_SPINWAIT_MS": "16"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "image built by their Dockerfile with one self-test skipped",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "TP4 on this ring's NCCL transport",
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "commit 7cded8e, their default-off speed options on except KDA_BF16_LARGE_M and DRAFT_KV_COMPACT; image built by their Dockerfile with one self-test skipped; TP4 on this ring's NCCL transport",
+   "recipe": "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+   "row_index": 2,
+   "table": "main",
+   "tp": "TP4"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "staggered_rounds",
+     "decode",
+     "agg",
+     "prose_agg",
+     "staggered",
+     "protocol",
+     "sparkdash"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 69ad74fc (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 6
+     }
+    },
+    "context_length": {
+     "source": "lab plan 69ad74fc (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "results.json row fields and the plan",
+     "status": "recorded",
+     "value": [
+      "none for the measured plan itself",
+      "sparkDash cells come from a separate window of the same plan (2026-09-25-sparkdash-tp2-final-1)",
+      "RigMark cells are the median of 2 runs",
+      "staggered cells are the median of 2 rounds"
+     ]
+    },
+    "image": {
+     "source": "lab plan 69ad74fc (rank-0 command); recipe docs/image.md",
+     "status": "recorded",
+     "value": {
+      "how": "local image built by the lab in four stages on vLLM v0.29.0 with the GLM-5.3 backport (described in the recipe docs/image.md); no public reference yet",
+      "image_id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 69ad74fc (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 11.5,
+      "kv_cache_memory_bytes_per_rank": 12348030976,
+      "prefix_cache_retention_interval": 4608,
+      "token_capacity": "not recorded in this window (the boot log tail does not reach the startup lines)"
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-25-tp2-final-1/window.json (plan) + plan file hash",
+     "status": "recorded",
+     "value": {
+      "lab_plan": "69ad74fc",
+      "note": "the final TP2 run of lab plan 69ad74fc (the TP2 profile's base, before the release's changes and fixes), one window without a fresh reference; every RigMark cell is the median of 2 runs"
+     }
+    },
+    "model_checkpoint": {
+     "source": "outputs/2026-09-25-tp2-final-1/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+      "revision": "423acf37583782c51c142d145aef733d72943d93"
+     }
+    },
+    "moe_accumulation": {
+     "note": "atomic (not bit-reproducible) MoE accumulation: prefill when ATOMIC_PREFILL=1; decode launches of at least ATOMIC_DECODE_MIN_ROWS rows when set; the prefill rows of mixed steps when MIXED_SPLIT=1 (their decode rows stay deterministic)",
+     "source": "lab plan 69ad74fc (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "unset",
+      "B12X_GLM53_ATOMIC_PREFILL": "1",
+      "B12X_GLM53_MIXED_SPLIT": "1"
+     }
+    },
+    "prefix_cache_contract": {
+     "note": "a host-side startup receipt of the resolved cache geometry; it changes nothing by itself",
+     "source": "lab plan 69ad74fc (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "GLM53_PREFIX_CACHE_CONTRACT": "1"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-25-tp2-final-1/native/metadata.json; lab plan 69ad74fc (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "draft_kv_cache_dtype": "auto",
+      "kv_cache_dtype": "fp8_e4m3",
+      "weights": "NVIDIA NVFP4 checkpoint"
+     }
+    },
+    "repository": {
+     "source": "recipe repository",
+     "status": "recorded",
+     "value": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE"
+    },
+    "runtime": {
+     "source": "lab plan 69ad74fc (rank-0 command) (image sha256:017fd0ba); recipe docs/image.md; outputs/2026-09-25-tp2-final-1/native/metadata.json (serving_engine)",
+     "status": "recorded",
+     "value": "vLLM 0.29.0+glm53.local (vLLM v0.29.0 with the GLM-5.3 backport, b12x 1.3.0)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 69ad74fc (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7,
+      "runtime_k_policy": {
+       "GLM53_SPEEDUP_K": "7",
+       "GLM53_SPEEDUP_MODE": "saturation"
+      }
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 69ad74fc (rank-0 command)",
+     "status": "recorded",
+     "value": 2
+    }
+   },
+   "id": "tp2-ringside",
+   "lab_receipt": "2026-09-25-tp2-final-1",
+   "lab_windows": {
+    "benchmark": "2026-09-25-tp2-final-1",
+    "replay_matrix": null,
+    "sparkdash": "2026-09-25-sparkdash-tp2-final-1"
+   },
+   "page_admits": 6,
+   "page_checks": [
+    {
+     "claim": "admits 6",
+     "recorded": 6,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "lab plan 69ad74fc",
+     "recorded": "69ad74fc",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "medians of 2 runs",
+     "recorded": {
+      "receipts": {
+       "every_cell_runs": 2,
+       "settings": {
+        "concurrency_runs": 2,
+        "prefill_runs": 2,
+        "prose_concurrency_runs": 2,
+        "prose_runs": 2,
+        "prose_staggered_runs": 2,
+        "runs": 2
+       },
+       "staggered_valid_and_total_rounds": [
+        2
+       ]
+      },
+      "results_json": {
+       "runs": 2,
+       "staggered_rounds": 2
+      }
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "sparkDash from a separate window of the same plan",
+     "recorded": {
+      "every_stream_ok": true,
+      "lab_plan": "69ad74fc",
+      "sparkdash_window": "2026-09-25-sparkdash-tp2-final-1"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "replay matrix not run on it",
+     "recorded": {
+      "results_json_replay_matrix": null,
+      "window_replay_report": false
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "one window, no fresh reference",
+     "recorded": {
+      "lab_plan": "69ad74fc",
+      "source": "outputs/2026-09-23-lever-program/compare_tp2_final.py",
+      "window": "2026-09-25-tp2-final-1"
+     },
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "final TP2 run, lab plan 69ad74fc (the TP2 profile's base, before the release's changes and fixes); RigMark cells are medians of 2 runs; one window, no fresh reference; sparkDash (a Python reproduction of MiaAI-Lab/sparkDash's decode-benchmark protocol) from a separate window of the same plan; replay matrix not run on it",
+   "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+   "row_index": 3,
+   "table": "main",
+   "tp": "TP2"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "decode",
+     "agg",
+     "staggered",
+     "sparkdash"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 602462bd (rank-0 container environment)",
+     "status": "recorded",
+     "value": {
+      "MAX_NUM_SEQS": 4
+     }
+    },
+    "context_length": {
+     "source": "lab plan 602462bd (rank-0 container environment)",
+     "status": "recorded",
+     "value": 524288
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp2-compact-full-1/native/metadata.json (adaptations, rewritten without addresses or host names)",
+     "status": "recorded",
+     "value": [
+      "image built with one in-build self-test skipped (_check_dflash2 asserts \"compact_block = 64\", which the kit's own later change no longer emits); lab decision",
+      "the kit's default-off speed options switched on (lab decision: every speed option of their kit, never the lab's own kernels), applied by rendering their launcher with the measured environment",
+      "launched by the lab's benchmark runner from the container configuration their launcher renders (their start.sh would remove containers)",
+      "the worker reads the identical checkpoint revision from a local mount instead of their 164 GB rsync copy",
+      "compact DFlash2 draft pages on (their default-off, TP2-qualified option; lab decision, documented)"
+     ]
+    },
+    "differences_from_env_example": {
+     "source": "lab file recipe-7cded8e.tar (sha256 7ba08e544d16) (repo/.env.example at 7cded8e) against lab plan 602462bd (rank-0 container environment)",
+     "status": "recorded",
+     "value": [
+      {
+       "env_example": "850000",
+       "key": "MAX_MODEL_LEN",
+       "measured": "524288"
+      },
+      {
+       "env_example": "0",
+       "key": "LANGUAGE_MODEL_ONLY",
+       "measured": "1"
+      },
+      {
+       "env_example": "not present in .env.example at 7cded8e",
+       "key": "GLM53_EXL3_MOE_FAST",
+       "measured": "1"
+      },
+      {
+       "env_example": "not present in .env.example at 7cded8e",
+       "key": "GLM53_KDA_BF16_LARGE_M",
+       "measured": "1"
+      },
+      {
+       "env_example": "commented out (off by default; example value dense,kda)",
+       "key": "GLM53_DENSE_FP8",
+       "measured": "dense,kda"
+      },
+      {
+       "env_example": "stock",
+       "key": "GLM53_SPINWAIT_MS",
+       "measured": "16"
+      },
+      {
+       "env_example": "commented out (off by default; example value 1)",
+       "key": "GLM53_COOP_GEOMETRY",
+       "measured": "1"
+      },
+      {
+       "env_example": "commented out (off by default; example value ema)",
+       "key": "GLM53_ADAPTIVE_K",
+       "measured": "ema"
+      },
+      {
+       "env_example": "commented out (off by default; example value 2,4,7)",
+       "key": "GLM53_ADAPTIVE_K_SET",
+       "measured": "2,4,7"
+      },
+      {
+       "env_example": "0",
+       "key": "GLM53_DRAFT_KV_COMPACT",
+       "measured": "1"
+      }
+     ]
+    },
+    "image": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp2-compact-full-1/native/metadata.json; lab file build_image.sh (sha256 22c9c97a6c09)",
+     "status": "recorded",
+     "value": {
+      "how": "built by the lab with their Dockerfile at 7cded8e (base vllm/vllm-openai@sha256:905c02933be6021301db2dc284e24e3727467aa3a0f63b41d609885778a07bce, their pinned base) with one in-build self-test skipped; their cooperative MoE extension built from their tree (native sources unchanged)",
+      "image_id": "sha256:a037fb97974b9429babc3ba26084fbc6e6e5aaea2fd9f2d7dc772ecc9a86c3d0"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 602462bd (rank-0 container environment); outputs/2026-09-23-mia-7cded8e-tp2-compact-full-1/boot-log-rank0.json (GPU KV cache size)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 14.0,
+      "kv_cache_memory_bytes_per_rank": 15032385536,
+      "pool": "fixed (--kv-cache-memory-bytes)",
+      "token_capacity": 1393900
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp2-compact-full-1/native/metadata.json (upstream_commit)",
+     "status": "recorded",
+     "value": "7cded8e2ed9d7502f32591cfeeeea4747db3d393"
+    },
+    "model_checkpoint": {
+     "how": "the MODEL_FALLBACK id of their kit's .env.example; the same file's default MODEL is a mirror that it states holds the same bytes as this snapshot",
+     "source": "lab plan 602462bd (rank-0 container environment); lab file recipe-7cded8e.tar (sha256 7ba08e544d16) (repo/.env.example at 7cded8e)",
+     "status": "recorded",
+     "value": {
+      "repository": "brandonmusic/GLM-5.3-Flash-tr3-4bpw",
+      "revision": "5ab363a8dcf6405955fd5f99671e01a1c9fb124b"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp2-compact-full-1/native/metadata.json; lab plan 602462bd (rank-0 container environment)",
+     "status": "recorded",
+     "value": {
+      "dense_and_kda_projections": "FP8 weight-only (GLM53_DENSE_FP8=dense,kda)",
+      "kv_cache_dtype": "fp8",
+      "weights": "EXL3 4 bpw (their kit)"
+     }
+    },
+    "repository": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp2-compact-full-1/native/metadata.json",
+     "status": "recorded",
+     "value": "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks"
+    },
+    "runtime": {
+     "source": "outputs/2026-09-23-mia-7cded8e-tp2-compact-full-1/boot-log-rank0.json",
+     "status": "recorded",
+     "value": "vLLM v0.1.dev20051+g487ecf187 (their image)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 602462bd (rank-0 container environment)",
+     "status": "recorded",
+     "value": {
+      "adaptive_k": "ema",
+      "adaptive_k_set": "2,4,7",
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "dc77ff1c99eeb2df044ee3d4f0094eb033fee410"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 602462bd (rank-0 container environment)",
+     "status": "recorded",
+     "value": 2
+    }
+   },
+   "id": "tp2-miaai-7cded8e",
+   "lab_receipt": "2026-09-23-mia-7cded8e-tp2-compact-full-1",
+   "lab_windows": {
+    "benchmark": "2026-09-23-mia-7cded8e-tp2-compact-full-1",
+    "replay_matrix": null,
+    "sparkdash": "2026-09-23-mia-7cded8e-tp2-compact-full-1"
+   },
+   "page_admits": 4,
+   "page_checks": [
+    {
+     "claim": "admits 4",
+     "recorded": 4,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "commit 7cded8e",
+     "recorded": "7cded8e2ed9d7502f32591cfeeeea4747db3d393",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "speed options and compact draft pages on",
+     "recorded": {
+      "GLM53_ADAPTIVE_K": "ema",
+      "GLM53_COOP_GEOMETRY": "1",
+      "GLM53_DENSE_FP8": "dense,kda",
+      "GLM53_DRAFT_KV_COMPACT": "1",
+      "GLM53_EXL3_MOE_FAST": "1",
+      "GLM53_INDEXER_WORKSPACE": "rightsize",
+      "GLM53_KDA_BF16_LARGE_M": "1",
+      "GLM53_SPINWAIT_MS": "16"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "image built by their Dockerfile with one self-test skipped",
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "commit 7cded8e, their default-off speed options and compact draft pages on; image built by their Dockerfile with one self-test skipped",
+   "recipe": "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+   "row_index": 4,
+   "table": "main",
+   "tp": "TP2"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "decode",
+     "agg",
+     "staggered",
+     "sparkdash"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 9a140e1c (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 6
+     }
+    },
+    "as_shipped_check": {
+     "source": "lab file launch-glm53-vllm-tp2-dflash2.sh (sha256 e75b98d6c477): the lab's copy of the recipe launcher at 9fea48c",
+     "status": "recorded",
+     "value": {
+      "enforce_eager": true,
+      "kv_8gib": true,
+      "max_num_seqs": true,
+      "roce_default_on": true,
+      "thinking_off_default": true
+     }
+    },
+    "context_length": {
+     "source": "lab plan 9a140e1c (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "outputs/2026-09-23-tony-tp2-9fea48c-full-1/native/metadata.json (adaptations, rewritten without addresses or host names)",
+     "status": "recorded",
+     "value": [
+      "the node pair's direct link and addresses instead of the recipe's fabric addresses (same one-HCA shape)",
+      "port 8888; drafter pinned to incoai/GLM-5.3-Flash-DFlash2 7d74cdd8 (the recipe does not pin it)",
+      "the recipe's RoCE all-reduce off (its bundle needs another image of the recipe author)",
+      "the chat template file of the recipe author's TP4 recipe mounted",
+      "the recipe's documented prefix-cache repair (its #18) applied the documented no-rebuild way"
+     ]
+    },
+    "image": {
+     "source": "lab plan 9a140e1c",
+     "status": "recorded",
+     "value": {
+      "how": "the recipe author's published image, pulled by digest",
+      "image": "ghcr.io/tonyd2wild/vllm-glm53-flash@sha256:4def0ef644cb2e9814136dcffd5e385e21bc594f48f3b292234051904abe85a6",
+      "image_config_id": "sha256:35c6f70ffcba62fd67d7b9d4b4e8300ad177201792ce9cdb1ea18fd449bc23b6"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 9a140e1c (rank-0 command); outputs/2026-09-23-tony-tp2-9fea48c-full-1/boot-log-rank0.json (GPU KV cache size)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 8.0,
+      "kv_cache_memory_bytes_per_rank": 8589934592,
+      "token_capacity": 788977
+     }
+    },
+    "measured_commit": {
+     "source": "lab plan 9a140e1c (upstream_commit)",
+     "status": "recorded",
+     "value": "9fea48c13b0de4a427fd443718ddd3e39863a013"
+    },
+    "model_checkpoint": {
+     "how": "the checkpoint the recipe ships with (compressed-tensors NVFP4); the lab's local download is identical to this revision (shards and index)",
+     "source": "outputs/2026-09-23-tony-tp2-9fea48c-full-1/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "repository": "RedHatAI/GLM-5.3-Flash-NVFP4",
+      "revision": "18d55bfd"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-23-tony-tp2-9fea48c-full-1/native/metadata.json (quantisation, rewritten); lab plan 9a140e1c (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "kv_cache_dtype": "fp8_e4m3",
+      "moe_backend": "marlin",
+      "weights": "compressed-tensors NVFP4 (the checkpoint the recipe ships with)"
+     }
+    },
+    "repository": {
+     "source": "lab plan 9a140e1c",
+     "status": "recorded",
+     "value": "tonyd2wild/GLM-5.3-Flash-NVFP4-DFlash2-2x-DGX-Spark"
+    },
+    "runtime": {
+     "source": "outputs/2026-09-23-tony-tp2-9fea48c-full-1/boot-log-rank0.json",
+     "status": "recorded",
+     "value": "vLLM v0.1.dev20051+g487ecf187 (their image)"
+    },
+    "server_settings_as_recorded": {
+     "source": "lab plan 9a140e1c (rank-0 command); outputs/2026-09-23-tony-tp2-9fea48c-full-1/native/code-full.json (reasoning_characters)",
+     "status": "recorded",
+     "value": {
+      "compilation_config": null,
+      "default_chat_template_kwargs": {
+       "enable_thinking": false
+      },
+      "enforce_eager": true,
+      "note": "the server default disables thinking (as the recipe launches it); RigMark requests set only reasoning_effort=low",
+      "rigmark_code_full_runs_with_reasoning_text": {
+       "runs": 9,
+       "with_reasoning_text": 0
+      }
+     }
+    },
+    "speculative_decoding": {
+     "source": "lab plan 9a140e1c (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 9a140e1c (rank-0 command)",
+     "status": "recorded",
+     "value": 2
+    }
+   },
+   "id": "tp2-tonyd2wild-9fea48c",
+   "lab_receipt": "2026-09-23-tony-tp2-9fea48c-full-1",
+   "lab_windows": {
+    "benchmark": "2026-09-23-tony-tp2-9fea48c-full-1",
+    "replay_matrix": null,
+    "sparkdash": "2026-09-23-tony-tp2-9fea48c-full-1"
+   },
+   "page_admits": 6,
+   "page_checks": [
+    {
+     "claim": "admits 6",
+     "recorded": 6,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "commit 9fea48c",
+     "recorded": "9fea48c13b0de4a427fd443718ddd3e39863a013",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "five recorded changes",
+     "recorded": {
+      "recorded_changes": 5
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "this pair's direct link and addresses",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "a pinned drafter",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "RoCE all-reduce off",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "the chat template of the author's TP4 recipe",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "prefix-cache repair",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "changes named in the text",
+     "detail": "the serving port (8888) was also changed, recorded together with the drafter pin; a site value",
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "commit 9fea48c with five recorded changes: this pair's direct link and addresses, a pinned drafter, the recipe's RoCE all-reduce off (it needs another image from the same author), the chat template of the author's TP4 recipe, the author's documented prefix-cache repair",
+   "recipe": "tonyd2wild/GLM-5.3-Flash-NVFP4-DFlash2-2x-DGX-Spark",
+   "row_index": 5,
+   "table": "main",
+   "tp": "TP2"
+  },
+  {
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 16
+     }
+    },
+    "context_length": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "results.json row fields and the plan",
+     "status": "recorded",
+     "value": [
+      "the NVIDIA checkpoint instead of the profile's",
+      "RigMark cells are the median of 3 runs",
+      "no sparkDash or tool-eval-bench run"
+     ]
+    },
+    "image": {
+     "source": "lab plan 89dfef84 (rank-0 command); recipe docs/image.md",
+     "status": "recorded",
+     "value": {
+      "how": "local image built by the lab in four stages on vLLM v0.29.0 with the GLM-5.3 backport (described in the recipe docs/image.md); no public reference yet",
+      "image_id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 32.0,
+      "kv_cache_memory_bytes_per_rank": 34359738368,
+      "prefix_cache_retention_interval": 2304,
+      "token_capacity": "not recorded in this window"
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-25-ringside-combined-tp4-1/switch-bytes.json (plan sha256)",
+     "status": "recorded",
+     "value": {
+      "lab_plan": "31978478",
+      "note": "the release plan on the NVIDIA checkpoint; RigMark cells are the median of 3 runs"
+     }
+    },
+    "model_checkpoint": {
+     "source": "outputs/2026-09-25-ringside-combined-tp4-1/native/metadata.json; checkpoints-public.json",
+     "status": "recorded",
+     "value": {
+      "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+      "revision": "423acf37583782c51c142d145aef733d72943d93"
+     }
+    },
+    "moe_accumulation": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "10",
+      "B12X_GLM53_ATOMIC_PREFILL": "1",
+      "B12X_GLM53_MIXED_SPLIT": "1"
+     },
+     "note": "atomic (not bit-reproducible) MoE accumulation: prefill when ATOMIC_PREFILL=1; decode launches of at least ATOMIC_DECODE_MIN_ROWS rows when set; the prefill rows of mixed steps when MIXED_SPLIT=1 (their decode rows stay deterministic)"
+    },
+    "prefix_cache_contract": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "GLM53_PREFIX_CACHE_CONTRACT": "1"
+     },
+     "note": "a host-side startup receipt of the resolved cache geometry; it changes nothing by itself"
+    },
+    "quantisation": {
+     "source": "lab plan 89dfef84 (rank-0 command); checkpoints-public.json of the recipe import",
+     "status": "recorded",
+     "value": {
+      "draft_kv_cache_dtype": "auto",
+      "kv_cache_dtype": "fp8_e4m3",
+      "weights": "NVIDIA NVFP4 checkpoint"
+     }
+    },
+    "repository": {
+     "source": "recipe repository",
+     "status": "recorded",
+     "value": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE"
+    },
+    "runtime": {
+     "source": "lab plan 89dfef84 (rank-0 command); recipe docs/image.md; outputs/2026-09-26-ringside-redhat-rowsplit-tp4-1/native/metadata.json (serving_engine)",
+     "status": "recorded",
+     "value": "vLLM 0.29.0+glm53.local (vLLM v0.29.0 with the GLM-5.3 backport, b12x 1.3.0)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7,
+      "runtime_k_policy": {
+       "GLM53_SPEEDUP_K": "7",
+       "GLM53_SPEEDUP_MODE": "saturation"
+      }
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 89dfef84 (rank-0 command)",
+     "status": "recorded",
+     "value": 4
+    }
+   },
+   "id": "tp4-release-nvidia",
+   "lab_receipt": "2026-09-25-ringside-combined-tp4-1",
+   "lab_windows": {
+    "benchmark": "2026-09-25-ringside-combined-tp4-1",
+    "replay_matrix": null,
+    "sparkdash": null
+   },
+   "page_admits": 16,
+   "page_configuration": "the RiNGSiDE release plan on the NVIDIA checkpoint (nvidia/GLM-5.3-Flash-NVFP4 423acf37), lab plan 31978478; RigMark cells are medians of 3 runs in one boot, then llama-benchy; tool-eval-bench, sparkDash and the correctness checks did not run (the window stopped there); replay matrix not run on it",
+   "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+   "row_index": 6,
+   "table": "extra",
+   "tp": "TP4"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "staggered_rounds",
+     "prefill_suite",
+     "decode",
+     "agg",
+     "prose_agg",
+     "staggered",
+     "protocol",
+     "sparkdash"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 387b3ff3 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 16
+     }
+    },
+    "context_length": {
+     "source": "lab plan 387b3ff3 (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "results.json row fields and the plan",
+     "status": "recorded",
+     "value": [
+      "none for the measured plan itself",
+      "sparkDash cells come from lab plan 6f490797 (window 2026-09-25-sparkdash-tp4-final-1)",
+      "RigMark cells are the median of 2 runs",
+      "staggered cells are the median of 2 rounds"
+     ]
+    },
+    "image": {
+     "source": "lab plan 387b3ff3 (rank-0 command); recipe docs/image.md",
+     "status": "recorded",
+     "value": {
+      "how": "local image built by the lab in four stages on vLLM v0.29.0 with the GLM-5.3 backport (described in the recipe docs/image.md); no public reference yet",
+      "image_id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 387b3ff3 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 32.0,
+      "kv_cache_memory_bytes_per_rank": 34359738368,
+      "prefix_cache_retention_interval": 2304,
+      "token_capacity": "not recorded in this window (the boot log tail does not reach the startup lines)"
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-25-tp4-final-2/window.json (plan) + plan file hash",
+     "status": "recorded",
+     "value": {
+      "lab_plan": "387b3ff3",
+      "note": "the final TP4 run: lab plan 387b3ff3, the TP4 profile 6f490797 without the replay-boundary admit fix (glm53_replay_boundary.py 144c7d34 instead of d41662b1, every other served file and flag equal); every RigMark cell is the median of 2 runs"
+     }
+    },
+    "model_checkpoint": {
+     "source": "outputs/2026-09-25-tp4-final-2/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+      "revision": "423acf37583782c51c142d145aef733d72943d93"
+     }
+    },
+    "moe_accumulation": {
+     "note": "atomic (not bit-reproducible) MoE accumulation: prefill when ATOMIC_PREFILL=1; decode launches of at least ATOMIC_DECODE_MIN_ROWS rows when set; the prefill rows of mixed steps when MIXED_SPLIT=1 (their decode rows stay deterministic)",
+     "source": "lab plan 387b3ff3 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "10",
+      "B12X_GLM53_ATOMIC_PREFILL": "1",
+      "B12X_GLM53_MIXED_SPLIT": "1"
+     }
+    },
+    "prefix_cache_contract": {
+     "note": "a host-side startup receipt of the resolved cache geometry; it changes nothing by itself",
+     "source": "lab plan 387b3ff3 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "GLM53_PREFIX_CACHE_CONTRACT": "1"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-25-tp4-final-2/native/metadata.json; lab plan 387b3ff3 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "draft_kv_cache_dtype": "auto",
+      "kv_cache_dtype": "fp8_e4m3",
+      "weights": "NVIDIA NVFP4 checkpoint"
+     }
+    },
+    "repository": {
+     "source": "recipe repository",
+     "status": "recorded",
+     "value": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE"
+    },
+    "runtime": {
+     "source": "lab plan 387b3ff3 (rank-0 command) (image sha256:017fd0ba); recipe docs/image.md; outputs/2026-09-25-tp4-final-2/native/metadata.json (serving_engine)",
+     "status": "recorded",
+     "value": "vLLM 0.29.0+glm53.local (vLLM v0.29.0 with the GLM-5.3 backport, b12x 1.3.0)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 387b3ff3 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7,
+      "runtime_k_policy": {
+       "GLM53_SPEEDUP_K": "7",
+       "GLM53_SPEEDUP_MODE": "saturation"
+      }
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 387b3ff3 (rank-0 command)",
+     "status": "recorded",
+     "value": 4
+    }
+   },
+   "id": "tp4-previous-run",
+   "lab_receipt": "2026-09-25-tp4-final-2",
+   "lab_windows": {
+    "benchmark": "2026-09-25-tp4-final-2",
+    "replay_matrix": null,
+    "sparkdash": "2026-09-25-sparkdash-tp4-final-1"
+   },
+   "page_admits": 16,
+   "page_checks": [
+    {
+     "claim": "admits 16",
+     "recorded": 16,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "lab plan 387b3ff3",
+     "recorded": "387b3ff3",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "medians of 2 runs",
+     "recorded": {
+      "receipts": {
+       "every_cell_runs": 2,
+       "settings": {
+        "concurrency_runs": 2,
+        "prefill_runs": 2,
+        "prose_concurrency_runs": 2,
+        "prose_runs": 2,
+        "prose_staggered_runs": 2,
+        "runs": 2
+       },
+       "staggered_valid_and_total_rounds": [
+        2
+       ]
+      },
+      "results_json": {
+       "runs": 2,
+       "staggered_rounds": 2
+      }
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "sparkDash from a separate window of the TP4 profile itself",
+     "recorded": {
+      "difference": "the replay-boundary admit fix only (admit_fix_delta)",
+      "every_stream_ok": true,
+      "row_plan": "387b3ff3",
+      "sparkdash_plan": "6f490797",
+      "sparkdash_window": "2026-09-25-sparkdash-tp4-final-1"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "replay matrix not run on it",
+     "recorded": {
+      "results_json_replay_matrix": null,
+      "window_replay_report": false
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "the TP4 profile without the replay-boundary admit fix",
+     "recorded": {
+      "base_plan": "387b3ff3",
+      "only_changed_mount": "glm53_replay_boundary.py",
+      "other_differences": "container names and profile directories (site values)",
+      "profile": "6f490797",
+      "served_module_after": "d41662b1",
+      "served_module_before": "144c7d34",
+      "source": "outputs/2026-09-24-replay-boundary/candidate-tp4-admitfix/delta.json and both plans"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "sparkdash cells from lab plan 6f490797 (window 2026-09-25-sparkdash-tp4-final-1)",
+     "recorded": "6f490797",
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "final TP4 run, lab plan 387b3ff3: lab plan 6f490797 without the replay-boundary admit fix; RigMark cells are medians of 2 runs; sparkDash (a Python reproduction of MiaAI-Lab/sparkDash's decode-benchmark protocol) from a separate window of lab plan 6f490797; replay matrix not run on it",
+   "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+   "row_index": 7,
+   "table": "extra",
+   "tp": "TP4",
+   "note_2026_09_25_release_import": "the TP4 profile of the recipe is now lab plan 23ebce61 (the RiNGSiDE release plan, derived from 6f490797 and not benchmarked); the page names 6f490797 by its lab plan instead of calling it the TP4 profile. The checks above were made against the earlier text and results.json (results_json_sha256); no checked value changed.",
+   "note_2026_09_25_release_window": "the final TP4 run of lab plan 387b3ff3, the RiNGSiDE TP4 row until the release window 2026-09-26-ringside-redhat-rowsplit-tp4-1 measured the profile's own plan 89dfef84"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "staggered_rounds",
+     "decode",
+     "agg",
+     "prose_agg",
+     "staggered",
+     "protocol",
+     "sparkdash",
+     "replay_matrix"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 50e80d44 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 16
+     }
+    },
+    "context_length": {
+     "source": "lab plan 50e80d44 (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "results.json row fields and the plan",
+     "status": "recorded",
+     "value": [
+      "none for the measured plan itself",
+      "sparkDash cells come from lab plan 9e4f793a (window 2026-09-24-final-full-protocol-3)",
+      "replay-matrix cells come from lab plan 9e4f793a (window 2026-09-24-final-replay-ours-tp4-1)",
+      "RigMark cells are the median of 5 runs",
+      "staggered cells are the median of 5 rounds"
+     ]
+    },
+    "image": {
+     "source": "lab plan 50e80d44 (rank-0 command); recipe docs/image.md",
+     "status": "recorded",
+     "value": {
+      "how": "local image built by the lab in four stages on vLLM v0.29.0 with the GLM-5.3 backport (described in the recipe docs/image.md); no public reference yet",
+      "image_id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 50e80d44 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 32.0,
+      "kv_cache_memory_bytes_per_rank": 34359738368,
+      "prefix_cache_retention_interval": 2304,
+      "token_capacity": "not recorded in this window (the boot log tail does not reach the startup lines)"
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-24-rigmark5-tp4-1/window.json (plan) + plan file hash",
+     "status": "recorded",
+     "value": {
+      "lab_plan": "50e80d44",
+      "note": "the TP4 profile of 2026-09-24 (lab plan 50e80d44), before A2b, greedy argmax verification, the replay boundary and P1; every RigMark cell is the median of 5 runs"
+     }
+    },
+    "model_checkpoint": {
+     "source": "outputs/2026-09-24-rigmark5-tp4-1/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+      "revision": "423acf37583782c51c142d145aef733d72943d93"
+     }
+    },
+    "moe_accumulation": {
+     "note": "atomic (not bit-reproducible) MoE accumulation: prefill when ATOMIC_PREFILL=1; decode launches of at least ATOMIC_DECODE_MIN_ROWS rows when set; the prefill rows of mixed steps when MIXED_SPLIT=1 (their decode rows stay deterministic)",
+     "source": "lab plan 50e80d44 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "10",
+      "B12X_GLM53_ATOMIC_PREFILL": "1",
+      "B12X_GLM53_MIXED_SPLIT": "1"
+     }
+    },
+    "prefix_cache_contract": {
+     "note": "a host-side startup receipt of the resolved cache geometry; it changes nothing by itself",
+     "source": "lab plan 50e80d44 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "GLM53_PREFIX_CACHE_CONTRACT": "1"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-24-rigmark5-tp4-1/native/metadata.json; lab plan 50e80d44 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "draft_kv_cache_dtype": "auto",
+      "kv_cache_dtype": "fp8_e4m3",
+      "weights": "NVIDIA NVFP4 checkpoint"
+     }
+    },
+    "repository": {
+     "source": "recipe repository",
+     "status": "recorded",
+     "value": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE"
+    },
+    "runtime": {
+     "source": "lab plan 50e80d44 (rank-0 command) (image sha256:017fd0ba); recipe docs/image.md; outputs/2026-09-24-rigmark5-tp4-1/native/metadata.json (serving_engine)",
+     "status": "recorded",
+     "value": "vLLM 0.29.0+glm53.local (vLLM v0.29.0 with the GLM-5.3 backport, b12x 1.3.0)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 50e80d44 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7,
+      "runtime_k_policy": {
+       "GLM53_SPEEDUP_K": "7",
+       "GLM53_SPEEDUP_MODE": "saturation"
+      }
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 50e80d44 (rank-0 command)",
+     "status": "recorded",
+     "value": 4
+    }
+   },
+   "id": "tp4-previous-profile",
+   "lab_receipt": "2026-09-24-rigmark5-tp4-1",
+   "lab_windows": {
+    "benchmark": "2026-09-24-rigmark5-tp4-1",
+    "replay_matrix": "2026-09-24-final-replay-ours-tp4-1",
+    "sparkdash": "2026-09-24-final-full-protocol-3"
+   },
+   "page_admits": 16,
+   "page_checks": [
+    {
+     "claim": "admits 16",
+     "recorded": 16,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "lab plan 50e80d44",
+     "recorded": "50e80d44",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "medians of 5 runs",
+     "recorded": {
+      "receipts": {
+       "every_cell_runs": 5,
+       "settings": {
+        "concurrency_runs": 5,
+        "prefill_runs": 5,
+        "prose_concurrency_runs": 5,
+        "prose_runs": 5,
+        "prose_staggered_runs": 5,
+        "runs": 5
+       },
+       "staggered_valid_and_total_rounds": [
+        5
+       ]
+      },
+      "results_json": {
+       "runs": 5,
+       "staggered_rounds": 5
+      }
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "sparkDash and replay matrix single runs of an earlier plan",
+     "recorded": {
+      "replay_window": "2026-09-24-final-replay-ours-tp4-1",
+      "sparkdash_wave_repeats": [
+       1
+      ],
+      "sparkdash_window": "2026-09-24-final-full-protocol-3"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "sparkdash cells from lab plan 9e4f793a (window 2026-09-24-final-full-protocol-3)",
+     "recorded": "9e4f793a",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "replay cells from lab plan 9e4f793a (window 2026-09-24-final-replay-ours-tp4-1)",
+     "recorded": "9e4f793a",
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "previous TP4 profile, lab plan 50e80d44 (before A2b, greedy argmax verification, the replay boundary and P1); RigMark cells are medians of 5 runs; sparkDash and replay matrix single runs of lab plan 9e4f793a",
+   "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+   "row_index": 8,
+   "table": "extra",
+   "tp": "TP4"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "staggered_rounds",
+     "decode",
+     "agg",
+     "prose_agg",
+     "staggered",
+     "protocol"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 594faefb (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 16
+     }
+    },
+    "context_length": {
+     "source": "lab plan 594faefb (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "results.json row fields and the plan",
+     "status": "recorded",
+     "value": [
+      "none for the measured plan itself"
+     ]
+    },
+    "image": {
+     "source": "lab plan 594faefb (rank-0 command); recipe docs/image.md",
+     "status": "recorded",
+     "value": {
+      "how": "local image built by the lab in four stages on vLLM v0.29.0 with the GLM-5.3 backport (described in the recipe docs/image.md); no public reference yet",
+      "image_id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 594faefb (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 32.0,
+      "kv_cache_memory_bytes_per_rank": 34359738368,
+      "prefix_cache_retention_interval": 2304,
+      "token_capacity": "not recorded in this window (the boot log tail does not reach the startup lines)"
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-24-kda-ckpt-tp4-1/window.json (plan) + plan file hash",
+     "status": "recorded",
+     "value": {
+      "lab_plan": "594faefb",
+      "note": "the same TP4 code as lab plan 50e80d44 in a single-run window: lab plan 594faefb differs from 50e80d44 only in the header comment of one mounted file"
+     }
+    },
+    "model_checkpoint": {
+     "source": "outputs/2026-09-24-kda-ckpt-tp4-1/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+      "revision": "423acf37583782c51c142d145aef733d72943d93"
+     }
+    },
+    "moe_accumulation": {
+     "note": "atomic (not bit-reproducible) MoE accumulation: prefill when ATOMIC_PREFILL=1; decode launches of at least ATOMIC_DECODE_MIN_ROWS rows when set; the prefill rows of mixed steps when MIXED_SPLIT=1 (their decode rows stay deterministic)",
+     "source": "lab plan 594faefb (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "10",
+      "B12X_GLM53_ATOMIC_PREFILL": "1",
+      "B12X_GLM53_MIXED_SPLIT": "1"
+     }
+    },
+    "prefix_cache_contract": {
+     "note": "a host-side startup receipt of the resolved cache geometry; it changes nothing by itself",
+     "source": "lab plan 594faefb (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "GLM53_PREFIX_CACHE_CONTRACT": "1"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-24-kda-ckpt-tp4-1/native/metadata.json; lab plan 594faefb (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "draft_kv_cache_dtype": "auto",
+      "kv_cache_dtype": "fp8_e4m3",
+      "weights": "NVIDIA NVFP4 checkpoint"
+     }
+    },
+    "repository": {
+     "source": "recipe repository",
+     "status": "recorded",
+     "value": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE"
+    },
+    "runtime": {
+     "source": "lab plan 594faefb (rank-0 command) (image sha256:017fd0ba); recipe docs/image.md; outputs/2026-09-24-kda-ckpt-tp4-1/native/metadata.json (serving_engine)",
+     "status": "recorded",
+     "value": "vLLM 0.29.0+glm53.local (vLLM v0.29.0 with the GLM-5.3 backport, b12x 1.3.0)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 594faefb (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7,
+      "runtime_k_policy": {
+       "GLM53_SPEEDUP_K": "7",
+       "GLM53_SPEEDUP_MODE": "saturation"
+      }
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 594faefb (rank-0 command)",
+     "status": "recorded",
+     "value": 4
+    }
+   },
+   "id": "tp4-ringside-single-run",
+   "lab_receipt": "2026-09-24-kda-ckpt-tp4-1",
+   "lab_windows": {
+    "benchmark": "2026-09-24-kda-ckpt-tp4-1",
+    "replay_matrix": null,
+    "sparkdash": null
+   },
+   "page_admits": 16,
+   "page_checks": [
+    {
+     "claim": "admits 16",
+     "recorded": 16,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "lab plan 594faefb",
+     "recorded": "594faefb",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "the same TP4 code as lab plan 50e80d44",
+     "recorded": {
+      "differing_file": "mhc_prefill_sharding.py",
+      "differing_lines": [
+       2
+      ],
+      "launch_command_differences_per_rank": {
+       "0": 1,
+       "1": 1,
+       "2": 1,
+       "3": 1
+      },
+      "measured_plan": "594faefb",
+      "published_file_sha256": "87405a5c",
+      "published_plan": "50e80d44",
+      "python_tokens_without_comments_equal": true,
+      "same_code": true,
+      "source": "outputs/2026-09-24-attribution-fix/candidate-tp4/delta.json and both plans"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "single-run window",
+     "recorded": {
+      "rigmark_runs": 1
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "window of 2026-09-24 13:09-13:30",
+     "recorded": {
+      "rigmark": {
+       "code_full": [
+        "2026-09-24T13:14:49+07:00",
+        "2026-09-24T13:17:04+07:00"
+       ],
+       "prose_concurrency": [
+        "2026-09-24T13:17:04+07:00",
+        "2026-09-24T13:28:21+07:00"
+       ]
+      },
+      "window_begin": "2026-09-24T13:09:56+07:00",
+      "window_finished": "2026-09-24T13:30:12+07:00"
+     },
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "lab plan 594faefb, the same TP4 code as the previous profile 50e80d44; single-run window of 2026-09-24 13:09-13:30",
+   "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+   "row_index": 9,
+   "table": "extra",
+   "tp": "TP4"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "decode",
+     "agg",
+     "staggered",
+     "sparkdash",
+     "replay_matrix"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 9e4f793a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 16
+     }
+    },
+    "context_length": {
+     "source": "lab plan 9e4f793a (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "results.json row fields and the plan",
+     "status": "recorded",
+     "value": [
+      "none for the measured plan itself"
+     ]
+    },
+    "image": {
+     "source": "lab plan 9e4f793a (rank-0 command); recipe docs/image.md",
+     "status": "recorded",
+     "value": {
+      "how": "local image built by the lab in four stages on vLLM v0.29.0 with the GLM-5.3 backport (described in the recipe docs/image.md); no public reference yet",
+      "image_id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 9e4f793a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 32.0,
+      "kv_cache_memory_bytes_per_rank": 34359738368,
+      "prefix_cache_retention_interval": 2304,
+      "token_capacity": "not recorded in this window (the boot log tail does not reach the startup lines)"
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-24-final-full-protocol-3/window.json (plan) + plan file hash",
+     "status": "recorded",
+     "value": {
+      "lab_plan": "9e4f793a",
+      "note": "the previous TP4 base (without the KDA checkpoints)"
+     }
+    },
+    "model_checkpoint": {
+     "source": "outputs/2026-09-24-final-full-protocol-3/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+      "revision": "423acf37583782c51c142d145aef733d72943d93"
+     }
+    },
+    "moe_accumulation": {
+     "note": "atomic (not bit-reproducible) MoE accumulation: prefill when ATOMIC_PREFILL=1; decode launches of at least ATOMIC_DECODE_MIN_ROWS rows when set; the prefill rows of mixed steps when MIXED_SPLIT=1 (their decode rows stay deterministic)",
+     "source": "lab plan 9e4f793a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "10",
+      "B12X_GLM53_ATOMIC_PREFILL": "1",
+      "B12X_GLM53_MIXED_SPLIT": "1"
+     }
+    },
+    "prefix_cache_contract": {
+     "note": "a host-side startup receipt of the resolved cache geometry; it changes nothing by itself",
+     "source": "lab plan 9e4f793a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "GLM53_PREFIX_CACHE_CONTRACT": "1"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-24-final-full-protocol-3/native/metadata.json; lab plan 9e4f793a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "draft_kv_cache_dtype": "auto",
+      "kv_cache_dtype": "fp8_e4m3",
+      "weights": "NVIDIA NVFP4 checkpoint"
+     }
+    },
+    "repository": {
+     "source": "recipe repository",
+     "status": "recorded",
+     "value": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE"
+    },
+    "runtime": {
+     "source": "lab plan 9e4f793a (rank-0 command) (image sha256:017fd0ba); recipe docs/image.md; outputs/2026-09-24-final-full-protocol-3/native/metadata.json (serving_engine)",
+     "status": "recorded",
+     "value": "vLLM 0.29.0+glm53.local (vLLM v0.29.0 with the GLM-5.3 backport, b12x 1.3.0)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 9e4f793a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7,
+      "runtime_k_policy": {
+       "GLM53_SPEEDUP_K": "7",
+       "GLM53_SPEEDUP_MODE": "saturation"
+      }
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 9e4f793a (rank-0 command)",
+     "status": "recorded",
+     "value": 4
+    },
+    "window_metadata_inconsistency": {
+     "source": "outputs/2026-09-24-final-full-protocol-3/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "measured_plan": "9e4f793a",
+      "metadata_drafter": "incoai/GLM-5.3-Flash-DFlash2 at 7d74cdd881ed7e32c31175984a67823127b66cfe, fixed K4, greedy walk",
+      "metadata_launch_plan": "a42ebb47",
+      "metadata_scheduler": "V2 synchronous; fair total prefill cap4608; short-tail-first with deferred-long priority; retention9216; K4; C1-C6 exact graphs",
+      "reading": "the window metadata was copied from an older template: it names another plan, fixed K4 and retention 9216, while the measured plan runs K up to 7 and retention 2304; the fields above come from the measured plan"
+     }
+    }
+   },
+   "id": "tp4-previous-base",
+   "lab_receipt": "2026-09-24-final-full-protocol-3",
+   "lab_windows": {
+    "benchmark": "2026-09-24-final-full-protocol-3",
+    "replay_matrix": "2026-09-24-final-replay-ours-tp4-1",
+    "sparkdash": "2026-09-24-final-full-protocol-3"
+   },
+   "page_admits": 16,
+   "page_checks": [
+    {
+     "claim": "admits 16",
+     "recorded": 16,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "lab plan 9e4f793a",
+     "recorded": "9e4f793a",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "NON-DETERMINISTIC decode",
+     "recorded": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "10"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "without the KDA checkpoints",
+     "recorded": {
+      "GLM53_KDA_CKPT": "unset"
+     },
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "earlier TP4 base (lab plan 9e4f793a, without the KDA checkpoints); NON-DETERMINISTIC decode",
+   "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+   "row_index": 10,
+   "table": "extra",
+   "tp": "TP4"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "decode",
+     "agg",
+     "staggered",
+     "sparkdash",
+     "replay_matrix"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 13ec0d86 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 16
+     }
+    },
+    "context_length": {
+     "source": "lab plan 13ec0d86 (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "results.json row fields and the plan",
+     "status": "recorded",
+     "value": [
+      "none for the measured plan itself"
+     ]
+    },
+    "image": {
+     "source": "lab plan 13ec0d86 (rank-0 command); recipe docs/image.md",
+     "status": "recorded",
+     "value": {
+      "how": "local image built by the lab in four stages on vLLM v0.29.0 with the GLM-5.3 backport (described in the recipe docs/image.md); no public reference yet",
+      "image_id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 13ec0d86 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 32.0,
+      "kv_cache_memory_bytes_per_rank": 34359738368,
+      "prefix_cache_retention_interval": 2304,
+      "token_capacity": "not recorded in this window (the boot log tail does not reach the startup lines)"
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-24-final-weightless-full-1/window.json (plan) + plan file hash",
+     "status": "recorded",
+     "value": {
+      "lab_plan": "13ec0d86",
+      "note": "the previous TP4 base plus the optional weightless GLP-44 steering"
+     }
+    },
+    "model_checkpoint": {
+     "source": "outputs/2026-09-24-final-weightless-full-1/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+      "revision": "423acf37583782c51c142d145aef733d72943d93"
+     }
+    },
+    "moe_accumulation": {
+     "note": "atomic (not bit-reproducible) MoE accumulation: prefill when ATOMIC_PREFILL=1; decode launches of at least ATOMIC_DECODE_MIN_ROWS rows when set; the prefill rows of mixed steps when MIXED_SPLIT=1 (their decode rows stay deterministic)",
+     "source": "lab plan 13ec0d86 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "10",
+      "B12X_GLM53_ATOMIC_PREFILL": "1",
+      "B12X_GLM53_MIXED_SPLIT": "1"
+     }
+    },
+    "optional_component": {
+     "source": "lab plan 13ec0d86 (derived_from); outputs/2026-09-24-final-weightless-full-1/weightless-activation.json",
+     "status": "recorded",
+     "value": {
+      "base_plan": "9e4f793a",
+      "component": "msuiche/weightless GLP-44 activation steering, alpha 2.0, post-layer hook, all 44 directions",
+      "merged_model_py_sha256": "5ad83d56e8639e71a856ec18f0d209a1e6f41c9b6cc3b031dd67368e26143aea",
+      "vector_sha256": "0ccce6b748f87da81505ff2bc3ca82429110940b6c0def60063d304785ccc00c",
+      "weightless_source_commit": "not recorded in this arm's receipts"
+     }
+    },
+    "prefix_cache_contract": {
+     "note": "a host-side startup receipt of the resolved cache geometry; it changes nothing by itself",
+     "source": "lab plan 13ec0d86 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "GLM53_PREFIX_CACHE_CONTRACT": "1"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-24-final-weightless-full-1/native/metadata.json; lab plan 13ec0d86 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "draft_kv_cache_dtype": "auto",
+      "kv_cache_dtype": "fp8_e4m3",
+      "weights": "NVIDIA NVFP4 checkpoint"
+     }
+    },
+    "repository": {
+     "source": "recipe repository",
+     "status": "recorded",
+     "value": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE"
+    },
+    "runtime": {
+     "source": "lab plan 13ec0d86 (rank-0 command) (image sha256:017fd0ba); recipe docs/image.md; outputs/2026-09-24-final-weightless-full-1/native/metadata.json (serving_engine)",
+     "status": "recorded",
+     "value": "vLLM 0.29.0+glm53.local (vLLM v0.29.0 with the GLM-5.3 backport, b12x 1.3.0)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 13ec0d86 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7,
+      "runtime_k_policy": {
+       "GLM53_SPEEDUP_K": "7",
+       "GLM53_SPEEDUP_MODE": "saturation"
+      }
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 13ec0d86 (rank-0 command)",
+     "status": "recorded",
+     "value": 4
+    },
+    "window_metadata_inconsistency": {
+     "source": "outputs/2026-09-24-final-weightless-full-1/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "measured_plan": "13ec0d86",
+      "metadata_drafter": "incoai/GLM-5.3-Flash-DFlash2 at 7d74cdd881ed7e32c31175984a67823127b66cfe, fixed K4, greedy walk",
+      "metadata_launch_plan": "a42ebb47",
+      "metadata_scheduler": "V2 synchronous; fair total prefill cap4608; short-tail-first with deferred-long priority; retention9216; K4; C1-C6 exact graphs",
+      "reading": "the window metadata was copied from an older template: it names another plan, fixed K4 and retention 9216, while the measured plan runs K up to 7 and retention 2304; the fields above come from the measured plan"
+     }
+    }
+   },
+   "id": "tp4-previous-base-weightless",
+   "lab_receipt": "2026-09-24-final-weightless-full-1",
+   "lab_windows": {
+    "benchmark": "2026-09-24-final-weightless-full-1",
+    "replay_matrix": "2026-09-24-final-replay-ours-tp4-weightless-1",
+    "sparkdash": "2026-09-24-final-weightless-full-1"
+   },
+   "page_admits": 16,
+   "page_checks": [
+    {
+     "claim": "admits 16",
+     "recorded": 16,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "NON-DETERMINISTIC decode",
+     "recorded": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "10"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "with the optional weightless GLP-44 steering",
+     "recorded": {
+      "alpha": 2.0,
+      "layers": 44,
+      "ranks_logging_active_steering": 4
+     },
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "earlier TP4 base with the optional weightless GLP-44 steering; NON-DETERMINISTIC decode",
+   "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE + msuiche/weightless",
+   "row_index": 11,
+   "table": "extra",
+   "tp": "TP4"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "staggered_rounds",
+     "decode",
+     "agg",
+     "prose_agg",
+     "staggered",
+     "protocol",
+     "sparkdash",
+     "replay_matrix"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 32dd2ab8 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 6
+     }
+    },
+    "context_length": {
+     "source": "lab plan 32dd2ab8 (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "results.json row fields and the plan",
+     "status": "recorded",
+     "value": [
+      "none for the measured plan itself",
+      "sparkDash cells come from lab plan f1771e0a (window 2026-09-24-final-tp2-full-1)",
+      "staggered cells are the median of 3 rounds"
+     ]
+    },
+    "image": {
+     "source": "lab plan 32dd2ab8 (rank-0 command); recipe docs/image.md",
+     "status": "recorded",
+     "value": {
+      "how": "local image built by the lab in four stages on vLLM v0.29.0 with the GLM-5.3 backport (described in the recipe docs/image.md); no public reference yet",
+      "image_id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 32dd2ab8 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 11.5,
+      "kv_cache_memory_bytes_per_rank": 12348030976,
+      "prefix_cache_retention_interval": 4608,
+      "token_capacity": "not recorded in this window (the boot log tail does not reach the startup lines)"
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-24-tp2ws-cand-1/window.json (plan) + plan file hash",
+     "status": "recorded",
+     "value": {
+      "lab_plan": "32dd2ab8",
+      "note": "lab plan 32dd2ab8, the TP2 profile from 2026-09-24 16:3x, promoted although three guard clauses failed (tp2-weakspots-promotion.json)"
+     }
+    },
+    "model_checkpoint": {
+     "source": "outputs/2026-09-24-tp2ws-cand-1/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+      "revision": "423acf37583782c51c142d145aef733d72943d93"
+     }
+    },
+    "moe_accumulation": {
+     "note": "atomic (not bit-reproducible) MoE accumulation: prefill when ATOMIC_PREFILL=1; decode launches of at least ATOMIC_DECODE_MIN_ROWS rows when set; the prefill rows of mixed steps when MIXED_SPLIT=1 (their decode rows stay deterministic)",
+     "source": "lab plan 32dd2ab8 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "unset",
+      "B12X_GLM53_ATOMIC_PREFILL": "1",
+      "B12X_GLM53_MIXED_SPLIT": "1"
+     }
+    },
+    "prefix_cache_contract": {
+     "note": "a host-side startup receipt of the resolved cache geometry; it changes nothing by itself",
+     "source": "lab plan 32dd2ab8 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "GLM53_PREFIX_CACHE_CONTRACT": "1"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-24-tp2ws-cand-1/native/metadata.json; lab plan 32dd2ab8 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "draft_kv_cache_dtype": "auto",
+      "kv_cache_dtype": "fp8_e4m3",
+      "weights": "NVIDIA NVFP4 checkpoint"
+     }
+    },
+    "repository": {
+     "source": "recipe repository",
+     "status": "recorded",
+     "value": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE"
+    },
+    "runtime": {
+     "source": "lab plan 32dd2ab8 (rank-0 command) (image sha256:017fd0ba); recipe docs/image.md; outputs/2026-09-24-tp2ws-cand-1/native/metadata.json (serving_engine)",
+     "status": "recorded",
+     "value": "vLLM 0.29.0+glm53.local (vLLM v0.29.0 with the GLM-5.3 backport, b12x 1.3.0)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 32dd2ab8 (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7,
+      "runtime_k_policy": {
+       "GLM53_SPEEDUP_K": "7",
+       "GLM53_SPEEDUP_MODE": "saturation"
+      }
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 32dd2ab8 (rank-0 command)",
+     "status": "recorded",
+     "value": 2
+    },
+    "window_metadata_inconsistency": {
+     "source": "outputs/2026-09-24-tp2ws-cand-1/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "metadata_hardware": "4 x NVIDIA DGX Spark, GB10, 128 GB unified memory per appliance",
+      "metadata_topology": "Four-node switchless ring; inherited promotion-13 fabric",
+      "reading": "the window metadata (and the RigMark receipts that embed it) says 4 DGX Spark and a four-node ring; the run was TP2 on two nodes. The fields above come from the plan."
+     }
+    }
+   },
+   "id": "tp2-previous-profile",
+   "lab_receipt": "2026-09-24-tp2ws-cand-1",
+   "lab_windows": {
+    "benchmark": "2026-09-24-tp2ws-cand-1",
+    "replay_matrix": "2026-09-24-tp2ws-cand-1",
+    "sparkdash": "2026-09-24-final-tp2-full-1"
+   },
+   "page_admits": 6,
+   "page_checks": [
+    {
+     "claim": "admits 6",
+     "recorded": 6,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "lab plan 32dd2ab8",
+     "recorded": "32dd2ab8",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "staggered cells are the median of three rounds",
+     "recorded": {
+      "results_json_staggered_rounds": 3,
+      "rigmark_staggered_rounds": 3
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "promoted although three guard clauses failed",
+     "recorded": {
+      "failed_clauses": [
+       "1",
+       "6",
+       "7'"
+      ],
+      "source": "outputs/2026-09-24-tp2-weakspots/score-1.json"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "sparkdash cells from lab plan f1771e0a (window 2026-09-24-final-tp2-full-1)",
+     "recorded": "f1771e0a",
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "previous TP2 profile, lab plan 32dd2ab8; staggered cells are the median of three rounds; sparkDash from lab plan f1771e0a; promoted although three guard clauses failed (TP2 section)",
+   "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+   "row_index": 12,
+   "table": "extra",
+   "tp": "TP2"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "decode",
+     "agg",
+     "staggered",
+     "sparkdash",
+     "replay_matrix"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan f1771e0a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "--max-num-seqs": 6
+     }
+    },
+    "context_length": {
+     "source": "lab plan f1771e0a (rank-0 command)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "results.json row fields and the plan",
+     "status": "recorded",
+     "value": [
+      "none for the measured plan itself"
+     ]
+    },
+    "image": {
+     "source": "lab plan f1771e0a (rank-0 command); recipe docs/image.md",
+     "status": "recorded",
+     "value": {
+      "how": "local image built by the lab in four stages on vLLM v0.29.0 with the GLM-5.3 backport (described in the recipe docs/image.md); no public reference yet",
+      "image_id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan f1771e0a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": 11.5,
+      "kv_cache_memory_bytes_per_rank": 12348030976,
+      "prefix_cache_retention_interval": 9216,
+      "token_capacity": "not recorded in this window (the boot log tail does not reach the startup lines)"
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-24-final-tp2-full-1/window.json (plan) + plan file hash",
+     "status": "recorded",
+     "value": {
+      "lab_plan": "f1771e0a",
+      "note": "the previous TP2 base, before the weak-spot fixes; it was the TP2 profile until 2026-09-24 16:3x"
+     }
+    },
+    "model_checkpoint": {
+     "source": "outputs/2026-09-24-final-tp2-full-1/native/metadata.json",
+     "status": "recorded",
+     "value": {
+      "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+      "revision": "423acf37583782c51c142d145aef733d72943d93"
+     }
+    },
+    "moe_accumulation": {
+     "note": "atomic (not bit-reproducible) MoE accumulation: prefill when ATOMIC_PREFILL=1; decode launches of at least ATOMIC_DECODE_MIN_ROWS rows when set; the prefill rows of mixed steps when MIXED_SPLIT=1 (their decode rows stay deterministic)",
+     "source": "lab plan f1771e0a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS": "unset",
+      "B12X_GLM53_ATOMIC_PREFILL": "1",
+      "B12X_GLM53_MIXED_SPLIT": "unset"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-24-final-tp2-full-1/native/metadata.json; lab plan f1771e0a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "draft_kv_cache_dtype": "auto",
+      "kv_cache_dtype": "fp8_e4m3",
+      "weights": "NVIDIA NVFP4 checkpoint"
+     }
+    },
+    "repository": {
+     "source": "recipe repository",
+     "status": "recorded",
+     "value": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE"
+    },
+    "runtime": {
+     "source": "lab plan f1771e0a (rank-0 command) (image sha256:017fd0ba); recipe docs/image.md; outputs/2026-09-24-final-tp2-full-1/native/metadata.json (serving_engine)",
+     "status": "recorded",
+     "value": "vLLM 0.29.0+glm53.local (vLLM v0.29.0 with the GLM-5.3 backport, b12x 1.3.0)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan f1771e0a (rank-0 command)",
+     "status": "recorded",
+     "value": {
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "7d74cdd881ed7e32c31175984a67823127b66cfe"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7,
+      "runtime_k_policy": {
+       "GLM53_SPEEDUP_K": "7",
+       "GLM53_SPEEDUP_MODE": "saturation"
+      }
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan f1771e0a (rank-0 command)",
+     "status": "recorded",
+     "value": 2
+    }
+   },
+   "id": "tp2-previous-base",
+   "lab_receipt": "2026-09-24-final-tp2-full-1",
+   "lab_windows": {
+    "benchmark": "2026-09-24-final-tp2-full-1",
+    "replay_matrix": "2026-09-24-final-replay-ours-tp2-1",
+    "sparkdash": "2026-09-24-final-tp2-full-1"
+   },
+   "page_admits": 6,
+   "page_checks": [
+    {
+     "claim": "admits 6",
+     "recorded": 6,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "lab plan f1771e0a",
+     "recorded": "f1771e0a",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "before the weak-spot fixes",
+     "recorded": {
+      "--prefix-cache-retention-interval": "9216",
+      "B12X_GLM53_MIXED_SPLIT": "unset"
+     },
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "earlier TP2 base (lab plan f1771e0a, before the weak-spot fixes)",
+   "recipe": "othexmr/GLM-5.3-Flash-NVFP4-2x-4x-DGX-Sparks-RiNGSiDE",
+   "row_index": 13,
+   "table": "extra",
+   "tp": "TP2"
+  },
+  {
+   "data_check": {
+    "checked": [
+     "cold",
+     "replay",
+     "runs",
+     "decode",
+     "agg",
+     "staggered",
+     "sparkdash"
+    ],
+    "mismatches": [],
+    "statistic": "the median of each RigMark distribution (single runs; the median of the valid rounds for staggered cells)",
+    "verdict": "confirmed"
+   },
+   "fields": {
+    "admission_limit": {
+     "source": "lab plan 31f4708c (rank-0 container environment)",
+     "status": "recorded",
+     "value": {
+      "MAX_NUM_SEQS": 2
+     }
+    },
+    "context_length": {
+     "source": "lab plan 31f4708c (rank-0 container environment)",
+     "status": "recorded",
+     "value": 262144
+    },
+    "deviations_from_recipe_as_shipped": {
+     "source": "outputs/2026-09-24-mia-tp2-longcoding-pairB-full-1/native/metadata.json (adaptations, rewritten without addresses or host names)",
+     "status": "recorded",
+     "value": [
+      "image built with one in-build self-test skipped (_check_dflash2 asserts \"compact_block = 64\", which the kit's own later change no longer emits); lab decision",
+      "the kit's default-off speed options switched on (lab decision: every speed option of their kit, never the lab's own kernels), applied by rendering their launcher with the measured environment",
+      "launched by the lab's benchmark runner from the container configuration their launcher renders (their start.sh would remove containers)",
+      "the worker reads the identical checkpoint revision from a local mount instead of their 164 GB rsync copy",
+      "their examples/tp2-long-coding.env at 71962cd appended to the measured environment, as its header says",
+      "run on the other node pair (nodes 3 and 4); only host addresses, container names and the cache root differ from the node-pair-A plan"
+     ]
+    },
+    "differences_from_env_example": {
+     "source": "lab file recipe-7cded8e.tar (sha256 7ba08e544d16) (repo/.env.example at 7cded8e) against lab plan 31f4708c (rank-0 container environment)",
+     "status": "recorded",
+     "value": [
+      {
+       "env_example": "850000",
+       "key": "MAX_MODEL_LEN",
+       "measured": "262144"
+      },
+      {
+       "env_example": "4",
+       "key": "MAX_NUM_SEQS",
+       "measured": "2"
+      },
+      {
+       "env_example": "7168",
+       "key": "MAX_NUM_BATCHED_TOKENS",
+       "measured": "1024"
+      },
+      {
+       "env_example": "0.85",
+       "key": "GPU_MEM_UTIL",
+       "measured": "0.865"
+      },
+      {
+       "env_example": "0",
+       "key": "LANGUAGE_MODEL_ONLY",
+       "measured": "1"
+      },
+      {
+       "env_example": "not present in .env.example at 7cded8e",
+       "key": "GLM53_EXL3_MOE_FAST",
+       "measured": "1"
+      },
+      {
+       "env_example": "not present in .env.example at 7cded8e",
+       "key": "GLM53_KDA_BF16_LARGE_M",
+       "measured": "1"
+      },
+      {
+       "env_example": "commented out (off by default; example value dense,kda)",
+       "key": "GLM53_DENSE_FP8",
+       "measured": "dense,kda"
+      },
+      {
+       "env_example": "stock",
+       "key": "GLM53_SPINWAIT_MS",
+       "measured": "16"
+      },
+      {
+       "env_example": "commented out (off by default; example value 1)",
+       "key": "GLM53_COOP_GEOMETRY",
+       "measured": "1"
+      },
+      {
+       "env_example": "0",
+       "key": "GLM53_DRAFT_KV_COMPACT",
+       "measured": "1"
+      },
+      {
+       "env_example": "15032385536",
+       "key": "EXTRA_ARGS --kv-cache-memory-bytes",
+       "measured": "absent (automatic pool)"
+      }
+     ]
+    },
+    "image": {
+     "source": "outputs/2026-09-24-mia-tp2-longcoding-pairB-full-1/native/metadata.json; lab file build_image.sh (sha256 22c9c97a6c09)",
+     "status": "recorded",
+     "value": {
+      "how": "built by the lab with their Dockerfile at 7cded8e (base vllm/vllm-openai@sha256:905c02933be6021301db2dc284e24e3727467aa3a0f63b41d609885778a07bce, their pinned base) with one in-build self-test skipped; their cooperative MoE extension built from their tree (native sources unchanged)",
+      "image_id": "sha256:a037fb97974b9429babc3ba26084fbc6e6e5aaea2fd9f2d7dc772ecc9a86c3d0"
+     }
+    },
+    "kv_cache": {
+     "source": "lab plan 31f4708c (rank-0 container environment); outputs/2026-09-24-mia-tp2-longcoding-pairB-full-1/boot-log-rank0.json (GPU KV cache size)",
+     "status": "recorded",
+     "value": {
+      "gib_per_rank": null,
+      "kv_cache_memory_bytes_per_rank": null,
+      "pool": "automatic (GPU_MEM_UTIL 0.865)",
+      "token_capacity": 1026911
+     }
+    },
+    "measured_commit": {
+     "source": "outputs/2026-09-24-mia-tp2-longcoding-pairB-full-1/native/metadata.json (upstream_commit)",
+     "status": "recorded",
+     "value": "71962cd19e5199e65382821b43fd271c10e90534"
+    },
+    "model_checkpoint": {
+     "how": "the MODEL_FALLBACK id of their kit's .env.example; the same file's default MODEL is a mirror that it states holds the same bytes as this snapshot",
+     "source": "lab plan 31f4708c (rank-0 container environment); lab file recipe-7cded8e.tar (sha256 7ba08e544d16) (repo/.env.example at 7cded8e)",
+     "status": "recorded",
+     "value": {
+      "repository": "brandonmusic/GLM-5.3-Flash-tr3-4bpw",
+      "revision": "5ab363a8dcf6405955fd5f99671e01a1c9fb124b"
+     }
+    },
+    "profile": {
+     "source": "outputs/2026-09-24-mia-tp2-longcoding-pairB-full-1/native/metadata.json (profile)",
+     "status": "recorded",
+     "value": {
+      "capacity": {
+       "GPU_MEM_UTIL": "0.865",
+       "MAX_MODEL_LEN": "262144",
+       "MAX_NUM_BATCHED_TOKENS": "1024",
+       "MAX_NUM_SEQS": "2"
+      },
+      "commit": "71962cd19e5199e65382821b43fd271c10e90534",
+      "file": "examples/tp2-long-coding.env",
+      "note": "their maintainer profile; most differences from .env.example come from it",
+      "sha256": "2d838e450e53e41405b2bb7fce4942203ae91e31d12d0a9f1b216cfc99bd5744"
+     }
+    },
+    "quantisation": {
+     "source": "outputs/2026-09-24-mia-tp2-longcoding-pairB-full-1/native/metadata.json; lab plan 31f4708c (rank-0 container environment)",
+     "status": "recorded",
+     "value": {
+      "dense_and_kda_projections": "FP8 weight-only (GLM53_DENSE_FP8=dense,kda)",
+      "kv_cache_dtype": "fp8",
+      "weights": "EXL3 4 bpw (their kit)"
+     }
+    },
+    "repository": {
+     "source": "outputs/2026-09-24-mia-tp2-longcoding-pairB-full-1/native/metadata.json",
+     "status": "recorded",
+     "value": "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks"
+    },
+    "runtime": {
+     "source": "outputs/2026-09-24-mia-tp2-longcoding-pairB-full-1/boot-log-rank0.json",
+     "status": "recorded",
+     "value": "vLLM v0.1.dev20051+g487ecf187 (their image)"
+    },
+    "speculative_decoding": {
+     "source": "lab plan 31f4708c (rank-0 container environment)",
+     "status": "recorded",
+     "value": {
+      "adaptive_k": "off",
+      "adaptive_k_set": null,
+      "drafter": {
+       "repository": "incoai/GLM-5.3-Flash-DFlash2",
+       "revision": "dc77ff1c99eeb2df044ee3d4f0094eb033fee410"
+      },
+      "method": "dflash",
+      "num_speculative_tokens": 7
+     }
+    },
+    "tensor_parallel_size": {
+     "source": "lab plan 31f4708c (rank-0 container environment)",
+     "status": "recorded",
+     "value": 2
+    }
+   },
+   "id": "tp2-miaai-71962cd-long-coding",
+   "lab_receipt": "2026-09-24-mia-tp2-longcoding-pairB-full-1",
+   "lab_windows": {
+    "benchmark": "2026-09-24-mia-tp2-longcoding-pairB-full-1",
+    "replay_matrix": null,
+    "sparkdash": "2026-09-24-mia-tp2-longcoding-pairB-full-1"
+   },
+   "page_admits": 2,
+   "page_checks": [
+    {
+     "claim": "admits 2",
+     "recorded": 2,
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "commit 71962cd",
+     "recorded": "71962cd19e5199e65382821b43fd271c10e90534",
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "automatic KV pool (12.2 / 12.0 GiB per rank)",
+     "detail": "logged at boot in the measured window; the text rounds to 0.1 GiB",
+     "recorded": {
+      "available_kv_gib": {
+       "rank 0": 12.23,
+       "rank 1": 12.0
+      }
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "their examples/tp2-long-coding.env",
+     "recorded": {
+      "commit": "71962cd19e5199e65382821b43fd271c10e90534",
+      "file": "examples/tp2-long-coding.env"
+     },
+     "verdict": "confirmed"
+    },
+    {
+     "claim": "other node pair",
+     "verdict": "confirmed"
+    }
+   ],
+   "page_configuration": "commit 71962cd, their examples/tp2-long-coding.env, other node pair, automatic KV pool (12.2 / 12.0 GiB per rank)",
+   "recipe": "MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks",
+   "row_index": 14,
+   "table": "extra",
+   "tp": "TP2"
+  }
+ ],
+ "schema": "switchless-evidence/1",
+ "sources": [
+  "lab plan 13ec0d86",
+  "lab plan 31f4708c",
+  "lab plan 32dd2ab8",
+  "lab plan 387b3ff3",
+  "lab plan 50e80d44",
+  "lab plan 594faefb",
+  "lab plan 602462bd",
+  "lab plan 63e384cf",
+  "lab plan 69ad74fc",
+  "lab plan 89dfef84",
+  "lab plan 9a140e1c",
+  "lab plan 9e4f793a",
+  "lab plan a5196157",
+  "lab plan c3981315",
+  "lab plan f1771e0a",
+  "recipe bench/results/results.json"
+ ],
+ "summary": {
+  "not_confirmed": [],
+  "page_checks": 70,
+  "rows": 15
+ },
+ "what": "For every row of bench/results/results.json (by its id): the repository and commit measured, checkpoint, quantisation, speculative decoding, image, runtime, tensor-parallel size, context length, admission limit, KV cache, and deviations from the recipe as shipped. Each field is \"recorded\" (with its lab source) or \"not_recorded\". page_checks test the row's configuration text and admits against the fields; data_check tests the row's numbers against the receipts."
+}

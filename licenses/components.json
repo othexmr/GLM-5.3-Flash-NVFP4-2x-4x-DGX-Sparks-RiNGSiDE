@@ -1,0 +1,262 @@
+{
+ "schema": 2,
+ "original_code": "Apache-2.0",
+ "components": {
+  "vllm": {
+   "upstream": "https://github.com/vllm-project/vllm",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt"
+   ],
+   "used_by": [
+    "patches/vllm",
+    "src/*/vllm/models/glm5next/nvidia/ops/recoverssm.py",
+    "src/tp4/glm53_kda_ckpt.py",
+    "src/tp4/vllm/models/glm5next/nvidia/kda_state_store.py",
+    "src/tp4/glm53_kda_conv.py",
+    "build/glm53_fp8_gemm (except the two CUTLASS-derived vendor headers)",
+    "docker/base (the vLLM v0.29.0 port patch, the stage patches and vLLM files of the lab's image stages)",
+    "src/tp4/vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py",
+    "src/tp4/vllm/models/common/ops/glm53_qnorm_fp8.py",
+    "build/topk_rowspread (the rowspread change to vLLM's persistent top-k kernel)"
+   ],
+   "notes": "Files keep their SPDX-License-Identifier and SPDX-FileCopyrightText headers."
+  },
+  "flash-linear-attention": {
+   "upstream": "https://github.com/fla-org/flash-linear-attention",
+   "licence": "MIT",
+   "texts": [
+    "licenses/MIT-fla-org-flash-linear-attention.txt"
+   ],
+   "used_by": [
+    "src/tp4/vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py"
+   ],
+   "notes": "Flash Linear Attention (Songlin Yang, Yu Zhang); Copyright (c) 2023-2025, Songlin Yang, Yu Zhang. glm53_gated_rmsnorm_fp8_kernel contains code copied from the project's layer_norm_gated_fwd_kernel through vLLM's copy (vllm/third_party/flash_linear_attention/ops/kda.py); the served file keeps that copy's MIT notice. The licence text is the LICENSE of vLLM's copy (vllm/third_party/flash_linear_attention/LICENSE). The kernel derives from Tri Dao's Triton layer norm (state-spaces/mamba mamba_ssm/ops/triton/layernorm.py, Apache-2.0), named in FLA's first version of the module (baf1d71)."
+  },
+  "vllm-pr-58454": {
+   "upstream": "https://github.com/vllm-project/vllm/pull/58454",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt"
+   ],
+   "used_by": [
+    "patches/vllm/tp4/models-glm5next-nvidia-ops-kpool_compress.py.patch",
+    "patches/vllm/tp4/models-glm5next-nvidia-attention.py.patch"
+   ],
+   "notes": "\"[Bugfix][GLM-5.3-Flash] kpool corruption with speculative decoding\" by mmastrac (open when ported), building on vllm-project/vllm#55219 by ivanium. The TP4 profile serves a port of its kpool tail ring (index_kpool x cdiv(index_kpool + K, index_kpool) slots per request, the kernels addressing pos % ring) as Morrowmake/vllm-cmp170hx ported it in commit 1d4b59e, without that port's kill switch."
+  },
+  "morrowmake-vllm-cmp170hx": {
+   "upstream": "https://github.com/Morrowmake/vllm-cmp170hx/commit/1d4b59e",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt"
+   ],
+   "used_by": [
+    "patches/vllm/tp4/models-glm5next-nvidia-ops-kpool_compress.py.patch",
+    "patches/vllm/tp4/models-glm5next-nvidia-attention.py.patch"
+   ],
+   "notes": "A vLLM fork whose commit 1d4b59e ports vllm-project/vllm#58454; the TP4 profile's kpool tail ring follows that port (Morrowmake/glm53-flash-cmp170hx-recipe, MIT, pins the fork)."
+  },
+  "vllm-pr-50843": {
+   "upstream": "https://github.com/vllm-project/vllm/pull/50843",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt"
+   ],
+   "used_by": [
+    "patches/vllm/tp4/v1-worker-gpu-sample-gumbel.py.patch",
+    "patches/vllm/tp4/v1-worker-gpu-spec_decode-rejection_sampler_utils.py.patch"
+   ],
+   "notes": "By alexbi29 (open when ported): the tile argmax of the gumbel, greedy-statistics and resampling kernels clamped to vocab_size - 1, so a row with NaN in its last tile cannot yield an out-of-vocabulary id."
+  },
+  "b12x": {
+   "upstream": "https://github.com/local-inference-lab/b12x",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt"
+   ],
+   "used_by": [
+    "patches/b12x",
+    "src/tp4/glm53_kda_ckpt.py",
+    "src/tp4/glm53_kda_conv.py",
+    "docker/base (stages 11, 13 and 19: changes to b12x 1.3.0 files)"
+   ],
+   "notes": "Luke Alonso and contributors (first published as lukealonso/b12x); the KDA prefill packages are Luke Alonso's."
+  },
+  "b12x-kda-prefill": {
+   "upstream": "https://github.com/local-inference-lab/b12x/tree/4b389912412bed957cb5c1654b24c6c39d387316",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt"
+   ],
+   "used_by": [
+    "docker/base/04-b12x-kda/b12x-kda-prefill-overlay"
+   ],
+   "notes": "b12x's KDA prefill policy and sequence packages. 19 of the 22 files are identical to 4b389912 (Luke Alonso). The lab took them from c083e1d4, its local rewrite on 287be2e4, and changed b12x/sequence/kda_prefill/_cute_kernels.py, which combines the fixes of b794879d (Martin Vit) and 4b389912; the two policy profile data files are those of 287be2e4 (docker/base/04-b12x-kda/README.md)."
+  },
+  "b12x-roce": {
+   "upstream": "https://github.com/local-inference-lab/b12x/pull/295",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt",
+    "src/tp4/glm53_lean_allreduce/LICENSE"
+   ],
+   "used_by": [
+    "src/tp4/glm53_lean_allreduce",
+    "patches/vllm/tp4/distributed-device_communicators-cuda_communicator.py.patch"
+   ],
+   "notes": "RoCEnante (b12x.comm.roce) by Jason Cook (original-el8), local-inference-lab/b12x#295, merged 2026-09-03; vendored and changed by SparkRing."
+  },
+  "sparse-mla": {
+   "upstream": "https://github.com/Libertai/vllm-sparse-mla-blackwell",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt"
+   ],
+   "used_by": [
+    "patches/sparse-mla",
+    "docker/base (stages 02, 14, 19 and 21: the backend of the plugin)"
+   ]
+  },
+  "flashinfer": {
+   "upstream": "https://github.com/flashinfer-ai/flashinfer",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt"
+   ],
+   "used_by": [
+    "docker/base/19-runtime-bugfixes/drafter-batch-fix"
+   ],
+   "notes": "FlashInfer 0.6.18 XQA sources and their lab change; the XQA kernel files carry NVIDIA copyright and Apache-2.0 SPDX headers."
+  },
+  "cutlass": {
+   "upstream": "https://github.com/NVIDIA/cutlass",
+   "licence": "BSD-3-Clause",
+   "texts": [
+    "licenses/BSD-3-Clause-NVIDIA-CUTLASS.txt"
+   ],
+   "used_by": [
+    "build/glm53_fp8_gemm/vendor/cutlass_extensions/epilogue/broadcast_load_epilogue_c3x.hpp",
+    "build/glm53_fp8_gemm/vendor/cutlass_extensions/epilogue/broadcast_load_epilogue_array_c3x.hpp",
+    "the FP8 GEMM extension built from build/glm53_fp8_gemm (release/assets.json, glm53-fp8-gemm)"
+   ],
+   "notes": "Modified excerpts of CUTLASS v3.5.0 as vendored by vLLM v0.29.0; the headers keep their NVIDIA copyright and BSD-3-Clause text."
+  },
+  "nccl": {
+   "upstream": "https://github.com/NVIDIA/nccl",
+   "licence": "NCCL LICENSE.txt (Apache-2.0 with BSD portions)",
+   "texts": [
+    "licenses/nccl-LICENSE.txt"
+   ],
+   "used_by": [
+    "patches/nccl"
+   ]
+  },
+  "switchless-nccl": {
+   "upstream": "https://github.com/alexellis/switchless-nccl",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt",
+    "licenses/switchless-nccl-NOTICE.txt"
+   ],
+   "used_by": [
+    "patches/nccl/0001-switchless-ring-setup-and-listener-hardening.patch"
+   ]
+  },
+  "sparkring-nccl": {
+   "upstream": "https://github.com/FujitsuPolycom/sparkring",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt",
+    "licenses/sparkring-NOTICE.txt"
+   ],
+   "used_by": [
+    "patches/nccl/0001-switchless-ring-setup-and-listener-hardening.patch"
+   ]
+  },
+  "sparkring-mhc": {
+   "upstream": "https://github.com/FujitsuPolycom/sparkring/tree/61f277bd0c97fbff892668e12ea04a330a45fa01/runtime/glm53-spark-mtp3-mesh/performance/mhc-prefill",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt",
+    "licenses/sparkring-NOTICE.txt"
+   ],
+   "used_by": [
+    "src/tp4/vllm/models/glm5next/nvidia/mhc_prefill_sharding.py",
+    "patches/vllm/tp4"
+   ]
+  },
+  "sparkring-kda-ckpt": {
+   "upstream": "https://github.com/FujitsuPolycom/sparkring/tree/90d510a5f0fca27cb2d7a18fcf39579f9fe9ad12/runtime/images/sparkring-r35/patches",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt",
+    "licenses/sparkring-NOTICE.txt"
+   ],
+   "used_by": [
+    "src/tp4/glm53_kda_ckpt.py",
+    "src/tp4/glm53_kda_ckpt_plan.py",
+    "patches/vllm/tp4"
+   ]
+  },
+  "sparkring-roce": {
+   "upstream": "https://github.com/FujitsuPolycom/sparkring/tree/4b9b6a0a213456b96400c5e1a1cf59c20ff892c8/runtime/transport_profiles/tp2-rocenante-adaptive/roce",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt",
+    "licenses/sparkring-NOTICE.txt"
+   ],
+   "used_by": [
+    "src/tp4/glm53_lean_allreduce"
+   ]
+  },
+  "humming": {
+   "upstream": "https://github.com/vllm-project/humming/tree/a74973b5079e42ef861720b62f847ce9d33447f5",
+   "licence": "Apache-2.0",
+   "texts": [
+    "licenses/Apache-2.0.txt"
+   ],
+   "used_by": [
+    "TP4 mount /usr/local/lib/python3.12/dist-packages/humming (not in this repository)"
+   ]
+  },
+  "glm-template": {
+   "upstream": "https://huggingface.co/zai-org/GLM-5.3-Flash/tree/690b705278a3a58e538fcb37c2ca8b5f9511213c",
+   "licence": "MIT",
+   "texts": [
+    "licenses/MIT-zai-org-GLM-5.3-Flash.txt"
+   ],
+   "used_by": [
+    "launch/profiles/tp4/chat_template_mm.jinja",
+    "launch/profiles/tp2/chat_template_mm.jinja",
+    "docker/base/thinking-gate/chat_template_mm.jinja",
+    "tests/cpu/data/chat-template/zai-org-GLM-5.3-Flash-690b705-chat_template.jinja"
+   ],
+   "notes": "Copyright (c) 2026 Z.AI Co., Ltd. The base of the served template: the model's chat_template.jinja (git blob 06bd89e9, sha256 0c4099f3). The served file adds the thinking gate by Raymond Lucke (rwl4), as carried in MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks (key miaai-lab-chat-template)."
+  },
+  "miaai-lab-chat-template": {
+   "upstream": "https://github.com/MiaAI-Lab/GLM-5.3-Flash-EXL3-2x-DGX-Sparks/blob/71962cd1/files/chat_template.jinja",
+   "licence": "MIT (the served file equals zai-org's template at 690b705 with the thinking-gate hunk of eaf90d0, committed on 2026-08-27 in the project's MIT period; the project is under the GNU Affero General Public License v3.0 since 2026-09-07)",
+   "texts": [
+    "licenses/MIT-MiaAI-Lab-GLM-5.3-Flash-EXL3-2x-DGX-Sparks.txt"
+   ],
+   "used_by": [
+    "launch/profiles/tp4/chat_template_mm.jinja",
+    "launch/profiles/tp2/chat_template_mm.jinja",
+    "docker/base/thinking-gate/chat_template_mm.jinja",
+    "tests/cpu/data/chat-template/MiaAI-Lab-GLM-5.3-Flash-EXL3-2x-DGX-Sparks-eaf90d0-chat_template.jinja",
+    "tests/cpu/data/chat-template/thinking-gate-eaf90d0.diff"
+   ],
+   "notes": "Byte-identical to the project's files/chat_template.jinja from 68ce597 on (sha256 7a5a0dda). Its only change to zai-org's template (690b705) is the thinking gate of eaf90d0 by Raymond Lucke (rwl4); a5cc004 (Mia's AI Lab) restored his Reasoning Effort gate after 4753ac2 had removed it, and 68ce597 (Rusty's AI Lab) ported zai-org's own later corrections."
+  },
+  "incoai-dflash2-drafter": {
+   "upstream": "https://huggingface.co/incoai/GLM-5.3-Flash-DFlash2/tree/7d74cdd881ed7e32c31175984a67823127b66cfe",
+   "licence": "CC-BY-NC-ND-4.0",
+   "texts": [],
+   "used_by": [
+    "the DFlash2 drafter both profiles load from SWITCHLESS_DRAFTER_REPO_DIR (downloaded by the operator from Hugging Face; not in this repository)"
+   ],
+   "notes": "GLM-5.3-Flash-DFlash2 by incoai, revision 7d74cdd8. Its model card states license cc-by-nc-nd-4.0 (Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International) and releases the model for research and evaluation. The recipe neither redistributes nor modifies the weights. DFlash 2 extends DFlash by Jian Chen, Yesheng Liang and Zhijian Liu (z-lab/dflash, ICML 2026), which the model card asks to cite as well."
+  }
+ }
+}

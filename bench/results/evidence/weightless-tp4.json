@@ -1,0 +1,111 @@
+{
+ "schema": "switchless-evidence/1",
+ "record": "weightless-tp4",
+ "what": "The optional weightless GLP-44 steering (launch/options/weightless) served on the TP4 profile in the lab's verification window: the TP4 profile's plan with the steered model.py, the GLP-44 vector and the four WEIGHTLESS_* variables, one boot on four DGX Sparks.",
+ "measurement_kind": "measured (one boot)",
+ "window": "2026-09-26-ringside-redhat-weightless-tp4-1",
+ "dates": {
+  "timezone": "UTC+7",
+  "day": "2026-09-26",
+  "window": "02:05-02:18"
+ },
+ "plan_sha256": "48c927026c54423105fd8224a81d4fe4786dbf182e801173bd846184fa543704",
+ "profile_lab_plan": "89dfef84",
+ "model_py": {
+  "served_in_window_sha256": "786934881d1c1f6b68ae71fda96b7a92818c39c13344dd2723632b0c0f5cd32e",
+  "recipe_sha256": "8cbfea91c45de7f2f1f61ca4164f36647583bb812a3eecb1901accf432c27db7",
+  "relation": "the recipe file leaves out the author note of one comment (line 755) of the file the window served; the code is equal with comments stripped"
+ },
+ "vector_sha256": "0ccce6b748f87da81505ff2bc3ca82429110940b6c0def60063d304785ccc00c",
+ "checks": {
+  "switch_and_served_bytes": "ok",
+  "steering_line_on_ranks": "['0', '1', '2', '3']",
+  "request_completed": true,
+  "markers": "ok",
+  "verdict": "QUALIFIED"
+ },
+ "rigmark_code_full": {
+  "runs": 1,
+  "decode": {
+   "code": 104.7,
+   "prose": 57.2,
+   "structured": 139.1
+  },
+  "cold_s": {
+   "8192": 1.81,
+   "32768": 6.91,
+   "65536": 13.76,
+   "131072": 27.78,
+   "262136": 57.02
+  },
+  "replay_s": {
+   "8192": 0.49,
+   "32768": 0.62,
+   "65536": 0.8,
+   "131072": 0.81,
+   "262136": 0.86
+  },
+  "agg": {
+   "1": 76.9,
+   "12": 275.2,
+   "16": 321.5,
+   "2": 105.5,
+   "3": 129.0,
+   "4": 157.6,
+   "5": 178.2,
+   "6": 200.3,
+   "8": 203.9
+  }
+ },
+ "tool_eval_bench": {
+  "final_score": 92,
+  "points": 127,
+  "max_points": 138,
+  "counts": {
+   "passed": 62,
+   "partial": 3,
+   "failed": 4
+  },
+  "failed_scenarios": [
+   "TC-43",
+   "TC-49",
+   "TC-60",
+   "TC-68"
+  ],
+  "partial_scenarios": [
+   "TC-50",
+   "TC-55",
+   "TC-58"
+  ]
+ },
+ "compared_with": {
+  "row": "tp4-ringside",
+  "lab_plan": "89dfef84",
+  "decode": {
+   "code": 105.33,
+   "prose": 61.688,
+   "structured": 145.446
+  },
+  "runs": 2
+ },
+ "tool_eval_against_release_window": {
+  "failed": [
+   "TC-49",
+   "TC-60"
+  ],
+  "partial": [
+   "TC-50",
+   "TC-55",
+   "TC-58"
+  ],
+  "release_window_rounds": [
+   96,
+   96
+  ]
+ },
+ "not_established": [
+  "one boot and one RigMark round of code-full only: no prose, staggered or sparkDash cells, no matched reference window; the behaviour change (refusal suppression) is not scored here",
+  "no Korean run in this window; the release window ran the Korean prompt 1 x 12 clean on the same plan without steering"
+ ],
+ "problems": []
+}

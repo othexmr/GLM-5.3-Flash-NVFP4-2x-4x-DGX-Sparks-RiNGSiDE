@@ -1,0 +1,46 @@
+# Example oh-my-pi (omp) provider for the server either profile (TP4 or TP2) launches; see README.md next to this file.
+# Merge the provider into ~/.omp/agent/models.yml and replace HEAD_NODE with rank 0's address. The server takes no API
+# key; mind its trust boundary (docs/operations.md, "API trust boundary").
+providers:
+  dgx-sparks:
+    baseUrl: http://HEAD_NODE:8888/v1        # SWITCHLESS_API_PORT of site.env
+    api: openai-completions
+    auth: none
+    models:
+      - id: nvidia/GLM-5.3-Flash-NVFP4       # --served-model-name
+        name: GLM-5.3-Flash-NVFP4
+        reasoning: true
+        input: [text, image]                  # the profiles accept up to 4 images per prompt
+        supportsTools: true
+        contextWindow: 262144                 # --max-model-len of both profiles
+        omitMaxOutputTokens: true             # send no max_tokens: each answer may use what is left of the window
+        maxTokens: 131072                     # not sent while omitMaxOutputTokens is true
+        tokenizer: glm5
+        cost:
+          input: 0
+          output: 0
+          cacheRead: 0
+          cacheWrite: 0
+        thinking:
+          mode: effort
+          efforts: [minimal, low, high, max]
+          defaultLevel: low
+          effortMap:
+            minimal: none                     # reasoning_effort "none": the answer comes without a reasoning block
+            low: low
+            high: high
+            max: max
+          requiresEffort: true
+        compat:
+          maxTokensField: max_tokens
+          alwaysSendMaxTokens: true
+          supportsReasoningParams: true
+          supportsReasoningEffort: true
+          thinkingFormat: openai
+          reasoningContentField: reasoning    # the glm53 reasoning parser's field
+          replayReasoningContent: true        # send each step's reasoning back, so a tool loop keeps its plan
+          supportsToolChoice: true
+          supportsForcedToolChoice: false
+          supportsStrictMode: false
+          toolStrictMode: none
+          streamIdleTimeoutMs: 1800000        # 30 min, room for long prefills at large contexts

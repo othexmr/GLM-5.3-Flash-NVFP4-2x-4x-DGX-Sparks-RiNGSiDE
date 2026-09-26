@@ -1,0 +1,164 @@
+RiNGSiDE overlay patch, profile tp2
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/core/single_type_kv_cache_manager.py
+Preimage:    sha256 0b238ffd65d65a462dedea640928713a6e0452091c75642cf7dbb15514d56261
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    sha256 read inside a container of the image on four nodes by the KDA-checkpoint staging job (2026-09-24)
+Postimage:   sha256 3bd43799abc7564261f5f103d18fb852b8d26fb9ec54994e78facf550221d39c (the file the tp2 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/core/single_type_kv_cache_manager.py b/vllm/v1/core/single_type_kv_cache_manager.py
+index 7488f016389d543e1556fd43b6192dfa68b611c1..6404ee042d9fe89840cefa2724a0f91b0b9d5794 100644
+--- a/vllm/v1/core/single_type_kv_cache_manager.py
++++ b/vllm/v1/core/single_type_kv_cache_manager.py
+@@ -1,5 +1,10 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 lab (replay-boundary, 2026-09-24): one complete hybrid state kept at the replay
++# boundary R(P) (outputs/2026-09-24-replay-boundary/DESIGN.md). Inert unless GLM53_REPLAY_BOUNDARY=1.
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): for the replay boundary (GLM53_REPLAY_BOUNDARY), the drafter blocks
++# around it kept, a partial MLA entry at it, and its KDA states recorded, checked on a prefix hit and dropped when
++# stale.
+ import itertools
+ from abc import ABC, abstractmethod
+ from collections import defaultdict
+@@ -36,6 +41,10 @@ from vllm.v1.kv_cache_spec_registry import KVCacheSpecRegistry
+ from vllm.v1.request import Request
+ 
+ logger = init_logger(__name__)
++try:  # replay-boundary: mounted with the candidate; absent = the feature stays off
++    import glm53_replay_boundary as _glm53_rb
++except ImportError:  # pragma: no cover
++    _glm53_rb = None
+ 
+ 
+ class SingleTypeKVCacheManager(ABC):
+@@ -463,6 +472,14 @@ class SingleTypeKVCacheManager(ABC):
+         reachable_boundaries = [request.num_prompt_tokens - 1]
+         if request.shared_prefix_boundary:
+             reachable_boundaries.append(request.shared_prefix_boundary)
++        # replay-boundary: keep the drafter's blocks around R(P) (the three a hit there needs, EAGLE peek included)
++        glm53_rb = (
++            getattr(request, "glm53_replay_boundary", None)
++            if getattr(self, "_glm53_rb_on", False)
++            else None
++        )
++        if glm53_rb:
++            reachable_boundaries.append(glm53_rb)
+ 
+         block_mask = self.reachable_block_mask(
+             start_block=num_cached_blocks,
+@@ -821,6 +838,29 @@ class FullAttentionManager(SingleTypeKVCacheManager):
+         if self.block_size == hash_block_size:
+             return
+         self._cache_partial_tail_block(request, num_tokens)
++        if getattr(self, "_glm53_rb_on", False):
++            self._glm53_rb_partial(request, num_tokens)
++
++    def _glm53_rb_partial(self, request: Request, num_tokens: int) -> None:
++        """replay-boundary: an MLA partial entry at R(P) when R(P) is off this group's grid and no longer entry of
++        the same block covers it (an MLA block is append-only, so a longer entry covers every shorter prefix)."""
++        boundary = getattr(request, "glm53_replay_boundary", None)
++        if not boundary or boundary > num_tokens or boundary % self.block_size == 0:
++            return
++        blocks = self.req_to_blocks[request.request_id]
++        block_idx = boundary // self.block_size
++        if block_idx >= len(blocks) or blocks[block_idx].is_null:
++            return
++        block = blocks[block_idx]
++        if block.block_hash_num_tokens is not None and block.block_hash_num_tokens >= boundary:
++            return
++        self.block_pool.cache_partial_block(
++            request=request,
++            block=block,
++            num_tokens=boundary,
++            kv_cache_group_id=self.kv_cache_group_id,
++            block_size=self.block_size,
++        )
+ 
+     def _cache_partial_tail_block(
+         self,
+@@ -1467,6 +1507,15 @@ class MambaManager(SingleTypeKVCacheManager):
+                 if cached_block := block_pool.get_cached_block(
+                     block_hash, kv_cache_group_ids
+                 ):
++                    if (
++                        _glm53_rb is not None
++                        and _glm53_rb.registry() is not None
++                        and not _glm53_rb.registry().admit(
++                            block_hash, cached_block, kv_cache_group_ids
++                        )
++                    ):
++                        # replay-boundary: stale boundary invalidated; look below it
++                        continue
+                     block_idx = fine_idx // scale_factor
+                     for computed, cached in zip(computed_blocks, cached_block):
+                         computed.extend([block_pool.null_block] * block_idx)
+@@ -1648,6 +1697,26 @@ class MambaManager(SingleTypeKVCacheManager):
+         """
+         return 0
+ 
++    def add_local_computed_blocks(
++        self,
++        request_id: str,
++        new_computed_blocks: Sequence[KVCacheBlock],
++        num_local_computed_tokens: int,
++        num_external_computed_tokens: int,
++    ) -> None:
++        super().add_local_computed_blocks(
++            request_id,
++            new_computed_blocks,
++            num_local_computed_tokens,
++            num_external_computed_tokens,
++        )
++        if getattr(self, "_glm53_rb_on", False) and request_id in self._partial_hit_reqs:
++            # replay-boundary: the chunk starting at this partial hit may run past the block's end (relaxed
++            # restart), leaving this column short of its label: never hash it (SCHED-KDA-01's mask)
++            self._partial_state_block_idx.setdefault(request_id, set()).add(
++                self._partial_hit_reqs[request_id][0]
++            )
++
+     def _needs_internal_checkpoint(
+         self,
+         request_id: str,
+@@ -1834,6 +1903,10 @@ class MambaManager(SingleTypeKVCacheManager):
+                         # overwrites source_block.
+                         assert req_blocks[block_idx] is source_block
+                         self.block_pool.move_block_hashes(source_block, cow_block)
++                        if _glm53_rb is not None and _glm53_rb.registry() is not None:
++                            _glm53_rb.registry().moved(
++                                source_block, cow_block, self.kv_cache_group_id
++                            )
+                         self._pending_cow_copies.append((source_block, cow_block))
+                         source_block.ref_cnt += 1
+                         boundary_tokens = self._producer_partial_tail_reqs.pop(
+@@ -1960,7 +2033,11 @@ class MambaManager(SingleTypeKVCacheManager):
+         latest_prompt_hash_boundary = (
+             request.num_prompt_tokens // hash_block_size
+         ) * hash_block_size
+-        if num_tokens != latest_prompt_hash_boundary:
++        # replay-boundary: a chunk ended exactly at R(P)
++        glm53_rb = getattr(self, "_glm53_rb_on", False) and num_tokens == getattr(
++            request, "glm53_replay_boundary", None
++        )
++        if num_tokens != latest_prompt_hash_boundary and not glm53_rb:
+             return None
+ 
+         block_idx = num_tokens // self.block_size
+@@ -1986,6 +2063,15 @@ class MambaManager(SingleTypeKVCacheManager):
+             # upcoming CoW copies it into a durable cow_block; record the req so
+             # allocate_new_blocks hands that block to the connector for offload.
+             self._producer_partial_tail_reqs[request.request_id] = num_tokens
++            if glm53_rb and _glm53_rb is not None and _glm53_rb.registry() is not None:
++                _glm53_rb.registry().record(
++                    request.block_hashes[num_tokens // hash_block_size - 1],
++                    num_tokens,
++                    request.request_id,
++                    self.kv_cache_group_id,
++                    source_block,
++                    "chunk-end",
++                )
+         return partial_hash
+ 
+ 

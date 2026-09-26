@@ -1,0 +1,20 @@
+--- a/glm53_sparse_mla/backend.py
++++ b/glm53_sparse_mla/backend.py
+@@ -347,14 +347,9 @@
+         assert self.topk_indices_buffer is not None
+         topk_indices = self.topk_indices_buffer[:num_actual_toks]
+ 
+-        # The kpool indexer emits topk + (kpool - 1) columns, which vLLM rounds up
+-        # to a multiple of 128 (2048 -> 2176). Narrow at the call site rather than
+-        # resizing the indexer's buffer: touching what the indexer writes risks it
+-        # selecting nothing, and an all--1 row makes MLA return zeros, which
+-        # presents as the model copying its prompt verbatim.
+-        cap = int(attn_metadata.topk_tokens)
+-        if topk_indices.shape[1] > cap:
+-            topk_indices = topk_indices[:, :cap].contiguous()
++        # Keep pooled selections and the latest uncompressed KPool tail.
++        # The indexer pads this full support to 128 columns; -1 entries remain
++        # masked by the converter and CUDA kernel. Truncation drops recent KV.
+ 
+         head_dim = kv_c_and_k_pe_cache.shape[-1]
+         conv_kwargs = {}

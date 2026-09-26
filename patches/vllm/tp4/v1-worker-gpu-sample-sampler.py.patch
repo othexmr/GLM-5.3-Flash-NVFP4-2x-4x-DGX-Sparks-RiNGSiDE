@@ -1,0 +1,166 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/sampler.py
+Preimage:    sha256 408b08c4ac66de271f476460490f360ef2a9b73528a346d132a22326e1674369
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256
+Postimage:   sha256 77e22ab8419a5fc1235c65ae5824c34c9750e93730b4f2c6b2bc3ea80e64d49c (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/worker/gpu/sample/sampler.py b/vllm/v1/worker/gpu/sample/sampler.py
+index 3ee2c132940e5aa7c3ddc4ea831cff2d59843114..4c3d4b9a9c01d8221d82b12fb49f01bffbf75112 100644
+--- a/vllm/v1/worker/gpu/sample/sampler.py
++++ b/vllm/v1/worker/gpu/sample/sampler.py
+@@ -1,5 +1,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in UTF-8 continuation guard and sampler audit hooks.
++
++import os
+ 
+ import numpy as np
+ import torch
+@@ -29,6 +32,11 @@ from vllm.v1.worker.gpu.sample.thinking_budget import ThinkingBudgetState
+ from vllm.v1.worker.gpu.sample.trace_replay import TraceReplayState
+ from vllm.v1.worker.gpu.states import RequestState
+ 
++# topp-fix (2026-09-25): optional UTF-8 continuation guard and per-row sampler audit, both off
++# unless their environment variable is set (glm53_utf8_guard.py, glm53_sampler_audit.py).
++_GLM53_UTF8_GUARD = os.environ.get("GLM53_UTF8_GUARD", "").strip() in ("1", "2")
++_GLM53_SAMPLER_AUDIT = os.environ.get("GLM53_SAMPLER_AUDIT", "").strip() == "1"
++
+ 
+ class Sampler:
+     def __init__(
+@@ -64,6 +72,19 @@ class Sampler:
+         self.use_flashinfer = (
+             not return_sampling_mask and flashinfer_sampler_supported()
+         )
++        self.utf8_guard = None
++        self.audit = None
++        self._audit_pre = None
++        self._audit_backend = "none"
++        self._guard_states = None
++        if _GLM53_UTF8_GUARD:
++            import glm53_utf8_guard
++
++            self.utf8_guard = glm53_utf8_guard.get_guard(vocab_size, device)
++        if _GLM53_SAMPLER_AUDIT:
++            import glm53_sampler_audit
++
++            self.audit = glm53_sampler_audit.get_audit()
+ 
+     def add_request(
+         self, req_idx: int, prompt_len: int, sampling_params: SamplingParams
+@@ -91,6 +112,10 @@ class Sampler:
+             or states.min_p.np[req_idx] != 0.0
+             or states.top_k.np[req_idx] != states.vocab_size
+             or states.top_p.np[req_idx] != 1.0
++            or (
++                self.utf8_guard is not None
++                and (temperature != 0.0 or self.utf8_guard.greedy)
++            )
+         )
+ 
+     def apply_staged_writes(self) -> None:
+@@ -148,6 +173,8 @@ class Sampler:
+             expanded_local_pos,
+             return_logprobs=logprobs_dims is not None,
+         )
++        if self.audit is not None:
++            self._audit_plain(logits, processed_logits, sampled, input_batch, pos)
+ 
+         if self.trace_replay_state is not None:
+             # Overwrite sampled tokens with the replay trace up-front so that
+@@ -215,6 +242,9 @@ class Sampler:
+         expanded_local_pos: torch.Tensor,
+         skip_top_k_top_p: bool = False,
+     ) -> torch.Tensor:
++        if self.audit is not None:
++            self._audit_pre = None
++            self._guard_states = None
+         if not np.any(self.needs_logits_processing[idx_mapping_np]):
+             return logits
+ 
+@@ -260,9 +290,26 @@ class Sampler:
+             logits, expanded_idx_mapping, idx_mapping_np
+         )
+ 
++        # topp-fix: fold and mask what cannot continue an incomplete UTF-8 character
++        # (pending rows only), after the thinking-budget forcing and temperature (folding
++        # moves tempered probability), before min_p and top-k/top-p.
++        if self.utf8_guard is not None:
++            self._guard_states = self.utf8_guard.apply(
++                logits,
++                expanded_idx_mapping,
++                self.req_states.all_token_ids.gpu,
++                self.req_states.total_len.gpu,
++                input_ids,
++                expanded_local_pos,
++                self.sampling_states.temperature.gpu,
++            )
++
+         # Apply min_p in place.
+         self.sampling_states.apply_min_p(logits, expanded_idx_mapping, idx_mapping_np)
+ 
++        if self.audit is not None:
++            self._audit_pre = logits.clone()
++
+         if skip_top_k_top_p:
+             return logits
+ 
+@@ -305,6 +352,17 @@ class Sampler:
+             or self.sampling_states.any_explicit_seed(idx_mapping_np)
+         )
+ 
++        if self.audit is not None:
++            self._audit_backend = (
++                "flashinfer"
++                if use_flashinfer
++                else "none"
++                if top_k is None and top_p is None
++                else "triton"
++                if processed_logits.shape[0] >= 8
++                else "pytorch"
++            )
++
+         # Sample the next token.
+         if use_flashinfer:
+             sampled = flashinfer_sample(processed_logits, top_k, top_p).to(torch.int64)
+@@ -321,3 +379,35 @@ class Sampler:
+                 use_fp64=self.use_fp64_gumbel,
+             )
+         return sampled, processed_logits
++
++    def _audit_plain(self, raw, processed, sampled, input_batch, pos) -> None:
++        """topp-fix audit of the plain sampler (one row per request)."""
++        n = processed.shape[0]
++        idx_np = input_batch.idx_mapping_np
++        if n != len(idx_np):
++            return
++        from vllm.v1.sample.ops import topk_topp_triton
++
++        _, top_p = self.sampling_states.get_top_k_top_p(
++            input_batch.expanded_idx_mapping, idx_np
++        )
++        rec = (
++            getattr(topk_topp_triton, "LAST_AUDIT", [None])[0]
++            if self._audit_backend == "triton"
++            else None
++        )
++        self.audit.record(
++            pre=self._audit_pre if self._audit_pre is not None else processed,
++            processed=processed,
++            raw=raw,
++            rows=torch.arange(n, device=processed.device),
++            tokens=sampled.view(-1).long(),
++            prov=["plain"] * n,
++            ks=[0] * n,
++            top_p=top_p,
++            backend=self._audit_backend,
++            kernel_rec=rec,
++            guard_states=self._guard_states,
++            req_ids=[self.req_states.index_to_req_id.get(int(i), "?") for i in idx_np],
++            positions=pos.tolist(),
++        )

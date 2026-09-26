@@ -1,0 +1,35 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py
+Preimage:    sha256 b0f39124f31ead3d2d20f1c6ac8696393c0ed6fed585ba8d31a4f7673e390407
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    sha256 read inside a container of the image on two nodes before the warm-up leaf
+Postimage:   sha256 d383b345621226ab6c0896444e5047c675f74d0e6263db68d23b4f2d7b1c571e (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/worker/gpu_worker.py b/vllm/v1/worker/gpu_worker.py
+index 65ea862ed7c0a21fb7700c93a7e298e1ac1b4a83..6ee5ae2acfcd74b9c012527b3922bf596654856e 100644
+--- a/vllm/v1/worker/gpu_worker.py
++++ b/vllm/v1/worker/gpu_worker.py
+@@ -1,5 +1,6 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): a worker RPC that prints the startup prefill warm-up marker.
+ """A GPU worker class."""
+ 
+ import gc
+@@ -1287,6 +1288,13 @@ class Worker(WorkerBase):
+         # worker will always be healthy as long as it's running.
+         return
+ 
++    def glm53_startup_warmup_marker(self, text: str) -> None:
++        # GLM53 startup prefill warm-up (outputs/2026-09-24-startup-warmup): one
++        # stderr marker per worker, called once through collective_rpc.
++        import sys
++
++        print(f"GLM53_STARTUP_WARMUP worker rank={self.rank} {text}", file=sys.stderr, flush=True)
++
+     def save_sharded_state(
+         self,
+         path: str,

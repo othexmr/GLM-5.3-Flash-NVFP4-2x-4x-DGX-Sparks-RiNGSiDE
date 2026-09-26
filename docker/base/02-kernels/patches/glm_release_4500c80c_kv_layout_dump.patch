@@ -1,0 +1,122 @@
+--- a/vllm/v1/core/kv_cache_utils.py
++++ b/vllm/v1/core/kv_cache_utils.py
+@@ -4,6 +4,7 @@
+ 
+ import copy
+ import hashlib
++import json
+ import math
+ import os
+ from collections import defaultdict
+@@ -2755,6 +2756,111 @@
+             vllm_config, groups, min_num_blocks * _pool_bytes_per_block(groups)
+         )
+ 
++    if os.getenv("VLLM_KV_CACHE_LAYOUT_DUMP", "0") == "1":
++        max_len = vllm_config.model_config.max_model_len
++        scheduler_config = vllm_config.scheduler_config
++        for worker_index, (kv_cache_config, worker_available_memory) in enumerate(
++            zip(kv_cache_configs, available_memory)
++        ):
++            groups = []
++            total_request_bytes = 0
++            total_request_real_bytes = 0
++            for group_index, group in enumerate(kv_cache_config.kv_cache_groups):
++                group_spec = group.kv_cache_spec
++                inner_specs = (
++                    group_spec.kv_cache_specs
++                    if isinstance(group_spec, UniformTypeKVCacheSpecs)
++                    else {group.layer_names[0]: group_spec}
++                )
++                inner = []
++                real_page_bytes = 0
++                for layer_name, spec in inner_specs.items():
++                    spec_real_page_bytes = int(
++                        getattr(spec, "real_page_size_bytes", spec.page_size_bytes)
++                    )
++                    real_page_bytes += spec_real_page_bytes
++                    inner.append(
++                        {
++                            "layer": layer_name,
++                            "spec_type": type(spec).__name__,
++                            "block_size_tokens": int(spec.block_size),
++                            "page_bytes": int(spec.page_size_bytes),
++                            "real_page_bytes": spec_real_page_bytes,
++                            "page_padding_bytes": int(spec.page_size_bytes)
++                            - spec_real_page_bytes,
++                            "max_blocks_per_request": int(
++                                spec.max_num_blocks_per_req(vllm_config, max_len)
++                            ),
++                            "max_memory_bytes": int(
++                                spec.max_memory_usage_bytes(vllm_config)
++                            ),
++                            "sliding_window_tokens": getattr(
++                                spec, "sliding_window", None
++                            ),
++                            "tokens_per_state": str(
++                                getattr(spec, "tokens_per_state", "")
++                            ),
++                        }
++                    )
++                group_page_bytes = int(group_spec.page_size_bytes)
++                group_request_blocks = int(
++                    group_spec.max_num_blocks_per_req(vllm_config, max_len)
++                )
++                group_request_bytes = group_page_bytes * group_request_blocks
++                group_request_real_bytes = real_page_bytes * group_request_blocks
++                total_request_bytes += group_request_bytes
++                total_request_real_bytes += group_request_real_bytes
++                groups.append(
++                    {
++                        "group": group_index,
++                        "is_eagle_group": group.is_eagle_group,
++                        "enable_kv_transfer": group.enable_kv_transfer,
++                        "layer_count": len(group.layer_names),
++                        "layer_names": group.layer_names,
++                        "spec_type": type(group_spec).__name__,
++                        "block_size_tokens": int(group_spec.block_size),
++                        "page_bytes": group_page_bytes,
++                        "real_page_bytes": real_page_bytes,
++                        "page_padding_bytes": group_page_bytes - real_page_bytes,
++                        "num_blocks": int(kv_cache_config.num_blocks),
++                        "max_blocks_per_request": group_request_blocks,
++                        "max_request_bytes": group_request_bytes,
++                        "max_request_real_bytes": group_request_real_bytes,
++                        "pool_bytes_at_num_blocks": group_page_bytes
++                        * kv_cache_config.num_blocks,
++                        "inner_specs": inner,
++                    }
++                )
++            pool_page_bytes = int(
++                _pool_bytes_per_block(kv_cache_config.kv_cache_groups)
++            )
++            record = {
++                "worker": worker_index,
++                "max_model_len": int(max_len),
++                "max_num_seqs": int(scheduler_config.max_num_seqs),
++                "max_num_batched_tokens": int(
++                    scheduler_config.max_num_batched_tokens
++                ),
++                "max_concurrent_batches": int(vllm_config.max_concurrent_batches),
++                "max_in_flight_tokens": int(vllm_config.max_in_flight_tokens),
++                "available_memory_bytes": int(worker_available_memory),
++                "num_blocks": int(kv_cache_config.num_blocks),
++                "pool_page_bytes": pool_page_bytes,
++                "allocated_pool_bytes": pool_page_bytes
++                * kv_cache_config.num_blocks,
++                "required_max_model_len_bytes": int(
++                    _max_memory_usage_bytes_from_groups(
++                        vllm_config, kv_cache_config.kv_cache_groups
++                    )
++                ),
++                "max_request_bytes": total_request_bytes,
++                "max_request_real_bytes": total_request_real_bytes,
++                "max_request_bytes_per_token": total_request_bytes / max_len,
++                "max_request_real_bytes_per_token": total_request_real_bytes / max_len,
++                "groups": groups,
++            }
++            logger.info("KV_LAYOUT_DUMP %s", json.dumps(record, sort_keys=True))
++
+     return kv_cache_configs
+ 
+ 

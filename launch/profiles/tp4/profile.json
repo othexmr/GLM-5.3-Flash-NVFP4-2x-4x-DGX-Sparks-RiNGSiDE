@@ -1,0 +1,1446 @@
+{
+ "schema": 2,
+ "topology": "tp4",
+ "ranks": 4,
+ "status": "derived-from-measured-lab-plan",
+ "deterministic": false,
+ "nondeterministic_note": "NON-DETERMINISTIC: NVFP4 MoE launches accumulate their output with atomic adds in eager prefill launches (B12X_GLM53_ATOMIC_PREFILL), the prefill rows of mixed prefill and decode steps (B12X_GLM53_MIXED_SPLIT) and decode launches of 10 or more rows (B12X_GLM53_ATOMIC_DECODE_MIN_ROWS), so the order varies from run to run and outputs are not bit-reproducible. Decode launches below 10 rows stay deterministic.",
+ "source_plan": {
+  "sha256": "89dfef8440c6318f0d34a3d767cb2ce11a1946715085ac60cf890802b38b9b76",
+  "label": "TP4-final-admitfix",
+  "derived_from": {
+   "plan_sha256": "23ebce61ce40df5ed585b9f622f72598dc45563ea7c53c8749601a78475b298e",
+   "label": "TP4-final-admitfix",
+   "note": "the RiNGSiDE release plan 23ebce61 with 10 changes: (1) the fused RecoverSSM commit back on (GLM53_RECOVERSSM_FUSED_COMMIT=1: the accepted KDA state is committed by the next verify step) with its ordering fix (the commit's rule 1 at commit time, its two launches skipped when the host proves that no row is within 8 tokens of a block end; rule 2 at step start, a flush of the requests absent from the step) and the exact-landing column of the state write (recoverssm.py, kda.py, model_runner.py); (2) the KDA FP8 handoff projects through the tuned SM120 FP8 GEMM configurations of the dense FP8 module instead of the generic scaled matrix multiply (GLM53_KDA_FP8_HANDOFF_TUNED=1, from 1,536 rows per call); (3) the MLA q_a/kv_a RMSNorm writes q_b_proj's per-token FP8 quantization itself and q_b_proj hands it on to the indexer (GLM53_MLA_QNORM_FP8=2 with GLM53_DENSE_SHARED_QUANT; a new module, vllm/models/common/ops/glm53_qnorm_fp8.py, adapted from vLLM's fused q/kv RMSNorm kernel); a layer that misses the hand-over raises instead of recomputing; (4) the sparse-attention indexer's decode top-k through a rowspread build of the persistent top-k kernel (GLM53_TOPK_ROWSPREAD=1; a new native extension, nvfp4_topk_rowspread, in which every row at or below the radix threshold is taken by one CTA of the whole grid) and decode logits cdiv(max_model_len, 4) columns wide instead of max_model_len (GLM53_INDEXER_POOL_LOGITS=1); (5) an exact top-p fallback in the Triton top-k/top-p sampler for every row whose estimated normaliser, search exit or reconstructed cutoff cannot guarantee the cut (GLM53_TOPP_FIX=1), and a UTF-8 continuation guard for sampled requests that masks every token which cannot continue an incomplete UTF-8 character (GLM53_UTF8_GUARD=1 with the model's tokenizer; mask only: GLM53_UTF8_GUARD_FOLD, GLM53_UTF8_GUARD_GREEDY and GLM53_SAMPLER_AUDIT unset); (6) the indexer's kpool tail ring sized for speculative decoding: index_kpool x cdiv(index_kpool + K, index_kpool) slots per request (12 at K 7) instead of index_kpool, so the rows a verify step stashes no longer overwrite the open pool's committed keys (a port of vllm-project/vllm#58454, always on); (7) the tile argmax of the gumbel, greedy-statistics and resampling kernels clamped to the vocabulary (a port of vllm-project/vllm#50843); (8) the model runner leaves the kpool tail group (KpoolTailSpec) out of the generic slot mapping, as it does for circular-buffer groups, so the generic kernel no longer reads past the group's 32-column block table (up to about 350 KB past it at 1,048,576 tokens with the 12-slot ring); the kpool tail metadata builder writes the tail slots itself, as before (model_runner.py); (9) the checkpoint RedHatAI/GLM-5.3-Flash-NVFP4 (revision 18d55bfd, NVFP4 weights and activations in the compressed-tensors format) in place of nvidia/GLM-5.3-Flash-NVFP4 (SWITCHLESS_MODEL_DIR), with NVIDIA's tokenizer.json (revision 423acf37) mounted over its own (SWITCHLESS_TOKENIZER_FILE; the two files differ only in a truncation block of at most 2,048 tokens) and --override-generation-config {\"top_p\":0.95}, NVIDIA's generation default that RedHat's generation_config.json lacks; the API name stays nvidia/GLM-5.3-Flash-NVFP4; (10) the prefill indexer's query rows split across the four ranks (GLM53_INDEXER_ROW_SPLIT=1): for a prefill chunk of at least 1,024 query rows over at least 4,096 compressed key positions, each rank scores and selects the top-k pools of its own contiguous 64-row tiles with the served kernels and the ranks all-gather the int32 pool ids, where every rank used to run the whole chunk; the gathered selection is the full-row selection byte for byte (eager prefill only; the recipe's own module glm53_indexer_rowsplit.py, newly mounted; sparse_attn_indexer_kpool.py takes the new branch only with the switch on). Every other argument and mount is the release plan's. The release plan 23ebce61 is the base plan 6f490797 with 3 changes: (1) change notices and comment fixes in 38 served files and directories (comment lines, and docstring text in 12 of them; every other token unchanged); (2) the DFlash2 auxiliary hidden-state capture (model.py) and drafter KV-cache group (a new kv_cache_utils.py mount) written from vLLM's DeepSeek-V4 code; (3) GLM53_RECOVERSSM_FUSED_COMMIT=0 on every rank (was 1). Every other argument and mount is the base plan's.",
+   "new_mounts": [
+    "glm53_indexer_rowsplit.py",
+    "glm53_utf8_guard.py",
+    "nvfp4_topk_rowspread",
+    "vllm/model_executor/layers/sparse_attn_indexer_kpool.py",
+    "vllm/models/common/ops/glm53_qnorm_fp8.py",
+    "vllm/v1/sample/ops/topk_topp_triton.py",
+    "vllm/v1/worker/gpu/sample/gumbel.py",
+    "vllm/v1/worker/gpu/sample/sampler.py",
+    "vllm/v1/worker/gpu/spec_decode/rejection_sampler.py",
+    "vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py"
+   ],
+   "steps": [
+    {
+     "step": "fused-recoverssm-commit",
+     "component": "fused-commit",
+     "variant": "A2+B",
+     "targets": [
+      "vllm/models/glm5next/nvidia/kda.py",
+      "vllm/models/glm5next/nvidia/ops/recoverssm.py",
+      "vllm/v1/worker/gpu/model_runner.py"
+     ],
+     "environment": [
+      {
+       "key": "GLM53_RECOVERSSM_FUSED_COMMIT",
+       "from": "0",
+       "to": "1",
+       "ranks": "all"
+      }
+     ],
+     "summary": "the fused RecoverSSM commit back on (GLM53_RECOVERSSM_FUSED_COMMIT=1: the accepted KDA state is committed by the next verify step) with its ordering fix (the commit's rule 1 at commit time, its two launches skipped when the host proves that no row is within 8 tokens of a block end; rule 2 at step start, a flush of the requests absent from the step) and the exact-landing column of the state write (recoverssm.py, kda.py, model_runner.py)"
+    },
+    {
+     "step": "kda-fp8-handoff-tuned-gemm",
+     "component": "prefill-lever-1",
+     "targets": [
+      "vllm/models/glm5next/nvidia/kda_fp8_handoff.py"
+     ],
+     "environment": [
+      {
+       "key": "GLM53_KDA_FP8_HANDOFF_TUNED",
+       "from": null,
+       "to": "1",
+       "ranks": "all"
+      }
+     ],
+     "summary": "the KDA FP8 handoff projects through the tuned SM120 FP8 GEMM configurations of the dense FP8 module instead of the generic scaled matrix multiply (GLM53_KDA_FP8_HANDOFF_TUNED=1, from 1,536 rows per call)"
+    },
+    {
+     "step": "mla-qnorm-fp8",
+     "component": "prefill-lever-2",
+     "targets": [
+      "vllm/model_executor/layers/mla.py",
+      "vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py",
+      "vllm/models/common/ops/glm53_qnorm_fp8.py"
+     ],
+     "environment": [
+      {
+       "key": "GLM53_MLA_QNORM_FP8",
+       "from": null,
+       "to": "2",
+       "ranks": "all"
+      },
+      {
+       "key": "GLM53_DENSE_SHARED_QUANT",
+       "from": "mla_qb>indexer,kda_onorm>attn_out",
+       "to": "mla_qnorm>mla_qb,mla_qb>indexer,kda_onorm>attn_out",
+       "ranks": "all"
+      }
+     ],
+     "summary": "the MLA q_a/kv_a RMSNorm writes q_b_proj's per-token FP8 quantization itself and q_b_proj hands it on to the indexer (GLM53_MLA_QNORM_FP8=2 with GLM53_DENSE_SHARED_QUANT; a new module, vllm/models/common/ops/glm53_qnorm_fp8.py, adapted from vLLM's fused q/kv RMSNorm kernel); a layer that misses the hand-over raises instead of recomputing"
+    },
+    {
+     "step": "indexer-rowspread-topk",
+     "component": "topk-rowspread-pool",
+     "targets": [
+      "nvfp4_topk_rowspread",
+      "vllm/model_executor/layers/sparse_attn_indexer_kpool.py"
+     ],
+     "environment": [
+      {
+       "key": "GLM53_INDEXER_POOL_LOGITS",
+       "from": null,
+       "to": "1",
+       "ranks": "all"
+      },
+      {
+       "key": "GLM53_TOPK_ROWSPREAD",
+       "from": null,
+       "to": "1",
+       "ranks": "all"
+      }
+     ],
+     "summary": "the sparse-attention indexer's decode top-k through a rowspread build of the persistent top-k kernel (GLM53_TOPK_ROWSPREAD=1; a new native extension, nvfp4_topk_rowspread, in which every row at or below the radix threshold is taken by one CTA of the whole grid) and decode logits cdiv(max_model_len, 4) columns wide instead of max_model_len (GLM53_INDEXER_POOL_LOGITS=1)",
+     "credits": [
+      "vllm-project/vllm#55314 by Dovis01 (the persistent top-k hunks the extension is built from; concept from sgl-project/sglang#37625 by ormandj and bold84)"
+     ]
+    },
+    {
+     "step": "topp-fix-and-utf8-guard",
+     "component": "topp-utf8-guard",
+     "variant": "guard1",
+     "targets": [
+      "glm53_utf8_guard.py",
+      "vllm/v1/sample/ops/topk_topp_triton.py",
+      "vllm/v1/worker/gpu/sample/sampler.py",
+      "vllm/v1/worker/gpu/spec_decode/rejection_sampler.py"
+     ],
+     "environment": [
+      {
+       "key": "GLM53_TOPP_FIX",
+       "from": null,
+       "to": "1",
+       "ranks": "all"
+      },
+      {
+       "key": "GLM53_UTF8_GUARD",
+       "from": null,
+       "to": "1",
+       "ranks": "all"
+      },
+      {
+       "key": "GLM53_UTF8_GUARD_TOKENIZER",
+       "from": null,
+       "to": "/models/target/tokenizer.json",
+       "ranks": "all"
+      },
+      {
+       "key": "GLM53_UTF8_GUARD_FOLD",
+       "from": null,
+       "to": null,
+       "ranks": "all",
+       "asserted_unset": true
+      },
+      {
+       "key": "GLM53_UTF8_GUARD_GREEDY",
+       "from": null,
+       "to": null,
+       "ranks": "all",
+       "asserted_unset": true
+      },
+      {
+       "key": "GLM53_SAMPLER_AUDIT",
+       "from": null,
+       "to": null,
+       "ranks": "all",
+       "asserted_unset": true
+      }
+     ],
+     "summary": "an exact top-p fallback in the Triton top-k/top-p sampler for every row whose estimated normaliser, search exit or reconstructed cutoff cannot guarantee the cut (GLM53_TOPP_FIX=1), and a UTF-8 continuation guard for sampled requests that masks every token which cannot continue an incomplete UTF-8 character (GLM53_UTF8_GUARD=1 with the model's tokenizer; mask only: GLM53_UTF8_GUARD_FOLD, GLM53_UTF8_GUARD_GREEDY and GLM53_SAMPLER_AUDIT unset)"
+    },
+    {
+     "step": "kpool-tail-ring",
+     "component": "kpool-ring",
+     "variant": "ring",
+     "targets": [
+      "vllm/models/glm5next/nvidia/attention.py",
+      "vllm/models/glm5next/nvidia/ops/kpool_compress.py"
+     ],
+     "summary": "the indexer's kpool tail ring sized for speculative decoding: index_kpool x cdiv(index_kpool + K, index_kpool) slots per request (12 at K 7) instead of index_kpool, so the rows a verify step stashes no longer overwrite the open pool's committed keys (a port of vllm-project/vllm#58454, always on)",
+     "credits": [
+      "vllm-project/vllm#58454 by mmastrac, building on vllm-project/vllm#55219 by ivanium",
+      "Morrowmake/vllm-cmp170hx 1d4b59e, the port this follows"
+     ]
+    },
+    {
+     "step": "sampler-vocabulary-clamp",
+     "component": "sampler-clamp",
+     "targets": [
+      "vllm/v1/worker/gpu/sample/gumbel.py",
+      "vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py"
+     ],
+     "summary": "the tile argmax of the gumbel, greedy-statistics and resampling kernels clamped to the vocabulary (a port of vllm-project/vllm#50843)",
+     "credits": [
+      "vllm-project/vllm#50843 by alexbi29"
+     ]
+    },
+    {
+     "step": "kpool-tail-slot-mapping",
+     "component": "kpool-tail-slotmap",
+     "targets": [
+      "vllm/v1/worker/gpu/model_runner.py"
+     ],
+     "summary": "the model runner leaves the kpool tail group (KpoolTailSpec) out of the generic slot mapping, as it does for circular-buffer groups, so the generic kernel no longer reads past the group's 32-column block table (up to about 350 KB past it at 1,048,576 tokens with the 12-slot ring); the kpool tail metadata builder writes the tail slots itself, as before (model_runner.py)"
+    },
+    {
+     "step": "checkpoint-redhat",
+     "checkpoint": "redhat",
+     "site_mounts": [
+      {
+       "target": "/models/target",
+       "site_variable": "SWITCHLESS_MODEL_DIR",
+       "change": "changed"
+      },
+      {
+       "target": "/models/target/tokenizer.json",
+       "site_variable": "SWITCHLESS_TOKENIZER_FILE",
+       "change": "set"
+      }
+     ],
+     "arguments": [
+      {
+       "flag": "--override-generation-config",
+       "from": null,
+       "to": "{\"top_p\":0.95}",
+       "ranks": "all"
+      }
+     ],
+     "summary": "the checkpoint RedHatAI/GLM-5.3-Flash-NVFP4 (revision 18d55bfd, NVFP4 weights and activations in the compressed-tensors format) in place of nvidia/GLM-5.3-Flash-NVFP4 (SWITCHLESS_MODEL_DIR), with NVIDIA's tokenizer.json (revision 423acf37) mounted over its own (SWITCHLESS_TOKENIZER_FILE; the two files differ only in a truncation block of at most 2,048 tokens) and --override-generation-config {\"top_p\":0.95}, NVIDIA's generation default that RedHat's generation_config.json lacks; the API name stays nvidia/GLM-5.3-Flash-NVFP4"
+    },
+    {
+     "step": "indexer-row-split",
+     "component": "indexer-row-split",
+     "targets": [
+      "glm53_indexer_rowsplit.py",
+      "vllm/model_executor/layers/sparse_attn_indexer_kpool.py"
+     ],
+     "environment": [
+      {
+       "key": "GLM53_INDEXER_ROW_SPLIT",
+       "from": null,
+       "to": "1",
+       "ranks": "all"
+      }
+     ],
+     "summary": "the prefill indexer's query rows split across the four ranks (GLM53_INDEXER_ROW_SPLIT=1): for a prefill chunk of at least 1,024 query rows over at least 4,096 compressed key positions, each rank scores and selects the top-k pools of its own contiguous 64-row tiles with the served kernels and the ranks all-gather the int32 pool ids, where every rank used to run the whole chunk; the gathered selection is the full-row selection byte for byte (eager prefill only; the recipe's own module glm53_indexer_rowsplit.py, newly mounted; sparse_attn_indexer_kpool.py takes the new branch only with the switch on)",
+     "credits": [
+      "the idea comes from rhys101's SG18 native prefill TP split (rhys101/DeepSeek-V4.1-Flash-vLLM-DGX-Spark-8), adapted to TP4 by knapcio (knapcio/DeepSeek-V4.1-Flash-4x-DGX-Spark-TP4); glm53_indexer_rowsplit.py is the recipe's own implementation, no code copied"
+     ]
+    }
+   ],
+   "base_derived_from": {
+    "plan_sha256": "6f4907977686ef2a9d93b1336daac6c8dba14db407410b931b6c0031e316bd50",
+    "label": "TP4-final-admitfix",
+    "note": "the base plan 6f490797 with 3 changes: (1) change notices and comment fixes in 38 served files and directories (comment lines, and docstring text in 12 of them; every other token unchanged); (2) the DFlash2 auxiliary hidden-state capture (model.py) and drafter KV-cache group (a new kv_cache_utils.py mount) written from vLLM's DeepSeek-V4 code; (3) GLM53_RECOVERSSM_FUSED_COMMIT=0 on every rank (was 1). Every other argument and mount is the base plan's.",
+    "new_mounts": [
+     "vllm/v1/core/kv_cache_utils.py"
+    ],
+    "steps": [
+     {
+      "step": "notice-fix",
+      "targets": [
+       "b12x/moe/_shared/kernels/dynamic.py",
+       "b12x/moe/fused_moe/_impl.py",
+       "deterministic_sparse_topk.py",
+       "glm53_greedy_verify.py",
+       "glm53_kda_ckpt.py",
+       "glm53_kda_ckpt_plan.py",
+       "glm53_kda_conv.py",
+       "glm53_lean_allreduce",
+       "glm53_prefill_rdma",
+       "glm53_replay_boundary.py",
+       "glm53_sparse_mla/backend.py",
+       "glm53_speedup/cadence.py",
+       "vllm/config/vllm.py",
+       "vllm/distributed/device_communicators/cuda_communicator.py",
+       "vllm/entrypoints/launchers/api_server/entry.py",
+       "vllm/model_executor/kernels/linear/nvfp4/b12x.py",
+       "vllm/model_executor/kernels/mhc/tilelang.py",
+       "vllm/model_executor/layers/attention/mla_attention.py",
+       "vllm/model_executor/layers/fused_moe/b12x.py",
+       "vllm/model_executor/layers/fused_moe/runner/moe_runner.py",
+       "vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py",
+       "vllm/model_executor/layers/linear.py",
+       "vllm/model_executor/layers/mla.py",
+       "vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py",
+       "vllm/models/glm5next/nvidia/attention.py",
+       "vllm/models/glm5next/nvidia/kda.py",
+       "vllm/models/glm5next/nvidia/kda_fp8_handoff.py",
+       "vllm/models/glm5next/nvidia/kda_state_store.py",
+       "vllm/models/glm5next/nvidia/mhc_prefill_sharding.py",
+       "vllm/models/glm5next/nvidia/model.py",
+       "vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py",
+       "vllm/models/glm5next/nvidia/ops/kpool_compress.py",
+       "vllm/models/glm5next/nvidia/ops/recoverssm.py",
+       "vllm/v1/core/sched/scheduler.py",
+       "vllm/v1/core/single_type_kv_cache_manager.py",
+       "vllm/v1/worker/gpu/async_utils.py",
+       "vllm/v1/worker/gpu/model_runner.py",
+       "vllm/v1/worker/gpu_worker.py"
+      ],
+      "docstring_text_changed": [
+       "deterministic_sparse_topk.py",
+       "glm53_greedy_verify.py",
+       "glm53_kda_ckpt.py",
+       "glm53_kda_ckpt_plan.py",
+       "glm53_kda_conv.py",
+       "glm53_prefill_rdma",
+       "glm53_replay_boundary.py",
+       "glm53_speedup/cadence.py",
+       "vllm/models/glm5next/nvidia/kda.py",
+       "vllm/models/glm5next/nvidia/kda_state_store.py",
+       "vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py",
+       "vllm/models/glm5next/nvidia/ops/recoverssm.py"
+      ],
+      "reason_counts": {
+       "agent-credit": 13,
+       "ai-name": 15,
+       "credit": 2,
+       "licence": 3,
+       "notice": 29
+      },
+      "summary": "change notices (\"Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): <summary>\") and comment fixes in 38 served files and directories: comment lines only, and docstring text in 12 of them; every other token equal to the base plan's file"
+     },
+     {
+      "step": "dflash2-capture-kvgroup",
+      "files": {
+       "vllm/models/glm5next/nvidia/model.py": {
+        "implementation_sha256": "dc3528524d27b826a09a6f6eadf2c77e491d818f0623621e6bdb5689a33e89d0",
+        "served_sha256": "f826b4311615eb56c16dd1dea69cd0dbaf45df48f5d18dce05749a93b47d09c5",
+        "base_sha256": "c40042d118e8c4459d90b229f91b678bfba3e5327a51011c750d2774c77c74ad"
+       },
+       "vllm/v1/core/kv_cache_utils.py": {
+        "implementation_sha256": "2614f957b21863ac7f028d0c104c9a4d913f41b81733f2d36ac0ec05df882712",
+        "served_sha256": "2a69fdf7b0738e75caa47be8344180a309e3fe68476618219eae3eceaf29aaab",
+        "base_sha256": "7ef729537e4a2205bf5042febf782442096f07f262cfe056c5806b132fddb958"
+       }
+      },
+      "summary": "the DFlash2 auxiliary hidden-state capture of model.py (adapted from vLLM's DeepseekV4Model.forward) and the DFlash2 drafter KV-cache group of vllm/v1/core/kv_cache_utils.py (the image file, now mounted), written from vLLM's DeepSeek-V4 code; each served file differs from the lab's implementation only in its change-notice comment lines"
+     },
+     {
+      "step": "unfused-commit",
+      "environment": [
+       {
+        "key": "GLM53_RECOVERSSM_FUSED_COMMIT",
+        "from": "1",
+        "to": "0",
+        "ranks": "all"
+       }
+      ],
+      "summary": "GLM53_RECOVERSSM_FUSED_COMMIT=0 on every rank (was 1)"
+     }
+    ]
+   }
+  },
+  "qualification": {
+   "schema": "ringside-qualification/1",
+   "topology": "tp4",
+   "plan_sha256": "89dfef8440c6318f0d34a3d767cb2ce11a1946715085ac60cf890802b38b9b76",
+   "base_plan_sha256": "23ebce61ce40df5ed585b9f622f72598dc45563ea7c53c8749601a78475b298e",
+   "measured_base_plan_sha256": "6f4907977686ef2a9d93b1336daac6c8dba14db407410b931b6c0031e316bd50",
+   "status": "served and measured in the release window",
+   "evidence": [
+    {
+     "change": "all",
+     "kind": "staging",
+     "result": "every bind source of every rank read back with the planned sha256 on its host, the package directories file by file",
+     "when": "2026-09-26 00:30-00:31"
+    },
+    {
+     "change": "all",
+     "kind": "static checks of the combined build (CPU) of the plan 31978478 that this variant derives from",
+     "result": "23 of 23 pass: the plan rebuilds byte for byte; every component's own patches give its tested bytes; the three-way merges onto the release bytes reproduce every served file; the served code is token-equal to the tested code (docstring text aside); every file compiles; the plan differs from the release plan only in the declared mounts and environment edits",
+     "when": "2026-09-25 20:09"
+    },
+    {
+     "change": "all",
+     "kind": "static checks of the redhat-rowsplit on redhat variant (CPU)",
+     "result": "6 of 6 pass: the plan rebuilds byte for byte, and its declared edits undo to the plan 31978478 on every rank",
+     "when": "2026-09-26 00:28"
+    },
+    {
+     "change": "fused-recoverssm-commit",
+     "kind": "GPU leaf, the real kernels, TP4 geometry",
+     "result": "PASS: 26 cases at the 2,304-token block, strict raw-bit equality of the committed states with poisoned record tails; the fix with its host skip (A2 + B) equal to the fix without it (A + B) at every step of every case",
+     "when": "2026-09-25 16:54-16:59 and 18:47-18:54"
+    },
+    {
+     "change": "fused-recoverssm-commit",
+     "kind": "serving window of lab plan 6f490797 with the ordering fix and the exact-landing column (patch A + B, fused commit on)",
+     "result": "Korean prompt 1 x 72 at width 6: 72 of 72 runs complete without a long-generation break, 3 of them with isolated flagged characters",
+     "when": "2026-09-25, window ending 18:17"
+    },
+    {
+     "change": "kda-fp8-handoff-tuned-gemm",
+     "kind": "GPU leaf, one GB10",
+     "result": "PASS: 30 of 30 comparisons bitwise equal to the served path at 20 row counts, every call routed as expected",
+     "when": "2026-09-25 18:22"
+    },
+    {
+     "change": "mla-qnorm-fp8",
+     "kind": "GPU leaf, one GB10",
+     "result": "PASS in mode 2: 30 of 30 comparisons bitwise equal to the served path at 9 row counts (the kv output, the handed FP8 values and scales, both GEMMs), hand-over and relay exact",
+     "when": "2026-09-25 18:22"
+    },
+    {
+     "change": "indexer-rowspread-topk",
+     "kind": "GPU leaf, one GB10",
+     "result": "PASS: the canonical top-k output equal to the served selector's in 322 cases, with the pool-width logits too; 28 to 74 % less time per call from 4 rows up at the kernel level (a leaf timing, not a serving measurement)",
+     "when": "2026-09-25 18:18-18:22"
+    },
+    {
+     "change": "indexer-rowspread-topk",
+     "kind": "overlay leaf of the candidate plan's files in the serving image",
+     "result": "exited 0",
+     "when": "2026-09-25 18:24"
+    },
+    {
+     "change": "topp-fix-and-utf8-guard",
+     "kind": "GPU leaf, top-p fix",
+     "result": "PASS: exact in every case of 38 case families (1,000 and more rows): every row exact or a boundary decision within 3.2e-6 of mass; where the image's kernel was right the fixed masks equal its masks in every row",
+     "when": "2026-09-25 18:25-18:26"
+    },
+    {
+     "change": "topp-fix-and-utf8-guard",
+     "kind": "GPU leaves, UTF-8 guard",
+     "result": "PASS: the continuation table equal to Python's strict UTF-8 decoder in all 11,151,360 token-by-state pairs; in verification with drafts 0 invalid tokens at rows inside a character with the guard on, against 5 of 6 without it; with the switches unset the hooked sampler files are bit-identical to the image's over 12 verify steps",
+     "when": "2026-09-25 18:18 and 18:25"
+    },
+    {
+     "change": "kpool-tail-ring",
+     "kind": "GPU leaf, the served kernels through the image's own slot-mapping code",
+     "result": "PASS: 84 case runs at K 1 to 7, half with the old ring and half with the fixed one, each with a second turn through the prefix cache: 19,950 wrong pooled keys with the old ring (in 31 cases; 4,525 of them inherited through the prefix cache), 0 with the fixed ring; in a case shaped like the Korean test the old ring gave a wrong key to 63 to 70 % of the decode-built pools, the fixed ring to none; every control clean",
+     "when": "2026-09-25 18:57"
+    },
+    {
+     "change": "sampler-vocabulary-clamp",
+     "kind": "GPU leaf (the kpool ring leaf's sampler rows)",
+     "result": "PASS: the old kernels emitted the out-of-vocabulary tile-local id 154,880 46 times on rows with NaN in the last tile, the clamped kernels never",
+     "when": "2026-09-25 18:57"
+    },
+    {
+     "change": "kpool-tail-slot-mapping",
+     "kind": "CPU proof, the image's slot-mapping kernel source over a guarded table",
+     "result": "PASS (5 of 5): 76 batches with positions up to 1,048,575: the old mapping reads past the table in every batch kind, the new one never; the tail group's final mapping and the other six groups' mappings identical",
+     "when": "2026-09-25 19:5x"
+    },
+    {
+     "change": "kpool-tail-slot-mapping",
+     "kind": "GPU leaf, the image's own slot-mapping kernel with a sentinel after the tail table",
+     "result": "PASS: 320 batches with positions up to 1,048,575: 492,150 tail slots computed from memory past the table with the old mapping, 0 with the new; the final tail mapping and the other six groups identical",
+     "when": "2026-09-25 20:07"
+    },
+    {
+     "change": "indexer-row-split",
+     "kind": "GPU leaf, the served kernels on one GB10 (four threads as four ranks)",
+     "result": "PASS: in all 10 cases (context 0 to 248K, a 4,608-row chunk, ties, a ragged three-request chunk, short rows) every rank's gathered pool ids and the expanded token indices equal the full-row selection byte for byte; each rank engaged once and check mode counted 0 differing rows; on the long single-request cases the busiest rank's slice took 0.25 to 0.27 of the full-row indexer time (the rule: at most 0.40)",
+     "when": "2026-09-26 00:06-00:07"
+    },
+    {
+     "change": "indexer-row-split",
+     "kind": "static checks (CPU)",
+     "result": "16 of 16 pass: the overlay rebuilds from the pinned base; the overlay minus its additions is the served file; partition properties over 5 world sizes, 3 tile sizes and about 300 row counts; four simulated ranks give the full-row selection byte for byte, and a wrong gather order or rebased key bounds are caught",
+     "when": "2026-09-26 00:09"
+    },
+    {
+     "change": "release plan 23ebce61: notice-fix",
+     "kind": "static proofs (CPU)",
+     "result": "each changed file keeps every original line in order, a rewritten line in its place, and every inserted line is a comment; Python token streams without comments equal the base file's, except the docstring text of the 12 files listed in the derivation (there the syntax trees without docstrings are equal and nothing reads __doc__); the C and CUDA files' comment-stripped tokens are equal; every file compiles; the plan builder rebuilds the plan byte for byte and 14 of 14 CPU tests pass",
+     "when": "2026-09-25 15:07"
+    },
+    {
+     "change": "release plan 23ebce61: dflash2-capture-kvgroup",
+     "kind": "CPU test vectors",
+     "result": "all pass: the 17 KV-cache grouping cases and the two served layout records (F3, F4); the capabilities, the layer ids and 19 of 19 capture replays (F2)",
+     "when": "2026-09-25 12:37"
+    },
+    {
+     "change": "release plan 23ebce61: dflash2-capture-kvgroup",
+     "kind": "GPU leaf, one GB10, the TP4 plan's container and configuration",
+     "result": "PASS: 3,358 comparisons of the captured auxiliary hidden states and final hidden states between the earlier and the served model.py at tolerance 0, eager and CUDA-graph replays, 8 token counts, 3 layer-id sets, 0 failed; the KV-cache groups and layout of all 15 TP4 cases equal between the image's kv_cache_utils.py and the served one, including the served layout record over four workers",
+     "when": "2026-09-25 15:48-15:56"
+    },
+    {
+     "change": "release plan 23ebce61: dflash2-capture-kvgroup",
+     "kind": "ownership leaf on four nodes, TP4",
+     "result": "PASS on all four ranks: 567 comparisons per rank at tolerance 0, 0 failed, with the token-sharded mHC prefill ownership and its gathers",
+     "when": "2026-09-25 15:56-15:57"
+    },
+    {
+     "change": "all",
+     "kind": "release window of this plan (one boot, four nodes)",
+     "result": "Korean prompt 1 x 12 at width 6: 12 of 12 runs complete without a long-generation break, no isolated flagged character; switch, served-byte and marker receipts ok",
+     "when": "2026-09-26 00:36-01:50"
+    },
+    {
+     "change": "topp-fix-and-utf8-guard",
+     "kind": "serving window of the same files with another switch set (folding, greedy rows and the sampler audit on), four nodes",
+     "result": "not the served configuration: its scorer's runtime failures were the boot import tracebacks that every window of this image logs; the emoji test's malformed flags were answers cut at the 2,000-token cap; the 12 U+FFFD of its CJK stress test were literal replacement characters that the fold wrote into words (a window without the guard had none), which supports serving the guard without the fold; its Korean smoke test gave 36 of 36 clean runs. The served setting is measured by the release window",
+     "when": "2026-09-25, ending 19:57"
+    }
+   ],
+   "tested_bytes": "each component's GPU evidence ran the component on its own base (the measured plan's bytes or the image file); the served files are the release plan's bytes with the component's hunks merged and one change-notice line per component on a third-party file, token-equal to the tested code (docstring text aside)",
+   "not_established": [
+    "the speed cells are medians of one boot's runs, with no matched reference window (earlier windows are other boots and times of day)",
+    "the emoji/CJK wall stress test and llama-benchy were not run on this plan (llama-benchy ran on the same release plan with the NVIDIA checkpoint, lab plan 31978478, in window 2026-09-25-ringside-combined-tp4-1: the additional arm)",
+    "the fused commit's host skip is exact only under synchronous scheduling without adaptive verification (the profile runs --no-async-scheduling)",
+    "the bit identity of the MLA q_a norm hand-over depends on the Triton layout choice proven for Triton 3.7.1 in this image"
+   ]
+  },
+  "render_check": "every rank of the lab plan re-rendered from this template with the lab site values: all tokens equal, mounts equal as a set (their order differs between the ranks and is not significant), overlay mount sources matched by sha256",
+  "launch_sha256": "edcbe5329ed70bce5197f87696eddb52762abb8c265d689ff6085fe45962ed82"
+ },
+ "image": {
+  "id": "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
+  "tag": "local/glm53-v029:ported-20260910",
+  "public_reference": null
+ },
+ "argv_template": [
+  "docker",
+  "run",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/kpool_compress.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/kpool_compress.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/opt/switchless-nccl,dst=/opt/switchless-nccl,readonly",
+  "--mount",
+  "type=bind,src=${SWITCHLESS_PROFILES_DIR},dst=/profiles",
+  "-e",
+  "LD_PRELOAD=/opt/switchless-nccl/libnccl.so.2",
+  "-e",
+  "VLLM_NCCL_SO_PATH=/opt/switchless-nccl/libnccl.so.2",
+  "-e",
+  "TORCH_USE_RTLD_GLOBAL=1",
+  "-e",
+  "NCCL_SWITCHLESS_RING_ONLY=1",
+  "-e",
+  "NCCL_ALGO=Ring",
+  "-e",
+  "NCCL_NET=IB",
+  "-e",
+  "NCCL_IB_DISABLE=0",
+  "-e",
+  "NCCL_IB_HCA=${SWITCHLESS_IB_HCA}",
+  "-e",
+  "NCCL_IB_ADDR_FAMILY=AF_INET",
+  "-e",
+  "NCCL_IB_ADDR_RANGE=${SWITCHLESS_FABRIC_CIDR}",
+  "-e",
+  "NCCL_IB_ROCE_VERSION_NUM=2",
+  "-e",
+  "NCCL_IB_SUBNET_AWARE_ROUTING=1",
+  "-e",
+  "NCCL_IB_SUBNET_PREFIX_LEN=24",
+  "-e",
+  "NCCL_IB_MERGE_NICS=0",
+  "-e",
+  "NCCL_CROSS_NIC=1",
+  "-e",
+  "NCCL_SOCKET_IFNAME=${SWITCHLESS_SOCKET_IFNAME}",
+  "-e",
+  "GLOO_SOCKET_IFNAME=${SWITCHLESS_SOCKET_IFNAME}",
+  "-e",
+  "MN_IF_NAME=${SWITCHLESS_SOCKET_IFNAME}",
+  "-e",
+  "TP_SOCKET_IFNAME=${SWITCHLESS_SOCKET_IFNAME}",
+  "-e",
+  "VLLM_HOST_IP=${SWITCHLESS_RANK_HOST_IP}",
+  "-e",
+  "VLLM_CANDIDATE_BOOT=tp4-ring-20260917",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/core/sched/scheduler.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/core/sched/scheduler.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/scheduler.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_speedup/scheduler.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/fair_prefill.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_speedup/fair_prefill.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/policy.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_speedup/policy.py,readonly",
+  "-e",
+  "GLM53_SPEEDUP_MIXED_PREFILL_FAIR=1",
+  "-e",
+  "GLM53_SPEEDUP_MIXED_PREFILL_RUNTIME=0",
+  "-e",
+  "GLM53_SPEEDUP_OVERRIDE=/opt/glm53-speedup/runtime/override.json",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/opt/glm53-speedup/runtime,dst=/opt/glm53-speedup/runtime,readonly",
+  "-e",
+  "GLM53_SPEEDUP_CAPTURE=all",
+  "-e",
+  "GLM53_SPEEDUP_COMM_TRACE=0",
+  "-e",
+  "GLM53_SPEEDUP_GRAPH_MEMORY=1",
+  "-e",
+  "GLM53_SPEEDUP_K=7",
+  "-e",
+  "GLM53_SPEEDUP_KDA_STRIDES=0",
+  "-e",
+  "GLM53_SPEEDUP_LOG_EVERY=1",
+  "-e",
+  "GLM53_SPEEDUP_MHC_SHARD=0",
+  "-e",
+  "GLM53_SPEEDUP_MIXED_PREFILL=4608",
+  "-e",
+  "GLM53_SPEEDUP_MODE=saturation",
+  "-e",
+  "GLM53_SPEEDUP_NOPE_COPIES=0",
+  "-e",
+  "GLM53_SPEEDUP_PREFILL_TAILS=0",
+  "-e",
+  "GLM53_SPEEDUP_ROCE=0",
+  "-e",
+  "GLM53_SPEEDUP_TIMING=1",
+  "-d",
+  "--name",
+  "${SWITCHLESS_CONTAINER_NAME}",
+  "--network",
+  "host",
+  "--ipc",
+  "host",
+  "--gpus",
+  "all",
+  "--cap-add",
+  "IPC_LOCK",
+  "--security-opt",
+  "label=disable",
+  "--device",
+  "/dev/infiniband",
+  "--ulimit",
+  "memlock=-1:-1",
+  "--shm-size",
+  "32g",
+  "--label",
+  "nvfp4.candidate.boot=promoted-short-tail-20260917",
+  "-e",
+  "B12X_GLM53_ATOMIC_PREFILL=1",
+  "-e",
+  "B12X_DYNAMIC_DETERMINISTIC_OUTPUT=1",
+  "-e",
+  "B12X_GLM53_DECODE_FASTPATH=1",
+  "-e",
+  "B12X_MICRO_DYNAMIC_CUTOVER_PAIRS=0",
+  "-e",
+  "B12X_PRINT_COMPILE_PROGRESS=1",
+  "-e",
+  "B12X_TIMING=0",
+  "-e",
+  "CUDA_VERSION=13.0.3",
+  "-e",
+  "DEBIAN_FRONTEND=noninteractive",
+  "-e",
+  "FLASHINFER_CUDA_ARCH_LIST=12.1a",
+  "-e",
+  "FLASHINFER_DISABLE_VERSION_CHECK=1",
+  "-e",
+  "HF_HOME=/cache/huggingface",
+  "-e",
+  "HF_HUB_OFFLINE=1",
+  "-e",
+  "LD_LIBRARY_PATH=/usr/local/nvidia/lib64:/usr/local/cuda/lib64:/usr/local/nvidia/lib:/usr/local/nvidia/lib64:/usr/local/cuda/lib64",
+  "-e",
+  "NCCL_CUMEM_ENABLE=0",
+  "-e",
+  "NCCL_DEBUG=INFO",
+  "-e",
+  "NCCL_IGNORE_CPU_AFFINITY=1",
+  "-e",
+  "NCCL_MAX_CTAS=4",
+  "-e",
+  "NCCL_NVLS_ENABLE=0",
+  "-e",
+  "NVARCH=sbsa",
+  "-e",
+  "NVIDIA_DRIVER_CAPABILITIES=compute,utility",
+  "-e",
+  "NVIDIA_REQUIRE_CUDA=cuda>=13.0 brand=unknown,driver>=535,driver<536 brand=grid,driver>=535,driver<536 brand=tesla,driver>=535,driver<536 brand=nvidia,driver>=535,driver<536 brand=quadro,driver>=535,driver<536 brand=quadrortx,driver>=535,driver<536 brand=nvidiartx,driver>=535,driver<536 brand=vapps,driver>=535,driver<536 brand=vpc,driver>=535,driver<536 brand=vcs,driver>=535,driver<536 brand=vws,driver>=535,driver<536 brand=cloudgaming,driver>=535,driver<536 brand=unknown,driver>=550,driver<551 brand=grid,driver>=550,driver<551 brand=tesla,driver>=550,driver<551 brand=nvidia,driver>=550,driver<551 brand=quadro,driver>=550,driver<551 brand=quadrortx,driver>=550,driver<551 brand=nvidiartx,driver>=550,driver<551 brand=vapps,driver>=550,driver<551 brand=vpc,driver>=550,driver<551 brand=vcs,driver>=550,driver<551 brand=vws,driver>=550,driver<551 brand=cloudgaming,driver>=550,driver<551 brand=unknown,driver>=565,driver<566 brand=grid,driver>=565,driver<566 brand=tesla,driver>=565,driver<566 brand=nvidia,driver>=565,driver<566 brand=quadro,driver>=565,driver<566 brand=quadrortx,driver>=565,driver<566 brand=nvidiartx,driver>=565,driver<566 brand=vapps,driver>=565,driver<566 brand=vpc,driver>=565,driver<566 brand=vcs,driver>=565,driver<566 brand=vws,driver>=565,driver<566 brand=cloudgaming,driver>=565,driver<566 brand=unknown,driver>=570,driver<571 brand=grid,driver>=570,driver<571 brand=tesla,driver>=570,driver<571 brand=nvidia,driver>=570,driver<571 brand=quadro,driver>=570,driver<571 brand=quadrortx,driver>=570,driver<571 brand=nvidiartx,driver>=570,driver<571 brand=vapps,driver>=570,driver<571 brand=vpc,driver>=570,driver<571 brand=vcs,driver>=570,driver<571 brand=vws,driver>=570,driver<571 brand=cloudgaming,driver>=570,driver<571 brand=unknown,driver>=575,driver<576 brand=grid,driver>=575,driver<576 brand=tesla,driver>=575,driver<576 brand=nvidia,driver>=575,driver<576 brand=quadro,driver>=575,driver<576 brand=quadrortx,driver>=575,driver<576 brand=nvidiartx,driver>=575,driver<576 brand=vapps,driver>=575,driver<576 brand=vpc,driver>=575,driver<576 brand=vcs,driver>=575,driver<576 brand=vws,driver>=575,driver<576 brand=cloudgaming,driver>=575,driver<576",
+  "-e",
+  "NVIDIA_VISIBLE_DEVICES=all",
+  "-e",
+  "NV_CUDA_CUDART_VERSION=13.0.96-1",
+  "-e",
+  "PATH=/usr/local/nvidia/bin:/usr/local/cuda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+  "-e",
+  "PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True",
+  "-e",
+  "TILELANG_CACHE_DIR=/root/.cache/tilelang",
+  "-e",
+  "TILELANG_TMP_DIR=/root/.cache/tilelang/tmp",
+  "-e",
+  "TORCH_CUDA_ARCH_LIST=12.1a",
+  "-e",
+  "TORCH_NCCL_ASYNC_ERROR_HANDLING=1",
+  "-e",
+  "TRANSFORMERS_OFFLINE=1",
+  "-e",
+  "UV_CACHE_DIR=/opt/uv/cache",
+  "-e",
+  "UV_HTTP_TIMEOUT=500",
+  "-e",
+  "UV_INDEX_STRATEGY=unsafe-best-match",
+  "-e",
+  "UV_LINK_MODE=copy",
+  "-e",
+  "UV_OVERRIDE=/etc/uv-overrides.txt",
+  "-e",
+  "UV_PYTHON_INSTALL_DIR=/opt/uv/python",
+  "-e",
+  "VLLM_BUILD_COMMIT=98dff2a81d747d1dba01a47f939f48c3526d4206",
+  "-e",
+  "VLLM_BUILD_PIPELINE=local-glm53-backport",
+  "-e",
+  "VLLM_BUILD_URL=",
+  "-e",
+  "VLLM_CACHE_ROOT=/root/.cache/vllm",
+  "-e",
+  "VLLM_DISABLE_SHARED_EXPERTS_STREAM=0",
+  "-e",
+  "VLLM_ENABLE_CUDA_COMPATIBILITY=0",
+  "-e",
+  "VLLM_ENGINE_READY_TIMEOUT_S=3600",
+  "-e",
+  "VLLM_GLM53_CUDA_SPARSE_MLA=1",
+  "-e",
+  "VLLM_GLM53_DFLASH2_EDGE_SCALE=1.0",
+  "-e",
+  "VLLM_GLM53_DFLASH2_WALK=greedy",
+  "-e",
+  "VLLM_GLM53_DUAL_FP8_DECODE=nvfp4",
+  "-e",
+  "VLLM_GLM53_DUAL_FP8_DECODE_FP8_FAMILIES=shared_down,indexer,head",
+  "-e",
+  "VLLM_GLM53_DUAL_FP8_DECODE_KERNEL=marlin",
+  "-e",
+  "VLLM_GLM53_DUAL_FP8_DENSE=default,head,draft,shared_down,indexer",
+  "-e",
+  "VLLM_GLM53_DUAL_FP8_GEMV_CONFIG=",
+  "-e",
+  "VLLM_GLM53_DUAL_FP8_PREFILL=w8a8",
+  "-e",
+  "VLLM_GLM53_GROUPED_ROUTER_SKIP_PADDING=0",
+  "-e",
+  "VLLM_GLM53_ROUTER_DEDUP=1",
+  "-e",
+  "VLLM_GLM53_ROUTER_GATE_TRITON=0",
+  "-e",
+  "VLLM_GLM53_SPARSE_MLA_SUBGROUP_SOFTMAX=0",
+  "-e",
+  "VLLM_GLM53_TP2_ALLREDUCE=p2p",
+  "-e",
+  "VLLM_GLM53_TP2_ALLREDUCE_MAX_BYTES=262144",
+  "-e",
+  "VLLM_GLM53_V2_ASYNC_TP_EXPERIMENTAL=0",
+  "-e",
+  "VLLM_GLM53_V2_SP_EXPERIMENTAL=0",
+  "-e",
+  "VLLM_IMAGE_TAG=local/glm53-v029:ported-20260910",
+  "-e",
+  "VLLM_KV_CACHE_LAYOUT_DUMP=1",
+  "-e",
+  "VLLM_LOGGING_LEVEL=INFO",
+  "-e",
+  "VLLM_PLUGINS=glm53_sparse_mla",
+  "-e",
+  "VLLM_USAGE_SOURCE=production-docker-image",
+  "-e",
+  "VLLM_USE_B12X_MHC=0",
+  "-e",
+  "VLLM_USE_V2_MODEL_RUNNER=1",
+  "-e",
+  "XDG_CACHE_HOME=/root/.cache",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/chat_template_mm.jinja,dst=/chat_template_mm.jinja,readonly",
+  "--mount",
+  "type=bind,src=${SWITCHLESS_HF_CACHE_DIR},dst=/cache",
+  "--mount",
+  "type=bind,src=${SWITCHLESS_JIT_CACHE_DIR},dst=/root/.cache",
+  "--mount",
+  "type=bind,src=${SWITCHLESS_MODEL_DIR},dst=/models/target,readonly",
+  "--mount",
+  "type=bind,src=${SWITCHLESS_TOKENIZER_FILE},dst=/models/target/tokenizer.json,readonly",
+  "--mount",
+  "type=bind,src=${SWITCHLESS_DRAFTER_REPO_DIR},dst=/models/dflash2-repo,readonly",
+  "-e",
+  "NCCL_IB_EXTENDED_IPV4_GIDS=1",
+  "-e",
+  "NCCL_IB_PRESERVE_PCI_DOMAIN=1",
+  "-e",
+  "NCCL_IB_ROUTE_DIAGNOSTICS=1",
+  "-e",
+  "NCCL_DEBUG_SUBSYS=INIT,NET",
+  "-e",
+  "B12X_TP4_CLUSTER_MAP={\"15\":32,\"20\":32,\"25\":32,\"30\":32}",
+  "-e",
+  "INSTANTTENSOR_BACKEND=URING",
+  "-e",
+  "INSTANTTENSOR_DEBUG=1",
+  "--security-opt",
+  "seccomp=unconfined",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_impl.py,dst=/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_impl.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/b12x/moe/_shared/kernels/dynamic.py,dst=/usr/local/lib/python3.12/dist-packages/b12x/moe/_shared/kernels/dynamic.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_tile_major.py,dst=/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_tile_major.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_cluster_candidate.py,dst=/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_cluster_candidate.py,readonly",
+  "-e",
+  "B12X_TP4_TILE_MAJOR_WEIGHTS=1",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tilelang.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tilelang.py,readonly",
+  "-e",
+  "GLM53_TP4_MHC_GEOMETRY=1",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/graphs.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_speedup/graphs.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/telemetry.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_speedup/telemetry.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/async_utils.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/async_utils.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py,readonly",
+  "-e",
+  "GLM53_SPEEDUP_FAIR_COST_JOINT=0",
+  "-e",
+  "GLM53_SPEEDUP_PREFILL_ADAPTIVE=1",
+  "-e",
+  "GLM53_SPEEDUP_SPLIT_CADENCE=1",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/cadence.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_speedup/cadence.py,readonly",
+  "-e",
+  "GLM53_SPEEDUP_SPLIT_ADAPTIVE=0",
+  "-e",
+  "GLM53_SPEEDUP_SPLIT_FAIR=1",
+  "-e",
+  "GLM53_PREFIX_CACHE_CONTRACT=1",
+  "-e",
+  "GLM53_ADAPTIVE_FAIR_CHUNK=1",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/adaptive_chunk.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_speedup/adaptive_chunk.py,readonly",
+  "-e",
+  "GLM53_SPEEDUP_CAPTURE_KS=1,2,3,4,5,6,7",
+  "-e",
+  "GLM53_SPEEDUP_CAPTURE_REQUESTS=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16",
+  "-e",
+  "GLM53_SPEEDUP_GEOMETRY=1",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/geometry.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_speedup/geometry.py,readonly",
+  "-e",
+  "GLM53_HUMMING_DENSE=shared_down",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/humming,dst=/usr/local/lib/python3.12/dist-packages/humming,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/humming_kernels-0.1.12.dist-info,dst=/usr/local/lib/python3.12/dist-packages/humming_kernels-0.1.12.dist-info,readonly",
+  "-e",
+  "GLM53_MHC_PREFILL_SHARD=1",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/linear.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/linear.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/mla.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/mla.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/common/ops/glm53_qnorm_fp8.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/models/common/ops/glm53_qnorm_fp8.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/attention.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/attention.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/mhc_prefill_sharding.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/mhc_prefill_sharding.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/model.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/model.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_lean_allreduce,dst=/usr/local/lib/python3.12/dist-packages/glm53_lean_allreduce,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/distributed/device_communicators/cuda_communicator.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/distributed/device_communicators/cuda_communicator.py,readonly",
+  "-e",
+  "VLLM_GLM53_TP4_LEAN_ALLREDUCE=lean",
+  "-e",
+  "VLLM_GLM53_TP4_LEAN_MAX_BYTES=2097152",
+  "-e",
+  "GLM53_MHC_PREFILL_MIN_ROWS=2304",
+  "-e",
+  "GLM53_INDEXER_GATE_TC=1",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so,dst=/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so,readonly",
+  "-e",
+  "GLM53_SPARSE_MLA_SPLIT_KV=1",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/deterministic_sparse_topk.py,dst=/usr/local/lib/python3.12/dist-packages/deterministic_sparse_topk.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/attention/mla_attention.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/attention/mla_attention.py,readonly",
+  "-e",
+  "GLM53_MLA_ABSORB_CHUNK=2304",
+  "-e",
+  "GLM53_HUMMING_NVFP4_M128=mla_qb,kda_in,attn_out,shared",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/config/vllm.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/config/vllm.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/recoverssm.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/recoverssm.py,readonly",
+  "-e",
+  "GLM53_LEAN_CHUNKS=2",
+  "-e",
+  "GLM53_LEAN_CHUNK_MIN_BYTES=262144",
+  "-e",
+  "B12X_GLM53_M128_MMA_WARPS=8",
+  "-e",
+  "GLM53_MHC_POST_PRENORM_FUSED=1",
+  "-e",
+  "GLM53_MHC_POST_PRENORM_MIN_ROWS=1152",
+  "-e",
+  "GLM53_MHC_POST_PRENORM_BLOCK_ROWS=432",
+  "-e",
+  "GLM53_MHC_POST_PRENORM_SPLIT=fill",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/opt/glm53_fp8_gemm/glm53_fp8_gemm.so,dst=/opt/glm53_fp8_gemm/glm53_fp8_gemm.so,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_kda_conv.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_kda_conv.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_prefill_rdma,dst=/usr/local/lib/python3.12/dist-packages/glm53_prefill_rdma,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/backend.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/backend.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/linear/nvfp4/b12x.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/linear/nvfp4/b12x.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/b12x.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/b12x.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda_fp8_handoff.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda_fp8_handoff.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py,readonly",
+  "-e",
+  "B12X_GLM53_MIXED_SPLIT=1",
+  "-e",
+  "B12X_GLM53_MIXED_SPLIT_MIN_PREFILL=1536",
+  "-e",
+  "B12X_GLM53_PREFILL_PREFETCH=2a",
+  "-e",
+  "GLM53_B12X_KDA_DIRECT_OUT=1",
+  "-e",
+  "GLM53_DENSE_CHUNK_ROWS=kda_in:3456,draft:2048:4096",
+  "-e",
+  "GLM53_DENSE_FP8_GEMM=kda_in=p64x128x128/2/1@129-1024,kda_in=p128x128x64/4/0@1025-3000,kda_in=vllm128/4/1@3001-6000,attn_out=p128x128x64/2/0@1025,mla_a=p64x128x128/2/1@129-1024,mla_a=vllm128/4/0@1025,mla_qb=p128x128x64/4/0@1025,indexer=p128x128x64/4/0@1025,shared=c256x128x64/1/0@6001,shared_down=p128x128x64/4/0@129",
+  "-e",
+  "GLM53_DENSE_SHARED_QUANT=mla_qnorm>mla_qb,mla_qb>indexer,kda_onorm>attn_out",
+  "-e",
+  "GLM53_EMBED_REPLICATE=1",
+  "-e",
+  "GLM53_FP8_GEMM_SO=/opt/glm53_fp8_gemm/glm53_fp8_gemm.so",
+  "-e",
+  "GLM53_INDEXER_FUSED_PROJ=1073741824",
+  "-e",
+  "GLM53_KDA_CONTIGUOUS_MIXED=1",
+  "-e",
+  "GLM53_KDA_CONV_FUSED=1",
+  "-e",
+  "GLM53_KDA_CONV_FUSED_MIN_ROWS=512",
+  "-e",
+  "GLM53_KDA_FP8_HANDOFF=1",
+  "-e",
+  "GLM53_KDA_FP8_HANDOFF_GATHER=two",
+  "-e",
+  "GLM53_KDA_FP8_HANDOFF_MIN_ROWS=2304",
+  "-e",
+  "GLM53_KDA_FP8_HANDOFF_RING=1",
+  "-e",
+  "GLM53_KDA_FP8_HANDOFF_TUNED=1",
+  "-e",
+  "GLM53_KDA_ONORM_FP8=2",
+  "-e",
+  "GLM53_MLA_QNORM_FP8=2",
+  "-e",
+  "GLM53_MHC_PREFILL_RDMA=1",
+  "-e",
+  "GLM53_MHC_PREFILL_RDMA_MIN_ROWS=2304",
+  "-e",
+  "GLM53_MHC_PRE_BLOCKED=1",
+  "-e",
+  "GLM53_NVFP4_DENSE_CHUNK_MIN_ROWS=9216",
+  "-e",
+  "GLM53_NVFP4_DENSE_CHUNK_MODE=out",
+  "-e",
+  "GLM53_NVFP4_DENSE_CHUNK_ROWS=4608",
+  "-e",
+  "GLM53_RECOVERSSM_FUSED_COMMIT=1",
+  "-e",
+  "GLM53_TOPK_SMALL_ROWS=0",
+  "-e",
+  "VLLM_NO_USAGE_STATS=1",
+  "-e",
+  "DO_NOT_TRACK=1",
+  "-e",
+  "B12X_GLM53_ATOMIC_DECODE_MIN_ROWS=10",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py,readonly",
+  "-e",
+  "GLM53_SPARSE_MLA_IDX_PIPE=1",
+  "-e",
+  "GLM53_SPARSE_MLA_VALID_COLS=2051",
+  "-e",
+  "GLM53_STARTUP_PREFILL_WARMUP=17",
+  "-e",
+  "GLM53_STARTUP_PREFILL_WARMUP_TOKENS=28672,28672,1152,2304,2816,3328,3456,4608,5120,6656,8192,10240,13304,14456,14720,15104,15488",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_kda_ckpt.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_kda_ckpt.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_kda_ckpt_plan.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_kda_ckpt_plan.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/core/single_type_kv_cache_manager.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/core/single_type_kv_cache_manager.py,readonly",
+  "-e",
+  "GLM53_KDA_CKPT=1",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda_state_store.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda_state_store.py,readonly",
+  "-e",
+  "GLM53_KDA_STATE=fp16-slow32",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_greedy_verify.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_greedy_verify.py,readonly",
+  "-e",
+  "GLM53_GREEDY_ARGMAX_VERIFY=1",
+  "-e",
+  "GLM53_GREEDY_ARGMAX_LOG_EVERY=500",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_replay_boundary.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_replay_boundary.py,readonly",
+  "-e",
+  "GLM53_REPLAY_BOUNDARY=1",
+  "-e",
+  "GLM53_REPLAY_BOUNDARY_MAX=16",
+  "-e",
+  "GLM53_SPEEDUP_FIRST_TOKEN_REPAY=1",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/core/kv_cache_utils.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/core/kv_cache_utils.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/sparse_attn_indexer_kpool.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/sparse_attn_indexer_kpool.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/sample/ops/topk_topp_triton.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/sample/ops/topk_topp_triton.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/sampler.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/sampler.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_utf8_guard.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_utf8_guard.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/gumbel.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/gumbel.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py,dst=/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py,readonly",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/nvfp4_topk_rowspread,dst=/usr/local/lib/python3.12/dist-packages/nvfp4_topk_rowspread,readonly",
+  "-e",
+  "GLM53_INDEXER_POOL_LOGITS=1",
+  "-e",
+  "GLM53_INDEXER_ROW_SPLIT=1",
+  "-e",
+  "GLM53_TOPK_ROWSPREAD=1",
+  "-e",
+  "GLM53_TOPP_FIX=1",
+  "-e",
+  "GLM53_UTF8_GUARD=1",
+  "-e",
+  "GLM53_UTF8_GUARD_TOKENIZER=/models/target/tokenizer.json",
+  "--mount",
+  "type=bind,src=${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_indexer_rowsplit.py,dst=/usr/local/lib/python3.12/dist-packages/glm53_indexer_rowsplit.py,readonly",
+  "sha256:017fd0ba0a265dd81b78b352b14d33df03e9996f8f45870d4c3df84e08b1ebcb",
+  "/models/target",
+  "--served-model-name",
+  "nvidia/GLM-5.3-Flash-NVFP4",
+  "--trust-remote-code",
+  "--tensor-parallel-size",
+  "4",
+  "--gpu-memory-utilization",
+  "0.87",
+  "--max-model-len",
+  "262144",
+  "--max-num-seqs",
+  "16",
+  "--max-num-batched-tokens",
+  "14336",
+  "--block-size",
+  "2304",
+  "--kda-prefill-backend",
+  "b12x",
+  "--moe-backend",
+  "b12x",
+  "--linear-backend",
+  "b12x",
+  "--attention-config",
+  "{\"backend_per_kind\":{\"sliding_window\":\"FLASHINFER\"},\"use_trtllm_attention\":true}",
+  "--speculative-config",
+  "{\"method\":\"dflash\",\"model\":\"/models/dflash2-repo/snapshots/7d74cdd881ed7e32c31175984a67823127b66cfe\",\"num_speculative_tokens\":7,\"kv_cache_dtype\":\"auto\"}",
+  "--kv-cache-memory",
+  "34359738368",
+  "--kv-cache-dtype",
+  "fp8_e4m3",
+  "--no-async-scheduling",
+  "--prefix-cache-retention-interval",
+  "2304",
+  "--compilation-config",
+  "{\"mode\":3,\"cudagraph_capture_sizes\":[8,16,24,32,40,48,56,64,72,80,88,96,104,112,120,128],\"compile_sizes\":[8]}",
+  "--tool-call-parser",
+  "glm53",
+  "--enable-auto-tool-choice",
+  "--reasoning-parser",
+  "glm53",
+  "--default-chat-template-kwargs",
+  "{\"clear_thinking\": true}",
+  "--override-generation-config",
+  "{\"top_p\":0.95}",
+  "--chat-template",
+  "/chat_template_mm.jinja",
+  "--limit-mm-per-prompt",
+  "{\"image\":4,\"video\":1}",
+  "--skip-mm-profiling",
+  "--distributed-executor-backend",
+  "mp",
+  "--nnodes",
+  "4",
+  "--node-rank",
+  "${RANK}",
+  "--master-addr",
+  "${SWITCHLESS_MASTER_ADDR}",
+  "--master-port",
+  "${SWITCHLESS_MASTER_PORT}",
+  "${ROLE_ARGS}",
+  "--per-request-spec-decode-metrics",
+  "detailed",
+  "--kernel-config",
+  "{\"enable_flashinfer_autotune\":false}",
+  "--cudagraph-metrics",
+  "--kv-cache-metrics",
+  "--enable-prompt-tokens-details",
+  "--enable-per-request-metrics",
+  "--profiler-config",
+  "{\"profiler\": \"torch\", \"torch_profiler_dir\": \"/profiles\", \"torch_profiler_with_stack\": false, \"torch_profiler_record_shapes\": false, \"torch_profiler_with_memory\": false, \"capture_torch_profiler\": false, \"detailed_trace_annotation\": true, \"ignore_frontend\": true, \"delay_iterations\": 0, \"max_iterations\": 0}",
+  "--load-format",
+  "instanttensor",
+  "--use-replayssm"
+ ],
+ "role_args": {
+  "head": [
+   "--host",
+   "0.0.0.0",
+   "--port",
+   "${SWITCHLESS_API_PORT}"
+  ],
+  "worker": [
+   "--headless"
+  ]
+ },
+ "mounts": {
+  "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/kpool_compress.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/kpool_compress.py",
+   "readonly": true
+  },
+  "/opt/switchless-nccl": {
+   "source": "${OVERLAY_ROOT}/opt/switchless-nccl",
+   "readonly": true
+  },
+  "/profiles": {
+   "source": "${SWITCHLESS_PROFILES_DIR}",
+   "readonly": false
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/sched/scheduler.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/core/sched/scheduler.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_speedup/scheduler.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/scheduler.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_speedup/fair_prefill.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/fair_prefill.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_speedup/policy.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/policy.py",
+   "readonly": true
+  },
+  "/opt/glm53-speedup/runtime": {
+   "source": "${OVERLAY_ROOT}/opt/glm53-speedup/runtime",
+   "readonly": true
+  },
+  "/chat_template_mm.jinja": {
+   "source": "${OVERLAY_ROOT}/chat_template_mm.jinja",
+   "readonly": true
+  },
+  "/cache": {
+   "source": "${SWITCHLESS_HF_CACHE_DIR}",
+   "readonly": false
+  },
+  "/root/.cache": {
+   "source": "${SWITCHLESS_JIT_CACHE_DIR}",
+   "readonly": false
+  },
+  "/models/target": {
+   "source": "${SWITCHLESS_MODEL_DIR}",
+   "readonly": true
+  },
+  "/models/target/tokenizer.json": {
+   "source": "${SWITCHLESS_TOKENIZER_FILE}",
+   "readonly": true
+  },
+  "/models/dflash2-repo": {
+   "source": "${SWITCHLESS_DRAFTER_REPO_DIR}",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_impl.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_impl.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/b12x/moe/_shared/kernels/dynamic.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/b12x/moe/_shared/kernels/dynamic.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_tile_major.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_tile_major.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_cluster_candidate.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/_tp4_cluster_candidate.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tilelang.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/mhc/tilelang.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_speedup/graphs.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/graphs.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_speedup/telemetry.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/telemetry.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/async_utils.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/async_utils.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/model_runner.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_speedup/cadence.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/cadence.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_speedup/adaptive_chunk.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/adaptive_chunk.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_speedup/geometry.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_speedup/geometry.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/quantization/glm53_dual_fp8_dense.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/humming": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/humming",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/humming_kernels-0.1.12.dist-info": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/humming_kernels-0.1.12.dist-info",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/linear.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/linear.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/mla.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/mla.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/models/common/ops/glm53_qnorm_fp8.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/common/ops/glm53_qnorm_fp8.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/attention.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/attention.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/mhc_prefill_sharding.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/mhc_prefill_sharding.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/model.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/model.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_lean_allreduce": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_lean_allreduce",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/distributed/device_communicators/cuda_communicator.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/distributed/device_communicators/cuda_communicator.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/_C.cpython-312-aarch64-linux-gnu.so",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/deterministic_sparse_topk.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/deterministic_sparse_topk.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/attention/mla_attention.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/attention/mla_attention.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/config/vllm.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/config/vllm.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/recoverssm.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/recoverssm.py",
+   "readonly": true
+  },
+  "/opt/glm53_fp8_gemm/glm53_fp8_gemm.so": {
+   "source": "${OVERLAY_ROOT}/opt/glm53_fp8_gemm/glm53_fp8_gemm.so",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_kda_conv.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_kda_conv.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_prefill_rdma": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_prefill_rdma",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/backend.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_sparse_mla/backend.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/linear/nvfp4/b12x.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/kernels/linear/nvfp4/b12x.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/b12x.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/b12x.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda_fp8_handoff.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda_fp8_handoff.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/ops/glm53_onorm_fp8.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/entrypoints/launchers/api_server/entry.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu_worker.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_kda_ckpt.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_kda_ckpt.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_kda_ckpt_plan.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_kda_ckpt_plan.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/single_type_kv_cache_manager.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/core/single_type_kv_cache_manager.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda_state_store.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/kda_state_store.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_greedy_verify.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_greedy_verify.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_replay_boundary.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_replay_boundary.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/core/kv_cache_utils.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/core/kv_cache_utils.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/sparse_attn_indexer_kpool.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/sparse_attn_indexer_kpool.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/sample/ops/topk_topp_triton.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/sample/ops/topk_topp_triton.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/sampler.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/sampler.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_utf8_guard.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_utf8_guard.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/gumbel.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/sample/gumbel.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler_utils.py",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/nvfp4_topk_rowspread": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/nvfp4_topk_rowspread",
+   "readonly": true
+  },
+  "/usr/local/lib/python3.12/dist-packages/glm53_indexer_rowsplit.py": {
+   "source": "${OVERLAY_ROOT}/usr/local/lib/python3.12/dist-packages/glm53_indexer_rowsplit.py",
+   "readonly": true
+  }
+ },
+ "site_variables": [
+  "SWITCHLESS_API_PORT",
+  "SWITCHLESS_CONTAINER_NAME",
+  "SWITCHLESS_DRAFTER_REPO_DIR",
+  "SWITCHLESS_FABRIC_CIDR",
+  "SWITCHLESS_HF_CACHE_DIR",
+  "SWITCHLESS_IB_HCA",
+  "SWITCHLESS_JIT_CACHE_DIR",
+  "SWITCHLESS_MASTER_ADDR",
+  "SWITCHLESS_MASTER_PORT",
+  "SWITCHLESS_MODEL_DIR",
+  "SWITCHLESS_PROFILES_DIR",
+  "SWITCHLESS_RANK_HOST_IP",
+  "SWITCHLESS_SOCKET_IFNAME",
+  "SWITCHLESS_TOKENIZER_FILE"
+ ],
+ "overlay": "sources/installed-files.json#tp4"
+}

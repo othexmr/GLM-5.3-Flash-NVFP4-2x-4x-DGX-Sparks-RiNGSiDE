@@ -1,0 +1,118 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/distributed/device_communicators/cuda_communicator.py
+Preimage:    sha256 18e9748d77a0eb173cfd9d8591a3b6ed37b46fb60fc3199d3ff0c8b593a01a40
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    the running image communicator was recorded as 18e9748d by the lab lean all-reduce work; equals the v0.29.0 port source tree
+Postimage:   sha256 939507b1332e44dd4d5136e0aff318733738ef81be5006cecef6a2decdbbdd99 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/distributed/device_communicators/cuda_communicator.py b/vllm/distributed/device_communicators/cuda_communicator.py
+index 184f328b040e436c2f86d68b9f2c25d5729dceab..6680ba13a59e7c514818a63b0050fbf7c702948e 100644
+--- a/vllm/distributed/device_communicators/cuda_communicator.py
++++ b/vllm/distributed/device_communicators/cuda_communicator.py
+@@ -1,8 +1,11 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in TP4 small all-reduce through the glm53_lean_allreduce RDMA
++# package (VLLM_GLM53_TP4_LEAN_ALLREDUCE), with a rank-voted NCCL fallback.
+ 
+ 
+ import torch
++import torch.distributed as _glm53_dist
+ from torch.distributed import ProcessGroup
+ 
+ import vllm.envs as envs
+@@ -44,6 +47,16 @@ _GLM53_TP2_MAX_BYTES = int(
+ _GLM53_TP2_LOG_CALLS = int(_glm53_os.environ.get("VLLM_GLM53_TP2_ALLREDUCE_LOG_CALLS", "4"))
+ _glm53_logger = _glm53_logging.getLogger(__name__)
+ 
++# TP4 neighbour RDMA experiment. The selector is default-off in the image;
++# only the candidate plan below sets it to "lean".
++_GLM53_TP4_LEAN_MODE = _glm53_os.environ.get(
++    "VLLM_GLM53_TP4_LEAN_ALLREDUCE", "off"
++).strip().lower()
++if _GLM53_TP4_LEAN_MODE not in ("off", "lean"):
++    raise ValueError("VLLM_GLM53_TP4_LEAN_ALLREDUCE must be off or lean")
++_GLM53_TP4_LEAN_MAX_BYTES = int(_glm53_os.environ.get(
++    "VLLM_GLM53_TP4_LEAN_MAX_BYTES", "262144"))
++
+ 
+ class _Glm53Tp2Exchange:
+     """Two-rank replacement for a small all-reduce on a PyNcclCommunicator.
+@@ -165,6 +178,41 @@ class _Glm53Tp2Exchange:
+ 
+ 
+ class CudaCommunicator(DeviceCommunicatorBase):
++    def _glm53_tp4_lean_setup(self):
++        """Vote setup errors across TP ranks before deciding on NCCL fallback."""
++        from torch.distributed.distributed_c10d import _world
++        if _world.pg_map.get(self.cpu_group, None) is None:
++            _glm53_logger.warning("TP4 lean requires a registered CPU process group; NCCL fallback")
++            return None
++        runtime = None
++        error = None
++        try:
++            from glm53_lean_allreduce import LeanTp4AllReduce
++        except Exception as exc:
++            error = f"import: {exc!r}"
++        statuses = [None] * self.world_size
++        _glm53_dist.all_gather_object(statuses, error, group=self.cpu_group)
++        if any(statuses):
++            _glm53_logger.warning("TP4 lean import failed; NCCL fallback: %s", statuses)
++            return None
++        try:
++            runtime = LeanTp4AllReduce(
++                self.cpu_group, device=self.device,
++                max_bytes=_GLM53_TP4_LEAN_MAX_BYTES, fatal_on_error=True)
++            runtime.prepare((torch.bfloat16, torch.float16, torch.float32))
++        except Exception as exc:
++            error = f"setup or compilation: {exc!r}"
++        statuses = [None] * self.world_size
++        _glm53_dist.all_gather_object(statuses, error, group=self.cpu_group)
++        if any(statuses):
++            if runtime is not None:
++                runtime.close()
++            _glm53_logger.warning("TP4 lean setup failed; NCCL fallback: %s", statuses)
++            return None
++        _glm53_logger.info("TP4 lean all-reduce active max_bytes=%d rank=%d",
++                           _GLM53_TP4_LEAN_MAX_BYTES, runtime.rank)
++        return runtime
++
+     def _glm53_tp2_exchange(self, pynccl_comm):
+         """GLM-5.3 lane: lazily built two-rank exchange (None when inactive)."""
+         state = self.__dict__.get("_glm53_tp2_state", None)
+@@ -243,6 +291,12 @@ class CudaCommunicator(DeviceCommunicatorBase):
+             if is_symmetric_memory_enabled():
+                 register_nccl_symmetric_ops(self.pynccl_comm)
+ 
++        self._glm53_tp4_lean = None
++        if (_GLM53_TP4_LEAN_MODE == "lean" and self.world_size == 4
++                and "tp" in unique_name and self.pynccl_comm is not None
++                and not self.pynccl_comm.disabled):
++            self._glm53_tp4_lean = self._glm53_tp4_lean_setup()
++
+         self.ca_comm: CustomAllreduce | None = None
+         self.qr_comm: QuickAllReduce | None = None
+         self.symm_mem_comm: SymmMemCommunicator | None = None
+@@ -486,6 +540,9 @@ class CudaCommunicator(DeviceCommunicatorBase):
+             torch.distributed.all_reduce(out, group=self.device_group)
+             return out
+         assert pynccl_comm is not None
++        lean = self._glm53_tp4_lean
++        if lean is not None and lean.should_allreduce(input_):
++            return lean.all_reduce(input_)
+         # GLM-5.3 Flash NVFP4 lane: VLLM_GLM53_TP2_ALLREDUCE=p2p|ag replaces the two-rank
+         # all-reduce of small messages with one send/recv pair (or one all-gather) and a
+         # local add on the same pynccl communicator and stream. Default nccl = unchanged.
+@@ -739,6 +796,9 @@ class CudaCommunicator(DeviceCommunicatorBase):
+             raise ValueError("No PyNCCL communicator found")
+ 
+     def destroy(self):
++        if self._glm53_tp4_lean is not None:
++            self._glm53_tp4_lean.close()
++            self._glm53_tp4_lean = None
+         if self.pynccl_comm is not None:
+             self.pynccl_comm.destroy()
+             self.pynccl_comm = None

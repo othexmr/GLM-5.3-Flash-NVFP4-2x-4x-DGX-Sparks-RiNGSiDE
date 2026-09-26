@@ -1,0 +1,6 @@
+# Build environment of humming-kernels 0.1.15 for the TP4 profile (build/humming/README.md).
+# Install these into the build virtual environment first, then build with --no-build-isolation, so that pip does not
+# fetch unpinned build requirements (humming's pyproject.toml asks for setuptools, wheel and setuptools_scm>=8).
+setuptools==84.0.0        # the served dist-info WHEEL file reads "Generator: setuptools (84.0.0)"
+setuptools-scm==8.1.0     # the lab build did not record its version; pinned so that rebuilds agree with each other
+wheel==0.45.1             # the lab build did not record its version

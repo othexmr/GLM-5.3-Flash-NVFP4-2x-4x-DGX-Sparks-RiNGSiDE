@@ -1,0 +1,112 @@
+--- a/vllm/entrypoints/openai/responses/streaming_events.py
++++ b/vllm/entrypoints/openai/responses/streaming_events.py
+@@ -818,6 +818,9 @@
+     current_item_id: str = ""
+     content_index: int = 0
+     accumulated_text: str = ""
++    accumulated_logprobs: list[response_text_delta_event.Logprob] = field(
++        default_factory=list
++    )
+     tool_call_id: str = ""
+     tool_call_name: str = ""
+     tool_call_namespace: str | None = None
+@@ -833,6 +836,7 @@
+     state.current_item_id = random_uuid()
+     state.content_index = 0
+     state.accumulated_text = ""
++    state.accumulated_logprobs = []
+     return [
+         ResponseOutputItemAddedEvent(
+             type="response.output_item.added",
+@@ -868,6 +872,7 @@
+     logprobs: list[response_text_delta_event.Logprob] | None = None,
+ ) -> list[StreamingResponsesResponse]:
+     state.accumulated_text += delta
++    state.accumulated_logprobs.extend(logprobs or [])
+     return [
+         ResponseTextDeltaEvent(
+             type="response.output_text.delta",
+@@ -888,6 +893,20 @@
+         type="output_text",
+         text=state.accumulated_text,
+         annotations=[],
++        logprobs=[
++            dict(
++                logprob.model_dump(),
++                bytes=list(logprob.token.encode("utf-8", errors="replace")),
++                top_logprobs=[
++                    dict(
++                        top.model_dump(),
++                        bytes=list(top.token.encode("utf-8", errors="replace")),
++                    )
++                    for top in logprob.top_logprobs or []
++                ],
++            )
++            for logprob in state.accumulated_logprobs
++        ],
+     )
+     events: list[StreamingResponsesResponse] = [
+         ResponseTextDoneEvent(
+@@ -896,7 +915,7 @@
+             output_index=state.output_index,
+             content_index=state.content_index,
+             text=state.accumulated_text,
+-            logprobs=[],
++            logprobs=[logprob.model_dump() for logprob in state.accumulated_logprobs],
+             item_id=state.current_item_id,
+         ),
+         ResponseContentPartDoneEvent(
+@@ -1113,11 +1132,12 @@
+ 
+ 
+ def split_delta(delta: DeltaMessage) -> list[DeltaMessage]:
+-    """Decompose a DeltaMessage with multiple fields into atomic deltas.
+-
+-    The Responses API emits typed SSE events (one type per event), so a
+-    compound DeltaMessage must be split before entering the state machine.
+-    Order: reasoning -> content -> tool_calls (grouped by index).
++    """Decompose compound deltas without closing an active tool before its tail.
++
++    Nameless tool groups continue an already-open call. Emit those before
++    post-tool reasoning/content, then emit groups that introduce new calls.
++    A nameless orphan is still rejected by the event processor; never invent
++    a function name or attach it to a different call.
+     """
+     has_reasoning = delta.reasoning is not None
+     has_content = delta.content is not None
+@@ -1130,17 +1150,29 @@
+     ):
+         return [delta]
+ 
+-    deltas: list[DeltaMessage] = []
+-    if has_reasoning:
+-        deltas.append(DeltaMessage(reasoning=delta.reasoning))
+-    if has_content:
+-        deltas.append(DeltaMessage(content=delta.content))
++    continuations: list[DeltaMessage] = []
++    new_calls: list[DeltaMessage] = []
+     if has_tools:
+         groups: dict[int | None, list[DeltaToolCall]] = {}
+         for tc in delta.tool_calls:
+             groups.setdefault(tc.index, []).append(tc)
+         for tcs in groups.values():
+-            deltas.append(DeltaMessage(tool_calls=tcs))
++            target = (
++                new_calls
++                if any(
++                    tc.function is not None and tc.function.name is not None
++                    for tc in tcs
++                )
++                else continuations
++            )
++            target.append(DeltaMessage(tool_calls=tcs))
++
++    deltas = continuations
++    if has_reasoning:
++        deltas.append(DeltaMessage(reasoning=delta.reasoning))
++    if has_content:
++        deltas.append(DeltaMessage(content=delta.content))
++    deltas.extend(new_calls)
+     return deltas or [delta]
+ 
+ 

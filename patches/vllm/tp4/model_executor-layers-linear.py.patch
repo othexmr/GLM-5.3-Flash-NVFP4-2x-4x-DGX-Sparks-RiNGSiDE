@@ -1,0 +1,45 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/linear.py
+Preimage:    sha256 40cc7ebbb2a34785995e3a497637e337a8536bef2d8dd55eeb0c270f51d619e1
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    sha256 read from the image top layer on a node (mHC prefill base manifest, 2026-09-23)
+Postimage:   sha256 6361ac6ace4f474c303e9c15d297f5c9409b749d2be16c30989bc89a38e43ab0 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Attribution: sparkring-mhc (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/model_executor/layers/linear.py b/vllm/model_executor/layers/linear.py
+index 3ced54f19e3fcd83e42b442ac3e3d427b1f3c199..e208be078a92124ab92c666108f343578930729d 100644
+--- a/vllm/model_executor/layers/linear.py
++++ b/vllm/model_executor/layers/linear.py
+@@ -1,5 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): RowParallelLinear.forward can defer its TP all-reduce
++# (defer_tp_reduction; bias-free TP4 only) for the token-sharded mHC prefill.
+ 
+ from abc import abstractmethod
+ from collections.abc import Callable, Iterable
+@@ -1757,7 +1759,12 @@ class RowParallelLinear(LinearBase):
+     def forward(
+         self,
+         input_,
++        *,
++        defer_tp_reduction: bool = False,
+     ) -> torch.Tensor | tuple[torch.Tensor, Parameter | None]:
++        if defer_tp_reduction and (self.tp_size != 4 or not self.reduce_results
++                                   or self.bias is not None):
++            raise RuntimeError("mHC deferral requires a bias-free TP4 reduction")
+         if self.input_is_parallel:
+             input_parallel = input_
+         else:
+@@ -1772,7 +1779,7 @@ class RowParallelLinear(LinearBase):
+         bias_ = None if (self.tp_rank > 0 or self.skip_bias_add) else self.bias
+         output_parallel = self.quant_method.apply(self, input_parallel, bias_)
+ 
+-        if self.reduce_results and self.tp_size > 1:
++        if self.reduce_results and self.tp_size > 1 and not defer_tp_reduction:
+             output = tensor_model_parallel_all_reduce(output_parallel)
+         else:
+             output = output_parallel

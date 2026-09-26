@@ -1,0 +1,13 @@
+{
+  "status": "Deterministic decode fastpath: nine isolated GPU shapes passed exact parity, poison, graph and pair-mapping checks. Full-service qualification is recorded separately.",
+  "files": {
+    "b12x/moe/fused_moe/_impl.py": {
+      "before": "1f189640ad2f1106003abf8a5e84674d47002c2d9de69127cadb9c929966a189",
+      "after": "7bc3c44e507ba53e70898d3baa6a15cda665ac038afe239a8c61869b33832ae6"
+    },
+    "b12x/moe/_shared/kernels/dynamic.py": {
+      "before": "a39e348ffd506197ea5e1b9a46fded2738206af0e65821207623582d21b4c31a",
+      "after": "2ebe82bd221aacf915b4d2cc0b50e52dc77c7b7b73aea720ad17941a85d1a060"
+    }
+  }
+}

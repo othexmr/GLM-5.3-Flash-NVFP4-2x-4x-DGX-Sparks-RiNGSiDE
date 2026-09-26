@@ -1,0 +1,19 @@
+{
+  "LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+  "README.md": "ca4fabc04d805f16b2fbbfe15341611a279eba4f21628bfbbc0d7bd92d507dc5",
+  "build.py": "1a63022d72985ae37fdd55b6dafdaaaadcb1c3ca722784fde83843868ea238ab",
+  "module_template.py": "5364f791351f6d78ca7dde756c1362cb30312c12f3b2a2091db1c6f20d9e420a",
+  "original/csrc/libtorch_stable/persistent_topk.cuh": "28ea5f7ad85252dd797b8d86a69598d05350b8badae3d241d06b410bfb96a682",
+  "original/csrc/libtorch_stable/topk.cu": "2d0288facc79a50569cbd76e4445e8ebf800ed1a495296aa5ac6dba9ad7e8f60",
+  "original/csrc/libtorch_stable/topk_histogram_4096.cuh": "b1c8901d5b580fade9cd57e8d0bd1920c8c36908a8ede174393c20d333231bd3",
+  "original/csrc/libtorch_stable/torch_utils.h": "f619e1943039a67a3254f7e0679e1f3e0faa9d8fccae795f3b20df9e91a8a429",
+  "patch-application.txt": "c5de75ee61cf697f0f6bfaa76089579c9fb37b920d10c6e22e067fd9002bb921",
+  "production-callsite.proposed.patch": "77c7c3e4f3c2b7f48092329cd1b75ecccd7b74713bbca0a502107f494506eb30",
+  "source-manifest.json": "809fd744dec372f7931d39a6cd3e84c20951ad4f398d76ea96c1d8bd2b30e089",
+  "src/bindings.cu": "6b7dc092d74513fc7b29f9a15ae1b70df45f90fa85b81adea899b8e6dddb6208",
+  "src/csrc/libtorch_stable/persistent_topk.cuh": "d098711ce303e5951fbeb2f4a456b02f0f3f2f321f71a064cc383471c6eaf69d",
+  "src/csrc/libtorch_stable/topk.cu": "2d0288facc79a50569cbd76e4445e8ebf800ed1a495296aa5ac6dba9ad7e8f60",
+  "src/csrc/libtorch_stable/topk_histogram_4096.cuh": "994188b08d722f92a91bbb19401846144a08df1bce54f1decbaec3adb1a927e7",
+  "src/csrc/libtorch_stable/torch_utils.h": "f619e1943039a67a3254f7e0679e1f3e0faa9d8fccae795f3b20df9e91a8a429",
+  "upstream-pr55314.diff": "e09d108e2c0f880552092b471622628ba25d6a27ab13ced83ca586e8421886fe"
+}

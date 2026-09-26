@@ -1,0 +1,32 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py
+Preimage:    sha256 189cad01611124eb44594713cbf5918d16fc70196dc81a525ae0a7a97a5fcc51
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)
+Postimage:   sha256 5c21039d7b96225d0d84f3181a37178663af01c2b41d99774b199401dbd408ad (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Attribution: sparkring-mhc (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py b/vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py
+index d579b181562a9bc988ef4257c1b3e50bdc397fc3..1fc2dc2e0ea1c73419bc1b1f8a6330f520d9a9b7 100644
+--- a/vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py
++++ b/vllm/model_executor/layers/fused_moe/runner/moe_runner_interface.py
+@@ -1,5 +1,7 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): forward takes a keyword-only defer_tp_reduction argument
++# (token-sharded mHC prefill).
+ from abc import ABC, abstractmethod
+ from collections.abc import Iterable
+ 
+@@ -37,6 +39,8 @@ class MoERunnerInterface(PluggableLayer, ABC):
+         router_logits: torch.Tensor,
+         input_ids: torch.Tensor | None = None,
+         shared_experts_input: torch.Tensor | None = None,
++        *,
++        defer_tp_reduction: bool = False,
+     ) -> torch.Tensor:
+         raise NotImplementedError
+ 

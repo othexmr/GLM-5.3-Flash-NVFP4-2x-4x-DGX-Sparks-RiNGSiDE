@@ -1,0 +1,305 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
+Preimage:    sha256 6bafcd75ba4ab75b91278fc73669e012e99cda5bd33071258d11e02c1edc98fb
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256
+Postimage:   sha256 e57a899a7eeb9bf436560bce293a7ffedf604e43848309f50cc527860a69cbf6 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/model_executor/layers/sparse_attn_indexer_kpool.py b/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
+index b1c156a11d24c888ff2c844196201597d484923b..e9c984dce57efeff1df440fc22d0815b8928ba97 100644
+--- a/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
++++ b/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
+@@ -1,7 +1,11 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in pool-width decode logits and rowspread top-k selector.
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in prefill indexer row split across TP ranks.
+ """Custom Sparse Attention Indexer layers."""
+ 
++import os
++import sys
+ from typing import TYPE_CHECKING
+ 
+ import torch
+@@ -40,6 +44,25 @@ if current_platform.is_cuda_alike():
+     if current_platform.is_cuda():
+         # Prebuilt repair must load and verify once before profiling/capture.
+         from nvfp4_topk_pr55314 import persistent_topk as _nvfp4_persistent_topk
++
++        # Rowspread selector (ctx1m-topk, 2026-09-25; opt-in, default off):
++        # GLM53_TOPK_ROWSPREAD=1 routes the decode selection to the
++        # nvfp4_topk_rowspread build (the PR55314 host code unchanged; every
++        # row below the radix threshold is taken by one CTA of the whole grid
++        # instead of CTA 0 of its group). Unset or 0: the served selector.
++        _ROWSPREAD_ENV = os.environ.get("GLM53_TOPK_ROWSPREAD", "").strip()
++        if _ROWSPREAD_ENV not in ("", "0", "1"):
++            raise ValueError("GLM53_TOPK_ROWSPREAD must be unset, 0 or 1")
++        if _ROWSPREAD_ENV == "1":
++            from nvfp4_topk_rowspread import (
++                persistent_topk as _nvfp4_persistent_topk,
++            )
++
++            print(
++                "GLM53_TOPK_ROWSPREAD engaged: nvfp4_topk_rowspread persistent_topk",
++                file=sys.stderr,
++                flush=True,
++            )
+ elif current_platform.is_xpu():
+     from vllm._xpu_ops import xpu_ops
+ 
+@@ -47,6 +70,55 @@ logger = init_logger(__name__)
+ 
+ RADIX_TOPK_WORKSPACE_SIZE = 1024 * 1024
+ 
++# Pool-width decode logits (ctx1m-topk, 2026-09-25; opt-in, default off).
++# The kpool indexer K cache keeps one entry per index_kpool tokens, and the decode
++# metadata divides seq_lens by the compression ratio, so a decode row never has
++# more than max_model_len // index_kpool valid scores. The decode paged-MQA
++# logits were still allocated max_model_len wide, and persistent_topk sizes its
++# CTA groups by the row stride: at max_model_len 1,048,576 a 5-8 row batch asked
++# for 90 co-resident CTAs on 48 SMs and the boot failed. With
++# GLM53_INDEXER_POOL_LOGITS=1 the decode logits (and the profiler's decode-logits
++# reservation) are cdiv(max_model_len, index_kpool) columns, rounded up to a
++# multiple of 1,024: 262,144 at 1M tokens. Upstream DeepSeek-V4 passes
++# max_model_len // compress_ratio to the same DeepGEMM kernel. Unset or 0 keeps
++# every path unchanged.
++_POOL_LOGITS_ENV = os.environ.get("GLM53_INDEXER_POOL_LOGITS", "").strip()
++if _POOL_LOGITS_ENV not in ("", "0", "1"):
++    raise ValueError("GLM53_INDEXER_POOL_LOGITS must be unset, 0 or 1")
++_POOL_LOGITS = _POOL_LOGITS_ENV == "1"
++_POOL_LOGITS_LOGGED = [False]
++
++# Prefill indexer row split (opt-in, default off). GLM53_INDEXER_ROW_SPLIT=1: in the prefill chunk loop every TP
++# rank scores only its share of a long chunk's query rows with the served kernels, and the ranks all-gather the
++# selected pool ids (int32, no floating-point collective); glm53_indexer_rowsplit.py has the rules. Unset or 0:
++# that module is never imported and every path is unchanged.
++_ROWSPLIT_ENV = os.environ.get("GLM53_INDEXER_ROW_SPLIT", "").strip()
++if _ROWSPLIT_ENV not in ("", "0", "1"):
++    raise ValueError("GLM53_INDEXER_ROW_SPLIT must be unset, 0 or 1")
++_ROWSPLIT_ON = _ROWSPLIT_ENV == "1"
++
++
++def _decode_logits_width(max_model_len: int, index_kpool: int) -> int:
++    """Columns of the decode paged-MQA logits.
++
++    max_model_len unless GLM53_INDEXER_POOL_LOGITS=1 and index_kpool > 1; then the
++    pool count cdiv(max_model_len, index_kpool), rounded up to a multiple of 1,024
++    (whole canonicalization tiles; a multiple of DeepGEMM's column split).
++    """
++    if not _POOL_LOGITS or index_kpool <= 1:
++        return max_model_len
++    pools = -(-max_model_len // index_kpool)
++    width = -(-pools // 1024) * 1024
++    if not _POOL_LOGITS_LOGGED[0]:
++        _POOL_LOGITS_LOGGED[0] = True
++        print(
++            f"GLM53_INDEXER_POOL_LOGITS engaged: decode logits {width} columns "
++            f"(max_model_len {max_model_len}, index_kpool {index_kpool})",
++            file=sys.stderr,
++            flush=True,
++        )
++    return width
++
+ # MXFP4 layout: 2 values packed per byte, ue8m0 (1-byte) scale per block of 32.
+ MXFP4_BLOCK_SIZE = 32
+ 
+@@ -325,7 +397,9 @@ def sparse_attn_indexer_kpool(
+                 sched.max_num_batched_tokens,
+             )
+         # float32 logits -> 4 bytes/element; uint8 sentinel so elems == bytes.
+-        decode_logits_elems = worst_decode_tokens * max_model_len * 4
++        decode_logits_elems = (
++            worst_decode_tokens * _decode_logits_width(max_model_len, index_kpool) * 4
++        )
+         prefill_cap_elems = envs.VLLM_SPARSE_INDEXER_MAX_LOGITS_MB * 1024 * 1024
+         max_logits_elems = max(decode_logits_elems, prefill_cap_elems)
+         _ = torch.empty(
+@@ -508,71 +582,107 @@ def sparse_attn_indexer_kpool(
+                 q_slice_cast = q_slice
+                 k_quant_cast = k_quant
+                 k_scale_cast = k_scale.view(torch.float32).squeeze(-1)
+-            if current_platform.is_rocm():
+-                from vllm.v1.attention.ops.rocm_aiter_mla_sparse import (
+-                    rocm_fp8_mqa_logits,
+-                )
+-
+-                assert q_scale_slice is None
+-                logits = rocm_fp8_mqa_logits(
+-                    q_slice_cast,
+-                    (k_quant_cast, k_scale_cast),
+-                    weights[chunk.token_start : chunk.token_end],
+-                    chunk.cu_seqlen_ks,
+-                    chunk.cu_seqlen_ke,
++            if _ROWSPLIT_ON:
++                import glm53_indexer_rowsplit as _rowsplit_mod
++
++                _rowsplit = _rowsplit_mod.runtime()
++                _rowsplit_engaged = (
++                    q_scale_slice is None
++                    and not current_platform.is_rocm()
++                    and not current_platform.is_xpu()
++                    and _rowsplit.plan(
++                        chunk, index_kpool=index_kpool, fp8_cache=not use_fp4_cache
++                    )
+                 )
+             else:
++                _rowsplit_engaged = False
++            if _rowsplit_engaged:
+                 from vllm.utils.deep_gemm import fp8_fp4_mqa_logits
+ 
+-                logits = fp8_fp4_mqa_logits(
+-                    (q_slice_cast, q_scale_slice),
+-                    (k_quant_cast, k_scale_cast),
+-                    weights[chunk.token_start : chunk.token_end],
+-                    chunk.cu_seqlen_ks,
+-                    chunk.cu_seqlen_ke,
+-                    clean_logits=False,
+-                )
+-            num_rows = logits.shape[0]
+-
+-            # kpool: logits are pool-granular (compress_ratio == index_kpool),
+-            # so topk selects pools. We pick topk_tokens // kpool pools then
+-            # expand each pool back to its kpool constituent tokens.
+-            select_k = topk_tokens // index_kpool if index_kpool > 1 else topk_tokens
+-            if index_kpool > 1:
+-                pool_topk = torch.empty(
+-                    (num_rows, select_k), dtype=torch.int32, device=logits.device
++                select_k = topk_tokens // index_kpool
++                pool_topk = _rowsplit.select(
++                    rows=chunk.token_end - chunk.token_start,
++                    select_k=select_k,
++                    device=q_slice.device,
++                    starts=chunk.cu_seqlen_ks,
++                    ends=chunk.cu_seqlen_ke,
++                    logits=lambda s, e: fp8_fp4_mqa_logits(
++                        (q_slice_cast[s:e], None),
++                        (k_quant_cast, k_scale_cast),
++                        weights[chunk.token_start + s : chunk.token_start + e],
++                        chunk.cu_seqlen_ks[s:e],
++                        chunk.cu_seqlen_ke[s:e],
++                        clean_logits=False,
++                    ),
++                    topk=torch.ops._C.top_k_per_row_prefill,
++                    canon=canonicalize_topk,
+                 )
+-                topk_dst = pool_topk
+             else:
+-                topk_dst = topk_indices_buffer[
+-                    chunk.token_start : chunk.token_end, :topk_tokens
+-                ]
++                if current_platform.is_rocm():
++                    from vllm.v1.attention.ops.rocm_aiter_mla_sparse import (
++                        rocm_fp8_mqa_logits,
++                    )
+ 
+-            if current_platform.is_xpu():
+-                xpu_ops.top_k_per_row_prefill(  # type: ignore[attr-defined]
+-                    logits,
+-                    chunk.cu_seqlen_ks,
+-                    chunk.cu_seqlen_ke,
+-                    topk_dst,
+-                    num_rows,
+-                    logits.stride(0),
+-                    logits.stride(1),
+-                    select_k,
+-                )
+-            else:
+-                torch.ops._C.top_k_per_row_prefill(
+-                    logits,
+-                    chunk.cu_seqlen_ks,
+-                    chunk.cu_seqlen_ke,
+-                    topk_dst,
+-                    num_rows,
+-                    logits.stride(0),
+-                    logits.stride(1),
+-                    select_k,
+-                )
++                    assert q_scale_slice is None
++                    logits = rocm_fp8_mqa_logits(
++                        q_slice_cast,
++                        (k_quant_cast, k_scale_cast),
++                        weights[chunk.token_start : chunk.token_end],
++                        chunk.cu_seqlen_ks,
++                        chunk.cu_seqlen_ke,
++                    )
++                else:
++                    from vllm.utils.deep_gemm import fp8_fp4_mqa_logits
++
++                    logits = fp8_fp4_mqa_logits(
++                        (q_slice_cast, q_scale_slice),
++                        (k_quant_cast, k_scale_cast),
++                        weights[chunk.token_start : chunk.token_end],
++                        chunk.cu_seqlen_ks,
++                        chunk.cu_seqlen_ke,
++                        clean_logits=False,
++                    )
++                num_rows = logits.shape[0]
++
++                # kpool: logits are pool-granular (compress_ratio == index_kpool),
++                # so topk selects pools. We pick topk_tokens // kpool pools then
++                # expand each pool back to its kpool constituent tokens.
++                select_k = topk_tokens // index_kpool if index_kpool > 1 else topk_tokens
++                if index_kpool > 1:
++                    pool_topk = torch.empty(
++                        (num_rows, select_k), dtype=torch.int32, device=logits.device
++                    )
++                    topk_dst = pool_topk
++                else:
++                    topk_dst = topk_indices_buffer[
++                        chunk.token_start : chunk.token_end, :topk_tokens
++                    ]
++
++                if current_platform.is_xpu():
++                    xpu_ops.top_k_per_row_prefill(  # type: ignore[attr-defined]
++                        logits,
++                        chunk.cu_seqlen_ks,
++                        chunk.cu_seqlen_ke,
++                        topk_dst,
++                        num_rows,
++                        logits.stride(0),
++                        logits.stride(1),
++                        select_k,
++                    )
++                else:
++                    torch.ops._C.top_k_per_row_prefill(
++                        logits,
++                        chunk.cu_seqlen_ks,
++                        chunk.cu_seqlen_ke,
++                        topk_dst,
++                        num_rows,
++                        logits.stride(0),
++                        logits.stride(1),
++                        select_k,
++                    )
+ 
+-            canonicalize_topk(logits, chunk.cu_seqlen_ks,
+-                              chunk.cu_seqlen_ke, topk_dst)
++                canonicalize_topk(logits, chunk.cu_seqlen_ks,
++                                  chunk.cu_seqlen_ke, topk_dst)
+ 
+             if index_kpool > 1:
+                 pool_ids = pool_topk.to(torch.int64)
+@@ -797,7 +907,7 @@ def sparse_attn_indexer_kpool(
+                 seq_lens,
+                 decode_metadata.block_table,
+                 decode_metadata.schedule_metadata,
+-                max_model_len=max_model_len,
++                max_model_len=_decode_logits_width(max_model_len, index_kpool),
+                 clean_logits=False,
+             )
+         num_rows = logits.shape[0]
+@@ -928,6 +1038,11 @@ class SparseAttnIndexerKpool(CustomOp):
+             raise RuntimeError(
+                 "Sparse Attention Indexer CUDA op requires DeepGEMM to be installed."
+             )
++        if _ROWSPLIT_ON and current_platform.is_cuda():
++            import glm53_indexer_rowsplit as _rowsplit_mod
++
++            # Votes the row-split settings over the TP CPU group once, at model construction.
++            _rowsplit_mod.runtime()
+ 
+     def forward_native(
+         self,

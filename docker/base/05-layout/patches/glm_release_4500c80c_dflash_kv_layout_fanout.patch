@@ -1,0 +1,43 @@
+diff --git a/vllm/v1/worker/worker_base.py b/vllm/v1/worker/worker_base.py
+index cf5b0e7c..ef432f86 100644
+--- a/vllm/v1/worker/worker_base.py
++++ b/vllm/v1/worker/worker_base.py
+@@ -12,6 +12,7 @@ from vllm.config import VllmConfig, set_current_vllm_config
+ from vllm.distributed.kv_transfer.kv_connector.utils import get_current_attn_backends
+ from vllm.logger import init_logger
+ from vllm.lora.request import LoRARequest
++from vllm.model_executor.layers.attention_layer_base import AttentionLayerBase
+ from vllm.multimodal import MULTIMODAL_REGISTRY
+ from vllm.tracing import instrument
+ from vllm.utils.import_utils import resolve_obj_by_qualname
+@@ -111,7 +112,29 @@ class WorkerBase:
+ 
+     def set_kv_cache_layout(self, kv_cache_layout: str) -> None:
+         """Adopt the KV cache layout resolved by the engine core."""
+-        record_kv_cache_layout(self.vllm_config.cache_config, kv_cache_layout)
++        main_cache_config = self.vllm_config.cache_config
++        record_kv_cache_layout(main_cache_config, kv_cache_layout)
++
++        # Model-specific speculative decoders can own a CacheConfig clone.
++        # CacheConfig.kv_cache_layout is an init=False field, so config.replace
++        # deliberately does not copy it, and the clone cannot see the engine's
++        # later layout resolution. Publish the resolved layout to every
++        # attention implementation's distinct config at the same authoritative
++        # worker RPC boundary. record_kv_cache_layout is idempotent and rejects
++        # conflicting pre-resolved layouts.
++        seen_cache_configs = {id(main_cache_config)}
++        for layer in self.compilation_config.static_forward_context.values():
++            if not isinstance(layer, AttentionLayerBase):
++                continue
++            impl = getattr(layer, "impl", None)
++            impl_cache_config = getattr(impl, "cache_config", None)
++            if (
++                impl_cache_config is None
++                or id(impl_cache_config) in seen_cache_configs
++            ):
++                continue
++            record_kv_cache_layout(impl_cache_config, kv_cache_layout)
++            seen_cache_configs.add(id(impl_cache_config))
+ 
+     def compile_or_warm_up_model(self) -> CompilationTimes:
+         """Prepare model for execution through compilation/warmup.

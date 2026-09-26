@@ -1,0 +1,223 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/models/glm5next/nvidia/attention.py
+Preimage:    sha256 400d7063db2aa27314c79dce688060710f5ef7bdbafbddfc6698eaaaea3b3a8f
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    matched against the image top layer on a node (mHC prefill base manifest, 2026-09-23)
+Postimage:   sha256 b8ab6330836abafa58781cc0e9de5c25054182d93bb0efe942d47bf55d19a003 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained; its kpool tail ring size is a port of vllm-project/vllm#58454 (mmastrac) as Morrowmake/vllm-cmp170hx 1d4b59e ported it)
+Attribution: sparkring-mhc, vllm-pr-58454, morrowmake-vllm-cmp170hx (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/models/glm5next/nvidia/attention.py b/vllm/models/glm5next/nvidia/attention.py
+index 0be749348494f6679fc3e856112b9c0d6272b89d..1f81857a7a4c1d88600327d06ad388f765cc79bd 100644
+--- a/vllm/models/glm5next/nvidia/attention.py
++++ b/vllm/models/glm5next/nvidia/attention.py
+@@ -1,7 +1,57 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in BF16 tensor-core GEMM for the indexer head gate
++# (GLM53_INDEXER_GATE_TC), an opt-in fused row-chunked indexer projection (GLM53_INDEXER_FUSED_PROJ), and
++# defer_tp_reduction in forward.
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): kpool tail ring for speculative decoding (vllm-project/vllm#58454).
+ 
+ import torch
++import os as _glm53_os
++_GLM53_INDEXER_GATE_TC = _glm53_os.environ.get("GLM53_INDEXER_GATE_TC", "0") == "1"
++# dense-prefill lane 2026-09-24 (default OFF): GLM53_INDEXER_FUSED_PROJ=<rows> computes the indexer's three
++# hidden_states GEMMs (wk_weights_proj N=160, the FP32 head gate N=32, the kpool gate N=128; K=4096) as ONE
++# BF16xBF16->FP32 GEMM over [wk; weights_proj; kpool gate] (N=288) in row chunks of <rows>, for prefill-sized batches
++# (M > 128) with GLM53_INDEXER_GATE_TC=1. In the cold 32K trace the three take 672 + 585 + 755 us per MLA layer at
++# 13,824 rows, each streaming the 113 MB activation; the fused pass reads it once per chunk. k and the kpool gate
++# are rounded to BF16 from the FP32 accumulator (as the BF16 GEMMs do in their epilogue) and handed on with the
++# served strides and dtypes, so the compiled indexer leaves see the same guards. Numerics: same products, another
++# accumulation order -> the leaf checks bits and the tolerance contract.
++_GLM53_INDEXER_FUSED_ROWS = int(_glm53_os.environ.get("GLM53_INDEXER_FUSED_PROJ", "0"))
++if _GLM53_INDEXER_FUSED_ROWS < 0:
++    raise ValueError("GLM53_INDEXER_FUSED_PROJ must be >= 0")
++_GLM53_MM_OUT_OK: list = []  # probed once: torch.mm(..., out_dtype=, out=) supported
++
++
++def _glm53_chunked_mm_fp32(x: "torch.Tensor", weight: "torch.Tensor", rows: int) -> "torch.Tensor":
++    """x [M, K] BF16 @ weight [N, K].T -> [M, N] FP32, `rows` rows per cuBLAS call, one output buffer."""
++    m = x.shape[0]
++    out = torch.empty((m, weight.shape[0]), dtype=torch.float32, device=x.device)
++    wt = weight.T
++    for i in range(0, m, rows):
++        j = min(m, i + rows)
++        if not _GLM53_MM_OUT_OK:
++            try:
++                torch.mm(x[i:j], wt, out_dtype=torch.float32, out=out[i:j])
++                _GLM53_MM_OUT_OK.append(True)
++                continue
++            except (TypeError, RuntimeError):
++                _GLM53_MM_OUT_OK.append(False)
++        if _GLM53_MM_OUT_OK[0]:
++            torch.mm(x[i:j], wt, out_dtype=torch.float32, out=out[i:j])
++        else:
++            out[i:j].copy_(torch.mm(x[i:j], wt, out_dtype=torch.float32))
++    return out
++
++
++def glm53_indexer_fused_proj(x: "torch.Tensor", fused_weight: "torch.Tensor", head_dim: int, n_head: int, rows: int):
++    """The fused indexer projection: fused_weight = [wk (head_dim); weights_proj (n_head); kpool gate (head_dim)].
++    Returns (kw BF16 [M, head_dim + n_head] contiguous, as wk_weights_proj returns it; weights FP32 [M, n_head]
++    contiguous; gate_score BF16 [M, head_dim] contiguous)."""
++    y = _glm53_chunked_mm_fp32(x, fused_weight, rows)
++    kw = y[:, : head_dim + n_head].to(torch.bfloat16)
++    weights = y[:, head_dim : head_dim + n_head].contiguous()
++    gate_score = y[:, head_dim + n_head :].to(torch.bfloat16)
++    return kw, weights, gate_score
+ import torch.nn.functional as F
+ from torch import nn
+ 
+@@ -156,12 +206,27 @@ class Glm5NextIndexerCache(DeepseekV32IndexerCache):
+         )
+ 
+ 
++def kpool_tail_ring_size(index_kpool: int, num_speculative_tokens: int) -> int:
++    """Slots in each request's kpool tail ring (port of vllm-project/vllm#58454).
++
++    A verify step stashes all ``1 + num_speculative_tokens`` rows into the ring
++    before acceptance is known. When a pool-completing draft is rejected, the
++    next step redoes that completion from the open pool's committed keys, so
++    the rows stashed behind it must not have overwritten them. A ring of
++    ``index_kpool * cdiv(index_kpool + num_speculative_tokens, index_kpool)``
++    slots keeps them; without speculative decoding it is ``index_kpool``.
++    """
++    span = index_kpool + max(int(num_speculative_tokens), 0)
++    return index_kpool * -(-span // index_kpool)
++
++
+ class Glm5NextTailCache(DeepseekV32IndexerCache):
+     """Paged circular buffer for the kpool indexer's in-progress (tail) pool.
+ 
+     Holds the trailing incomplete pool's raw K + gate score: one block of
+-    ``index_kpool`` slots per request, overwritten in place by ``pos % kpool``
+-    as decode/spec-decode advances. Prefill seeds it (instead of discarding the
++    ring slots per request (``kpool_tail_ring_size``: the open pool plus a
++    verify step's rows), overwritten in place by ``pos % ring`` as
++    decode/spec-decode advances. Prefill seeds it (instead of discarding the
+     tail raw K+gate); the connector transfers it across PD; decode reads it to
+     compress the boundary pool correctly. ``KpoolTailSpec`` /
+     ``KpoolTailManager`` provide the no-prune, 1-block/req allocation that lets
+@@ -189,14 +254,34 @@ class Glm5NextTailCache(DeepseekV32IndexerCache):
+ 
+     def get_kv_cache_spec(self, vllm_config: VllmConfig):
+         # The two head slots form [K, gate score] in the generic
+-        # [block, head, state, content] cache view.
++        # [block, head, state, content] cache view. The ring is the group's
++        # block size, which the tail slot mapping and the kernels read.
++        num_spec = vllm_config.num_speculative_tokens
++        ring = kpool_tail_ring_size(self._index_kpool, num_spec)
++        # The scheduler block size is the LCM of the group block sizes; a ring
++        # that divides the cache block leaves it unchanged.
++        block = self.cache_config.block_size
++        if block % ring != 0:
++            raise ValueError(
++                f"kpool tail ring of {ring} slots (index_kpool "
++                f"{self._index_kpool}, {num_spec} speculative tokens) does not "
++                f"divide the cache block size {block}"
++            )
++        logger.info_once(
++            "GLM53_KPOOL_TAIL_RING engaged ring=%d index_kpool=%d "
++            "num_speculative_tokens=%d",
++            ring,
++            self._index_kpool,
++            num_spec,
++            scope="process",
++        )
+         return KpoolTailSpec(
+-            block_size=self._index_kpool,
++            block_size=ring,
+             num_kv_heads=2,
+             head_size=self.head_dim,
+             head_size_v=0,
+             dtype=torch.bfloat16,
+-            sliding_window=self._index_kpool,
++            sliding_window=ring,
+         )
+ 
+     def get_attn_backend(self):
+@@ -274,6 +359,7 @@ class Indexer(nn.Module):
+         self.quant_block_size = 128  # TODO: get from config
+         self.topk_indices_buffer = topk_indices_buffer
+         self._wp_fp32: torch.Tensor | None = None
++        self._glm53_fused_w: torch.Tensor | None = None
+ 
+         # NOTE: (zyongye) we use fp8 naive cache,
+         #       where we store value in fp8 and scale in fp32
+@@ -321,16 +407,41 @@ class Indexer(nn.Module):
+ 
+         # Compute the head gate in fp32; bf16 error can change near-tie pool
+         # rankings on long-context tasks. Cache it after weights are loaded.
+-        kw, _ = self.wk_weights_proj(hidden_states)
+-        k = kw[:, : self.head_dim]
+-        if self._wp_fp32 is None:
+-            self._wp_fp32 = (
+-                self.wk_weights_proj.weight.data[self.head_dim :, :]
+-                .t()
+-                .contiguous()
+-                .float()
+-            )
+-        weights = torch.mm(hidden_states.float(), self._wp_fp32)
++        gate_score = None
++        if (_GLM53_INDEXER_FUSED_ROWS > 0 and _GLM53_INDEXER_GATE_TC and hidden_states.shape[0] > 128
++                and hidden_states.dtype == torch.bfloat16 and self.wk_weights_proj.weight.dtype == torch.bfloat16
++                and self.index_kpool_compress_gate.dtype == torch.bfloat16):
++            if self._glm53_fused_w is None:
++                self._glm53_fused_w = torch.cat(
++                    [self.wk_weights_proj.weight.data, self.index_kpool_compress_gate.data], dim=0).contiguous()
++                logger.info_once("GLM53 indexer fused projection (N=%d) in %d-row chunks for prefill-sized batches",
++                                 self._glm53_fused_w.shape[0], _GLM53_INDEXER_FUSED_ROWS, scope="local")
++            kw, weights, gate_score = glm53_indexer_fused_proj(
++                hidden_states, self._glm53_fused_w, self.head_dim, self.n_head, _GLM53_INDEXER_FUSED_ROWS)
++            k = kw[:, : self.head_dim]
++        else:
++            kw, _ = self.wk_weights_proj(hidden_states)
++            k = kw[:, : self.head_dim]
++        if gate_score is not None:
++            pass
++        elif (_GLM53_INDEXER_GATE_TC and hidden_states.dtype == torch.bfloat16
++                and self.wk_weights_proj.weight.dtype == torch.bfloat16):
++            # 2026-09-23 (default off): both operands are exactly BF16 values, so a BF16 tensor-core GEMM with
++            # FP32 accumulation and an FP32 output (cuBLAS out_dtype epilogue, the same call GateLinear uses for the
++            # router) forms the same exact products as the FP32 path and never rounds the result to BF16; only the
++            # accumulation order differs. It replaces an FP32 SIMT GEMV (~70 us per MLA layer at C1) and the
++            # hidden_states.float() copy.
++            weights = torch.mm(hidden_states, self.wk_weights_proj.weight.data[self.head_dim :, :].T,
++                               out_dtype=torch.float32)
++        else:
++            if self._wp_fp32 is None:
++                self._wp_fp32 = (
++                    self.wk_weights_proj.weight.data[self.head_dim :, :]
++                    .t()
++                    .contiguous()
++                    .float()
++                )
++            weights = torch.mm(hidden_states.float(), self._wp_fp32)
+ 
+         k = _fused_indexer_k_norm(
+             k, self.k_norm.weight, self.k_norm.bias, self.head_dim, self.k_norm.eps
+@@ -377,7 +488,8 @@ class Indexer(nn.Module):
+         # kpool: per-token gate score driving the softmax-weighted pool. Computed
+         # from the same hidden_states that produced `k`, so it stays token-aligned.
+         # F.linear(x, gate) = x @ gate.T  with gate [head_dim, hidden_size].
+-        gate_score = F.linear(hidden_states, self.index_kpool_compress_gate)
++        if gate_score is None:
++            gate_score = F.linear(hidden_states, self.index_kpool_compress_gate)
+ 
+         # DeepGEMM's MQA-logits kernels (fp8_mqa_logits /
+         # fp8_fp4_paged_mqa_logits) require num_heads in {32, 64}; this
+@@ -584,7 +696,10 @@ class Glm5NextMLAAttention(nn.Module):
+         )
+ 
+     def forward(
+-        self, hidden_states: torch.Tensor, positions: torch.Tensor
++        self, hidden_states: torch.Tensor, positions: torch.Tensor,
++        *, defer_tp_reduction: bool = False,
+     ) -> torch.Tensor:
+         # The wrapper also runs the sparse indexer before MLA attention.
++        if defer_tp_reduction:
++            return self.mla_attn(positions, hidden_states, defer_tp_reduction=True)
+         return self.mla_attn(positions, hidden_states)

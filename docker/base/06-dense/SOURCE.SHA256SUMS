@@ -1,0 +1,2 @@
+ae4c4d83993a9b36f788f22f7ee46adaac3e5e0d2942d3173e73f75e912eb29b  /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/linear.py
+a187d541a61455d6967b98ff3b9837a752e4f5bd5ab9c91de4aeca881f612c3a  /usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/vocab_parallel_embedding.py

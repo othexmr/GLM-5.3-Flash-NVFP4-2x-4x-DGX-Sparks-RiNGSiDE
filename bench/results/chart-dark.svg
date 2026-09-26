@@ -1,0 +1,264 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="978" viewBox="0 0 880 978" role="img" aria-labelledby="chart-title chart-desc" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+<title id="chart-title">RiNGSiDE measured results</title>
+<desc id="chart-desc">RiNGSiDE measured results. TP4 (RedHatAI checkpoint, lab plan 89dfef84): single-stream decode 105.3 code, 61.7 prose, 145.4 structured tok/s; cold prefill 1.7 s at 8K to 53.6 s at 256K; short code aggregate 77.0 tok/s at 1 stream to 345.8 tok/s at 16 streams; sparkDash code, 1 stream 151.3 tok/s; tool-eval-bench 96 in all 2 rounds (133/138 points each). TP2 (NVIDIA checkpoint, lab plan 69ad74fc): single-stream decode 56.5 code, 33.0 prose, 83.4 structured tok/s; cold prefill 3.6 s at 8K to 25.7 s at 64K; short code aggregate 44.0 tok/s at 1 stream to 97.3 tok/s at 6 streams; sparkDash code, 1 stream 85.7 tok/s.</desc>
+<rect x="0.5" y="0.5" width="879" height="977" rx="10" fill="#1a1a19" stroke="#383835"/>
+<text x="24" y="36" font-size="17" fill="#ffffff" font-weight="700">RiNGSiDE: GLM-5.3-Flash NVFP4 on DGX Sparks, measured results</text>
+<rect x="24" y="52" width="12" height="12" rx="3" fill="#3987e5"/>
+<text x="43" y="62" font-size="12.5" fill="#ffffff" font-weight="600">TP4 (RedHatAI checkpoint, lab plan 89dfef84)</text>
+<text x="43" y="78" font-size="11.5" fill="#c3c2b7">release window of the TP4 profile, lab plan 89dfef84 (the RiNGSiDE release plan)</text>
+<text x="43" y="94" font-size="11.5" fill="#c3c2b7">checkpoint RedHatAI/GLM-5.3-Flash-NVFP4 rev 18d55bfd · RigMark cells are medians of 2 runs</text>
+<text x="43" y="110" font-size="11.5" fill="#c3c2b7">00:36-01:50 (UTC+7), window 2026-09-26-ringside-redhat-rowsplit-tp4-1</text>
+<rect x="24" y="124" width="12" height="12" rx="3" fill="#d95926"/>
+<text x="43" y="134" font-size="12.5" fill="#ffffff" font-weight="600">TP2 (NVIDIA checkpoint, lab plan 69ad74fc)</text>
+<text x="43" y="150" font-size="11.5" fill="#c3c2b7">final TP2 run, lab plan 69ad74fc (the TP2 profile's base, before the release's changes and fixes)</text>
+<text x="43" y="166" font-size="11.5" fill="#c3c2b7">checkpoint nvidia/GLM-5.3-Flash-NVFP4 rev 423acf37 · RigMark cells are medians of 2 runs</text>
+<text x="43" y="182" font-size="11.5" fill="#c3c2b7">window 2026-09-25-tp2-final-1</text>
+<text x="24" y="214" font-size="13.5" fill="#ffffff" font-weight="600">Single-stream decode (tok/s)</text>
+<text x="24" y="231" font-size="11.5" fill="#c3c2b7">RigMark, one stream, by prompt type</text>
+<line x1="102" y1="246" x2="102" y2="378" stroke="#383835" stroke-width="1"/>
+<text x="102" y="393" font-size="11" fill="#c3c2b7" text-anchor="middle">0</text>
+<line x1="244" y1="246" x2="244" y2="378" stroke="#2c2c2a" stroke-width="1"/>
+<text x="244" y="393" font-size="11" fill="#c3c2b7" text-anchor="middle">50</text>
+<line x1="386" y1="246" x2="386" y2="378" stroke="#2c2c2a" stroke-width="1"/>
+<text x="386" y="393" font-size="11" fill="#c3c2b7" text-anchor="middle">100</text>
+<line x1="528" y1="246" x2="528" y2="378" stroke="#2c2c2a" stroke-width="1"/>
+<text x="528" y="393" font-size="11" fill="#c3c2b7" text-anchor="middle">150</text>
+<text x="528" y="408" font-size="11" fill="#c3c2b7" text-anchor="end">tok/s</text>
+<text x="92" y="270" font-size="12" fill="#ffffff" text-anchor="end">code</text>
+<path d="M102 250H397.1A4 4 0 0 1 401.1 254V261A4 4 0 0 1 397.1 265H102Z" fill="#3987e5"><title>TP4 code: 105.3 tok/s</title></path>
+<text x="406.1" y="261.5" font-size="11.5" fill="#ffffff" font-weight="600" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">105.3</text>
+<path d="M102 267H258.6A4 4 0 0 1 262.6 271V278A4 4 0 0 1 258.6 282H102Z" fill="#d95926"><title>TP2 code: 56.5 tok/s</title></path>
+<text x="267.6" y="278.5" font-size="11.5" fill="#ffffff" font-weight="600" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">56.5</text>
+<text x="92" y="316" font-size="12" fill="#ffffff" text-anchor="end">prose</text>
+<path d="M102 296H273.2A4 4 0 0 1 277.2 300V307A4 4 0 0 1 273.2 311H102Z" fill="#3987e5"><title>TP4 prose: 61.7 tok/s</title></path>
+<text x="282.2" y="307.5" font-size="11.5" fill="#ffffff" font-weight="600" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">61.7</text>
+<path d="M102 313H191.6A4 4 0 0 1 195.6 317V324A4 4 0 0 1 191.6 328H102Z" fill="#d95926"><title>TP2 prose: 33.0 tok/s</title></path>
+<text x="200.6" y="324.5" font-size="11.5" fill="#ffffff" font-weight="600" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">33.0</text>
+<text x="92" y="362" font-size="12" fill="#ffffff" text-anchor="end">structured</text>
+<path d="M102 342H511.1A4 4 0 0 1 515.1 346V353A4 4 0 0 1 511.1 357H102Z" fill="#3987e5"><title>TP4 structured: 145.4 tok/s</title></path>
+<text x="520.1" y="353.5" font-size="11.5" fill="#ffffff" font-weight="600" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">145.4</text>
+<path d="M102 359H334.8A4 4 0 0 1 338.8 363V370A4 4 0 0 1 334.8 374H102Z" fill="#d95926"><title>TP2 structured: 83.4 tok/s</title></path>
+<text x="343.8" y="370.5" font-size="11.5" fill="#ffffff" font-weight="600" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">83.4</text>
+<text x="600" y="214" font-size="13.5" fill="#ffffff" font-weight="600">tool-eval-bench</text>
+<text x="600" y="231" font-size="11.5" fill="#c3c2b7">tool-calling scenarios, 2 runs</text>
+<rect x="600" y="250" width="12" height="12" rx="3" fill="#3987e5"/>
+<text x="618" y="261" font-size="11.5" fill="#c3c2b7">TP4, same window as its RigMark cells</text>
+<text x="600" y="312" font-size="46" fill="#ffffff" font-weight="700">96</text>
+<text x="664" y="294" font-size="11.5" fill="#c3c2b7">score, all 2 rounds</text>
+<text x="664" y="312" font-size="13" fill="#ffffff" font-weight="600">133 / 138 points each</text>
+<text x="600" y="338" font-size="12" fill="#ffffff">round 1: 66 passed, 1 partial, 2 failed</text>
+<text x="600" y="356" font-size="12" fill="#ffffff">round 2: 66 passed, 1 partial, 2 failed</text>
+<text x="600" y="374" font-size="11.5" fill="#c3c2b7">failed: TC-43, TC-68</text>
+<text x="600" y="392" font-size="11.5" fill="#c3c2b7">started 2026-09-26 01:12 (UTC+7)</text>
+<text x="24" y="438" font-size="13.5" fill="#ffffff" font-weight="600">Cold prefill: time to first token (s)</text>
+<text x="24" y="455" font-size="11.5" fill="#c3c2b7">RigMark, one request, by prompt length; TP2: 8K-64K only</text>
+<line x1="58" y1="634" x2="418" y2="634" stroke="#383835" stroke-width="1"/>
+<text x="52" y="638" font-size="11" fill="#c3c2b7" text-anchor="end">0</text>
+<line x1="58" y1="584" x2="418" y2="584" stroke="#2c2c2a" stroke-width="1"/>
+<text x="52" y="588" font-size="11" fill="#c3c2b7" text-anchor="end">20</text>
+<line x1="58" y1="534" x2="418" y2="534" stroke="#2c2c2a" stroke-width="1"/>
+<text x="52" y="538" font-size="11" fill="#c3c2b7" text-anchor="end">40</text>
+<line x1="58" y1="484" x2="418" y2="484" stroke="#2c2c2a" stroke-width="1"/>
+<text x="52" y="488" font-size="11" fill="#c3c2b7" text-anchor="end">60</text>
+<text x="52" y="474" font-size="11" fill="#c3c2b7" text-anchor="end">s</text>
+<text x="94" y="650" font-size="11.5" fill="#c3c2b7" text-anchor="middle">8K</text>
+<path d="M69 634V633.7A4 4 0 0 1 73 629.7H89A4 4 0 0 1 93 633.7V634Z" fill="#3987e5"><title>TP4 cold TTFT at 8,192 tokens: 1.71 s</title></path>
+<text x="81" y="624.7" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">1.7</text>
+<path d="M95 634V629.1A4 4 0 0 1 99 625.1H115A4 4 0 0 1 119 629.1V634Z" fill="#d95926"><title>TP2 cold TTFT at 8,192 tokens: 3.56 s</title></path>
+<text x="107" y="620.1" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">3.6</text>
+<text x="166" y="650" font-size="11.5" fill="#c3c2b7" text-anchor="middle">32K</text>
+<path d="M141 634V621.8A4 4 0 0 1 145 617.8H161A4 4 0 0 1 165 621.8V634Z" fill="#3987e5"><title>TP4 cold TTFT at 32,768 tokens: 6.46 s</title></path>
+<text x="153" y="612.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">6.5</text>
+<path d="M167 634V605.6A4 4 0 0 1 171 601.6H187A4 4 0 0 1 191 605.6V634Z" fill="#d95926"><title>TP2 cold TTFT at 32,768 tokens: 12.94 s</title></path>
+<text x="179" y="596.6" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">12.9</text>
+<text x="238" y="650" font-size="11.5" fill="#c3c2b7" text-anchor="middle">64K</text>
+<path d="M213 634V605.8A4 4 0 0 1 217 601.8H233A4 4 0 0 1 237 605.8V634Z" fill="#3987e5"><title>TP4 cold TTFT at 65,536 tokens: 12.87 s</title></path>
+<text x="225" y="596.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">12.9</text>
+<path d="M239 634V573.8A4 4 0 0 1 243 569.8H259A4 4 0 0 1 263 573.8V634Z" fill="#d95926"><title>TP2 cold TTFT at 65,536 tokens: 25.66 s</title></path>
+<text x="251" y="564.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">25.7</text>
+<text x="310" y="650" font-size="11.5" fill="#c3c2b7" text-anchor="middle">128K</text>
+<path d="M285 634V573A4 4 0 0 1 289 569H305A4 4 0 0 1 309 573V634Z" fill="#3987e5"><title>TP4 cold TTFT at 131,072 tokens: 25.98 s</title></path>
+<text x="297" y="564" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">26.0</text>
+<text x="382" y="650" font-size="11.5" fill="#c3c2b7" text-anchor="middle">256K*</text>
+<path d="M357 634V504.1A4 4 0 0 1 361 500.1H377A4 4 0 0 1 381 504.1V634Z" fill="#3987e5"><title>TP4 cold TTFT at 262,136 tokens: 53.57 s</title></path>
+<text x="369" y="495.1" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">53.6</text>
+<text x="58" y="666" font-size="11" fill="#c3c2b7">prompt tokens; 256K* = 262,136</text>
+<text x="456" y="438" font-size="13.5" fill="#ffffff" font-weight="600">Aggregate throughput by concurrency (tok/s)</text>
+<text x="456" y="455" font-size="11.5" fill="#c3c2b7">RigMark short code requests, all streams, end to end</text>
+<line x1="490" y1="634" x2="850" y2="634" stroke="#383835" stroke-width="1"/>
+<text x="484" y="638" font-size="11" fill="#c3c2b7" text-anchor="end">0</text>
+<line x1="490" y1="596.5" x2="850" y2="596.5" stroke="#2c2c2a" stroke-width="1"/>
+<text x="484" y="600.5" font-size="11" fill="#c3c2b7" text-anchor="end">100</text>
+<line x1="490" y1="559" x2="850" y2="559" stroke="#2c2c2a" stroke-width="1"/>
+<text x="484" y="563" font-size="11" fill="#c3c2b7" text-anchor="end">200</text>
+<line x1="490" y1="521.5" x2="850" y2="521.5" stroke="#2c2c2a" stroke-width="1"/>
+<text x="484" y="525.5" font-size="11" fill="#c3c2b7" text-anchor="end">300</text>
+<line x1="490" y1="484" x2="850" y2="484" stroke="#2c2c2a" stroke-width="1"/>
+<text x="484" y="488" font-size="11" fill="#c3c2b7" text-anchor="end">400</text>
+<text x="484" y="474" font-size="11" fill="#c3c2b7" text-anchor="end">tok/s</text>
+<text x="502" y="654" font-size="11" fill="#c3c2b7" text-anchor="middle">1</text>
+<text x="524.4" y="654" font-size="11" fill="#c3c2b7" text-anchor="middle">2</text>
+<text x="546.8" y="654" font-size="11" fill="#c3c2b7" text-anchor="middle">3</text>
+<text x="569.2" y="654" font-size="11" fill="#c3c2b7" text-anchor="middle">4</text>
+<text x="591.6" y="654" font-size="11" fill="#c3c2b7" text-anchor="middle">5</text>
+<text x="614" y="654" font-size="11" fill="#c3c2b7" text-anchor="middle">6</text>
+<text x="658.8" y="654" font-size="11" fill="#c3c2b7" text-anchor="middle">8</text>
+<text x="748.4" y="654" font-size="11" fill="#c3c2b7" text-anchor="middle">12</text>
+<text x="838" y="654" font-size="11" fill="#c3c2b7" text-anchor="middle">16</text>
+<polyline points="502,605.1 524.4,594.6 546.8,582.9 569.2,575.7 591.6,566.2 614,562 658.8,546.8 748.4,527.8 838,504.3" fill="none" stroke="#3987e5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="502" cy="605.1" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 at 1 streams: 77.0 tok/s</title></circle>
+<text x="502" y="596.1" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">77</text>
+<circle cx="524.4" cy="594.6" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 at 2 streams: 105.1 tok/s</title></circle>
+<text x="524.4" y="585.6" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">105</text>
+<circle cx="546.8" cy="582.9" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 at 3 streams: 136.4 tok/s</title></circle>
+<text x="546.8" y="573.9" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">136</text>
+<circle cx="569.2" cy="575.7" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 at 4 streams: 155.5 tok/s</title></circle>
+<text x="569.2" y="566.7" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">155</text>
+<circle cx="591.6" cy="566.2" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 at 5 streams: 180.8 tok/s</title></circle>
+<text x="591.6" y="557.2" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">181</text>
+<circle cx="614" cy="562" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 at 6 streams: 191.9 tok/s</title></circle>
+<text x="614" y="553" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">192</text>
+<circle cx="658.8" cy="546.8" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 at 8 streams: 232.6 tok/s</title></circle>
+<text x="658.8" y="537.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">233</text>
+<circle cx="748.4" cy="527.8" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 at 12 streams: 283.2 tok/s</title></circle>
+<text x="748.4" y="518.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">283</text>
+<circle cx="838" cy="504.3" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 at 16 streams: 345.8 tok/s</title></circle>
+<text x="838" y="495.3" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">346</text>
+<polyline points="502,617.5 524.4,613.5 546.8,608.1 569.2,604.8 591.6,602.3 614,597.5" fill="none" stroke="#d95926" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="502" cy="617.5" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 at 1 streams: 44.0 tok/s</title></circle>
+<text x="502" y="633.5" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">44</text>
+<circle cx="524.4" cy="613.5" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 at 2 streams: 54.6 tok/s</title></circle>
+<text x="524.4" y="629.5" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">55</text>
+<circle cx="546.8" cy="608.1" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 at 3 streams: 69.0 tok/s</title></circle>
+<text x="546.8" y="624.1" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">69</text>
+<circle cx="569.2" cy="604.8" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 at 4 streams: 77.8 tok/s</title></circle>
+<text x="569.2" y="620.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">78</text>
+<circle cx="591.6" cy="602.3" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 at 5 streams: 84.5 tok/s</title></circle>
+<text x="591.6" y="618.3" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">85</text>
+<circle cx="614" cy="597.5" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 at 6 streams: 97.3 tok/s</title></circle>
+<text x="614" y="613.5" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">97</text>
+<text x="490" y="671" font-size="11" fill="#c3c2b7">concurrent streams</text>
+<text x="24" y="696" font-size="13.5" fill="#ffffff" font-weight="600">sparkDash: mean decode rate per stream (tok/s), by concurrent streams</text>
+<text x="24" y="713" font-size="11.5" fill="#c3c2b7">a Python reproduction of MiaAI-Lab/sparkDash's decode-benchmark protocol</text>
+<text x="24" y="730" font-size="11.5" fill="#c3c2b7">TP4: median of 2 rounds, same window as RigMark; TP2: window 2026-09-25-sparkdash-tp2-final-1</text>
+<text x="70" y="754" font-size="12.5" fill="#ffffff" font-weight="600">code</text>
+<line x1="58" y1="906" x2="244" y2="906" stroke="#383835" stroke-width="1"/>
+<text x="52" y="910" font-size="11" fill="#c3c2b7" text-anchor="end">0</text>
+<line x1="58" y1="871" x2="244" y2="871" stroke="#2c2c2a" stroke-width="1"/>
+<text x="52" y="875" font-size="11" fill="#c3c2b7" text-anchor="end">50</text>
+<line x1="58" y1="836" x2="244" y2="836" stroke="#2c2c2a" stroke-width="1"/>
+<text x="52" y="840" font-size="11" fill="#c3c2b7" text-anchor="end">100</text>
+<line x1="58" y1="801" x2="244" y2="801" stroke="#2c2c2a" stroke-width="1"/>
+<text x="52" y="805" font-size="11" fill="#c3c2b7" text-anchor="end">150</text>
+<line x1="58" y1="766" x2="244" y2="766" stroke="#2c2c2a" stroke-width="1"/>
+<text x="52" y="770" font-size="11" fill="#c3c2b7" text-anchor="end">200</text>
+<text x="52" y="756" font-size="11" fill="#c3c2b7" text-anchor="end">tok/s</text>
+<text x="70" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">1</text>
+<text x="124" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">2</text>
+<text x="178" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">3</text>
+<text x="232" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">4</text>
+<polyline points="70,800.1 124,833.8 178,837.9 232,851.6" fill="none" stroke="#3987e5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70" cy="800.1" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 code, 1 streams: 151.28 tok/s</title></circle>
+<text x="70" y="791.1" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">151</text>
+<circle cx="124" cy="833.8" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 code, 2 streams: 103.13 tok/s</title></circle>
+<text x="124" y="824.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">103</text>
+<circle cx="178" cy="837.9" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 code, 3 streams: 97.22 tok/s</title></circle>
+<text x="178" y="828.9" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">97</text>
+<circle cx="232" cy="851.6" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 code, 4 streams: 77.65 tok/s</title></circle>
+<text x="232" y="842.6" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">78</text>
+<polyline points="70,846 124,868.8 178,875.7 232,875.8" fill="none" stroke="#d95926" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="70" cy="846" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 code, 1 streams: 85.69 tok/s</title></circle>
+<text x="70" y="862" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">86</text>
+<circle cx="124" cy="868.8" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 code, 2 streams: 53.11 tok/s</title></circle>
+<text x="124" y="884.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">53</text>
+<circle cx="178" cy="875.7" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 code, 3 streams: 43.29 tok/s</title></circle>
+<text x="178" y="891.7" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">43</text>
+<circle cx="232" cy="875.8" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 code, 4 streams: 43.21 tok/s</title></circle>
+<text x="232" y="891.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">43</text>
+<text x="274" y="754" font-size="12.5" fill="#ffffff" font-weight="600">prose</text>
+<line x1="262" y1="906" x2="448" y2="906" stroke="#383835" stroke-width="1"/>
+<line x1="262" y1="871" x2="448" y2="871" stroke="#2c2c2a" stroke-width="1"/>
+<line x1="262" y1="836" x2="448" y2="836" stroke="#2c2c2a" stroke-width="1"/>
+<line x1="262" y1="801" x2="448" y2="801" stroke="#2c2c2a" stroke-width="1"/>
+<line x1="262" y1="766" x2="448" y2="766" stroke="#2c2c2a" stroke-width="1"/>
+<text x="274" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">1</text>
+<text x="328" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">2</text>
+<text x="382" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">3</text>
+<text x="436" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">4</text>
+<polyline points="274,848.6 328,870 382,874.9 436,877.9" fill="none" stroke="#3987e5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="274" cy="848.6" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 prose, 1 streams: 82.06 tok/s</title></circle>
+<text x="274" y="839.6" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">82</text>
+<circle cx="328" cy="870" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 prose, 2 streams: 51.48 tok/s</title></circle>
+<text x="328" y="861" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">51</text>
+<circle cx="382" cy="874.9" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 prose, 3 streams: 44.41 tok/s</title></circle>
+<text x="382" y="865.9" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">44</text>
+<circle cx="436" cy="877.9" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 prose, 4 streams: 40.10 tok/s</title></circle>
+<text x="436" y="868.9" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">40</text>
+<polyline points="274,873.9 328,885.9 382,890.8 436,891.3" fill="none" stroke="#d95926" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="274" cy="873.9" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 prose, 1 streams: 45.82 tok/s</title></circle>
+<text x="274" y="889.9" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">46</text>
+<circle cx="328" cy="885.9" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 prose, 2 streams: 28.67 tok/s</title></circle>
+<text x="328" y="901.9" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">29</text>
+<circle cx="382" cy="890.8" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 prose, 3 streams: 21.77 tok/s</title></circle>
+<text x="382" y="906.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">22</text>
+<circle cx="436" cy="891.3" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 prose, 4 streams: 20.95 tok/s</title></circle>
+<text x="436" y="907.3" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">21</text>
+<text x="478" y="754" font-size="12.5" fill="#ffffff" font-weight="600">structured</text>
+<line x1="466" y1="906" x2="652" y2="906" stroke="#383835" stroke-width="1"/>
+<line x1="466" y1="871" x2="652" y2="871" stroke="#2c2c2a" stroke-width="1"/>
+<line x1="466" y1="836" x2="652" y2="836" stroke="#2c2c2a" stroke-width="1"/>
+<line x1="466" y1="801" x2="652" y2="801" stroke="#2c2c2a" stroke-width="1"/>
+<line x1="466" y1="766" x2="652" y2="766" stroke="#2c2c2a" stroke-width="1"/>
+<text x="478" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">1</text>
+<text x="532" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">2</text>
+<text x="586" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">3</text>
+<text x="640" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">4</text>
+<polyline points="478,794.1 532,834.5 586,841 640,852.2" fill="none" stroke="#3987e5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="478" cy="794.1" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 structured, 1 streams: 159.87 tok/s</title></circle>
+<text x="478" y="785.1" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">160</text>
+<circle cx="532" cy="834.5" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 structured, 2 streams: 102.11 tok/s</title></circle>
+<text x="532" y="825.5" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">102</text>
+<circle cx="586" cy="841" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 structured, 3 streams: 92.86 tok/s</title></circle>
+<text x="586" y="832" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">93</text>
+<circle cx="640" cy="852.2" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 structured, 4 streams: 76.81 tok/s</title></circle>
+<text x="640" y="843.2" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">77</text>
+<polyline points="478,848 532,867.9 586,876 640,859" fill="none" stroke="#d95926" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="478" cy="848" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 structured, 1 streams: 82.91 tok/s</title></circle>
+<text x="478" y="864" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">83</text>
+<circle cx="532" cy="867.9" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 structured, 2 streams: 54.47 tok/s</title></circle>
+<text x="532" y="883.9" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">54</text>
+<circle cx="586" cy="876" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 structured, 3 streams: 42.83 tok/s</title></circle>
+<text x="586" y="892" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">43</text>
+<circle cx="640" cy="859" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 structured, 4 streams: 67.10 tok/s</title></circle>
+<text x="640" y="875" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">67</text>
+<text x="682" y="754" font-size="12.5" fill="#ffffff" font-weight="600">json</text>
+<line x1="670" y1="906" x2="856" y2="906" stroke="#383835" stroke-width="1"/>
+<line x1="670" y1="871" x2="856" y2="871" stroke="#2c2c2a" stroke-width="1"/>
+<line x1="670" y1="836" x2="856" y2="836" stroke="#2c2c2a" stroke-width="1"/>
+<line x1="670" y1="801" x2="856" y2="801" stroke="#2c2c2a" stroke-width="1"/>
+<line x1="670" y1="766" x2="856" y2="766" stroke="#2c2c2a" stroke-width="1"/>
+<text x="682" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">1</text>
+<text x="736" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">2</text>
+<text x="790" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">3</text>
+<text x="844" y="926" font-size="11" fill="#c3c2b7" text-anchor="middle">4</text>
+<polyline points="682,830.1 736,852.8 790,862.2 844,868" fill="none" stroke="#3987e5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="682" cy="830.1" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 json, 1 streams: 108.38 tok/s</title></circle>
+<text x="682" y="821.1" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">108</text>
+<circle cx="736" cy="852.8" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 json, 2 streams: 76.06 tok/s</title></circle>
+<text x="736" y="843.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">76</text>
+<circle cx="790" cy="862.2" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 json, 3 streams: 62.61 tok/s</title></circle>
+<text x="790" y="853.2" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">63</text>
+<circle cx="844" cy="868" r="4" fill="#3987e5" stroke="#1a1a19" stroke-width="2"><title>TP4 json, 4 streams: 54.28 tok/s</title></circle>
+<text x="844" y="859" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">54</text>
+<polyline points="682,858.3 736,877.8 790,885 844,885.9" fill="none" stroke="#d95926" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="682" cy="858.3" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 json, 1 streams: 68.09 tok/s</title></circle>
+<text x="682" y="874.3" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">68</text>
+<circle cx="736" cy="877.8" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 json, 2 streams: 40.26 tok/s</title></circle>
+<text x="736" y="893.8" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">40</text>
+<circle cx="790" cy="885" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 json, 3 streams: 30.02 tok/s</title></circle>
+<text x="790" y="901" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">30</text>
+<circle cx="844" cy="885.9" r="4" fill="#d95926" stroke="#1a1a19" stroke-width="2"><title>TP2 json, 4 streams: 28.73 tok/s</title></circle>
+<text x="844" y="901.9" font-size="11" fill="#ffffff" font-weight="600" text-anchor="middle" stroke="#1a1a19" stroke-width="3" stroke-linejoin="round" paint-order="stroke">29</text>
+<text x="58" y="943" font-size="11" fill="#c3c2b7">concurrent streams</text>
+<text x="24" y="960" font-size="11" fill="#c3c2b7">Measured values from bench/results/results.json and bench/results/evidence; rendered by bench/results/chart.py. Full tables and caveats: bench/results/README.md.</text>
+</svg>

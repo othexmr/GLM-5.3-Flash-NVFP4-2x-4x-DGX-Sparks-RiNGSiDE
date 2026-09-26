@@ -1,0 +1,21 @@
+--- a/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
++++ b/vllm/model_executor/layers/sparse_attn_indexer_kpool.py
+@@ -36,6 +36,9 @@
+ 
+ if current_platform.is_cuda_alike():
+     from vllm import _custom_ops as ops
++    if current_platform.is_cuda():
++        # Prebuilt repair must load and verify once before profiling/capture.
++        from nvfp4_topk_pr55314 import persistent_topk as _nvfp4_persistent_topk
+ elif current_platform.is_xpu():
+     from vllm._xpu_ops import xpu_ops
+ 
+@@ -810,7 +813,7 @@
+             (topk_workspace,) = workspace_manager.get_simultaneous(
+                 ((RADIX_TOPK_WORKSPACE_SIZE,), torch.uint8),
+             )
+-            torch.ops._C.persistent_topk(
++            _nvfp4_persistent_topk(
+                 logits,
+                 seq_lens,
+                 topk_dst,

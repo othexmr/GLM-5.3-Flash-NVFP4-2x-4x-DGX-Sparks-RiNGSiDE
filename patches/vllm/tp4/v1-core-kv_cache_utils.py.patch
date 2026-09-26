@@ -1,0 +1,24 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/core/kv_cache_utils.py
+Preimage:    sha256 2614f957b21863ac7f028d0c104c9a4d913f41b81733f2d36ac0ec05df882712
+             image file of the rebuilt base: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c), the lab port and the recipe's DFlash2 drafter KV-cache group (docker/base)
+Upstream:    file of the GLM-5.3 backport onto v0.29.0 (the glm-release sources of ZJY0516/vllm at 4500c80c, lab port); absent from or different in vllm-project/vllm@98dff2a8
+Evidence:    the file of the rebuilt base: the v0.29.0 port patch of docker/base, applied to the v0.29.0 source and checked by docker/tools/verify_port.py on a CPU (not built on a DGX Spark yet); the measured image 017fd0ba has 7ef72953 here, which differs only in the DFlash2 drafter KV-cache group
+Postimage:   sha256 2a69fdf7b0738e75caa47be8344180a309e3fe68476618219eae3eceaf29aaab (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained; its DFlash2 drafter KV-cache group is built on vLLM's own KV-cache group mechanisms: is_eagle_group, UniformTypeKVCacheSpecs and the shared KV-cache tensors of the hybrid allocator)
+Attribution: vllm (see NOTICE)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/core/kv_cache_utils.py b/vllm/v1/core/kv_cache_utils.py
+index 5c514822837464e5590ce8e7008bb8af526141f2..8fe3e2baf480d55cd20c7cee9c9db580e49ac400 100644
+--- a/vllm/v1/core/kv_cache_utils.py
++++ b/vllm/v1/core/kv_cache_utils.py
+@@ -1,5 +1,8 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): the DFlash2 drafter's sliding-window layers in one KV-cache group
++# of their own (is_eagle_group) with an exact-fit block size, each drafter layer laid out on the block bytes of one MLA
++# layer, and an opt-in KV-cache layout record (VLLM_KV_CACHE_LAYOUT_DUMP).
+ """KV-Cache Utilities."""
+ 
+ import copy

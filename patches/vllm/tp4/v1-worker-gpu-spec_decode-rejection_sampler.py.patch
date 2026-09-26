@@ -1,0 +1,104 @@
+RiNGSiDE overlay patch, profile tp4
+Target:      /usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py
+Preimage:    sha256 e20adc9b6c8a62a5be232bae15a1e361e898142966a68ea3ef244b39ffc5ce44
+             image file: vLLM v0.29.0 (vllm-project/vllm 98dff2a8) with the GLM-5.3 model sources of the glm-release branch of ZJY0516/vllm (4500c80c) and the lab port, as baked into the base image
+Upstream:    identical to vllm-project/vllm@98dff2a81d747d1dba01a47f939f48c3526d4206 (v0.29.0) at the same path
+Evidence:    the base image file as the recipe's image records give it (the port tree sums of docker/base/v029-port); the lab's copy of the port tree has the same sha256
+Postimage:   sha256 d59cb83ce11a92d2ee5fa8822988abc38cde0baeb6a2d14db36c953ce1f6c693 (the file the tp4 profile serves)
+Licence:     Apache-2.0 (upstream file; SPDX header retained)
+Apply:       sources/apply.py (git apply, no fuzz, no three-way; both sha256 checked)
+---
+diff --git a/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py b/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py
+index a9027e0550f8ee906451eb9cd1a7095ad3b7fe2b..7b372faa4a50e3084950a8085543e378e4318714 100644
+--- a/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py
++++ b/vllm/v1/worker/gpu/spec_decode/rejection_sampler.py
+@@ -1,5 +1,6 @@
+ # SPDX-License-Identifier: Apache-2.0
+ # SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++# Modified by the GLM-5.3 RiNGSiDE recipe (othexmr): opt-in sampler audit of the tokens a verification step emits.
+ from collections.abc import Iterable, Iterator
+ 
+ import numpy as np
+@@ -178,8 +179,82 @@ class RejectionSampler:
+             use_fp64=self.sampler.use_fp64_gumbel,
+             use_block_verification=self.use_block_verification,
+         )
++        if self.sampler.audit is not None:
++            self._audit_verify(
++                logits,
++                processed_logits,
++                sampled,
++                num_sampled,
++                cu_num_logits,
++                pos,
++                idx_mapping_np,
++                expanded_idx_mapping,
++            )
+         return processed_logits, sampled, num_sampled
+ 
++    def _audit_verify(
++        self,
++        raw: torch.Tensor,
++        processed: torch.Tensor,
++        sampled: torch.Tensor,
++        num_sampled: torch.Tensor,
++        cu_num_logits: torch.Tensor,
++        pos: torch.Tensor,
++        idx_mapping_np: np.ndarray,
++        expanded_idx_mapping: torch.Tensor,
++    ) -> None:
++        """topp-fix audit: every token this verification emits (accepted drafts, then the
++        recovered or bonus token), against the distribution top-p was applied to."""
++        from vllm.v1.sample.ops import topk_topp_triton
++
++        s = self.sampler
++        ns = num_sampled.tolist()
++        cu = cu_num_logits.tolist()
++        ps = pos.tolist()
++        rows, flat, prov, ks, rids, poss = [], [], [], [], [], []
++        for r, n in enumerate(ns):
++            k = cu[r + 1] - cu[r] - 1
++            rid = s.req_states.index_to_req_id.get(int(idx_mapping_np[r]), "?")
++            for i in range(n):
++                rows.append(cu[r] + i)
++                flat.append(r * sampled.stride(0) + i)
++                prov.append("accepted" if i < n - 1 else ("bonus" if i == k else "recovered"))
++                ks.append(k)
++                rids.append(rid)
++                poss.append(ps[cu[r] + i])
++        if not rows:
++            return
++        dev = processed.device
++        top_k, top_p = s.sampling_states.get_top_k_top_p(
++            expanded_idx_mapping, idx_mapping_np
++        )
++        backend = (
++            "none"
++            if top_k is None and top_p is None
++            else "triton"
++            if processed.shape[0] >= 8
++            else "pytorch"
++        )
++        s.audit.record(
++            pre=s._audit_pre if s._audit_pre is not None else processed,
++            processed=processed,
++            raw=raw,
++            rows=torch.tensor(rows, device=dev, dtype=torch.long),
++            tokens=sampled.reshape(-1)[torch.tensor(flat, device=dev, dtype=torch.long)].long(),
++            prov=prov,
++            ks=ks,
++            top_p=top_p,
++            backend=backend,
++            kernel_rec=(
++                getattr(topk_topp_triton, "LAST_AUDIT", [None])[0]
++                if backend == "triton"
++                else None
++            ),
++            guard_states=s._guard_states,
++            req_ids=rids,
++            positions=poss,
++        )
++
+     def _verify_in_chunks(
+         self,
+         logits: torch.Tensor,

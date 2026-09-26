@@ -1,0 +1,55 @@
+{
+  "scope": "CPU-prepared source bundle; not compiled or executed by reviewer",
+  "prepared_utc": "2026-09-08T00:28:33.304510+00:00",
+  "vllm_commit": "4500c80c080328dfe62435d083f4063e00d987df",
+  "pr_url": "https://github.com/vllm-project/vllm/pull/55314",
+  "pr_state_observed": "open, unmerged",
+  "pr_head_commit": "a68f6649976720b85c5e2df50af6aadd293cf5ca",
+  "pr_diff_sha256": "e09d108e2c0f880552092b471622628ba25d6a27ab13ced83ca586e8421886fe",
+  "license": "Apache-2.0",
+  "license_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+  "original_files": [
+    {
+      "path": "csrc/libtorch_stable/topk.cu",
+      "sha256": "2d0288facc79a50569cbd76e4445e8ebf800ed1a495296aa5ac6dba9ad7e8f60",
+      "source_url": "https://raw.githubusercontent.com/ZJY0516/vllm/4500c80c080328dfe62435d083f4063e00d987df/csrc/libtorch_stable/topk.cu"
+    },
+    {
+      "path": "csrc/libtorch_stable/persistent_topk.cuh",
+      "sha256": "28ea5f7ad85252dd797b8d86a69598d05350b8badae3d241d06b410bfb96a682",
+      "source_url": "https://raw.githubusercontent.com/ZJY0516/vllm/4500c80c080328dfe62435d083f4063e00d987df/csrc/libtorch_stable/persistent_topk.cuh"
+    },
+    {
+      "path": "csrc/libtorch_stable/topk_histogram_4096.cuh",
+      "sha256": "b1c8901d5b580fade9cd57e8d0bd1920c8c36908a8ede174393c20d333231bd3",
+      "source_url": "https://raw.githubusercontent.com/ZJY0516/vllm/4500c80c080328dfe62435d083f4063e00d987df/csrc/libtorch_stable/topk_histogram_4096.cuh"
+    },
+    {
+      "path": "csrc/libtorch_stable/torch_utils.h",
+      "sha256": "f619e1943039a67a3254f7e0679e1f3e0faa9d8fccae795f3b20df9e91a8a429",
+      "source_url": "https://raw.githubusercontent.com/ZJY0516/vllm/4500c80c080328dfe62435d083f4063e00d987df/csrc/libtorch_stable/torch_utils.h"
+    }
+  ],
+  "patched_files": [
+    {
+      "path": "csrc/libtorch_stable/topk.cu",
+      "sha256": "2d0288facc79a50569cbd76e4445e8ebf800ed1a495296aa5ac6dba9ad7e8f60"
+    },
+    {
+      "path": "csrc/libtorch_stable/persistent_topk.cuh",
+      "sha256": "d098711ce303e5951fbeb2f4a456b02f0f3f2f321f71a064cc383471c6eaf69d"
+    },
+    {
+      "path": "csrc/libtorch_stable/topk_histogram_4096.cuh",
+      "sha256": "994188b08d722f92a91bbb19401846144a08df1bce54f1decbaec3adb1a927e7"
+    },
+    {
+      "path": "csrc/libtorch_stable/torch_utils.h",
+      "sha256": "f619e1943039a67a3254f7e0679e1f3e0faa9d8fccae795f3b20df9e91a8a429"
+    }
+  ],
+  "applied_files": [
+    "csrc/libtorch_stable/persistent_topk.cuh",
+    "csrc/libtorch_stable/topk_histogram_4096.cuh"
+  ]
+}

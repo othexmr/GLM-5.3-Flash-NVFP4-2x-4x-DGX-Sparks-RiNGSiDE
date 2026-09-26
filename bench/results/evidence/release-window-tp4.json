@@ -1,0 +1,139 @@
+{
+ "schema": "switchless-evidence/1",
+ "record": "release-window-tp4",
+ "what": "The release window of the TP4 profile's own plan: one boot on four DGX Sparks with, in this order, the switch and served-byte receipts, the trap probe, RigMark (2 rounds), sparkDash (2 rounds), tool-eval-bench (1 run), a Korean long-generation prompt 12 times at width 6, 1 more tool-eval-bench run at the owner's request and the engagement markers. The emoji/CJK wall stress test and llama-benchy were not run on this plan.",
+ "measurement_kind": "measured (one boot)",
+ "window": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+ "windows": {
+  "korean": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+  "markers": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+  "rigmark": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+  "sparkdash": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+  "tool_eval": "2026-09-26-ringside-redhat-rowsplit-tp4-1"
+ },
+ "boots": [
+  {
+   "window": "2026-09-26-ringside-redhat-rowsplit-tp4-1",
+   "ran": [
+    "korean",
+    "markers",
+    "rigmark",
+    "sparkdash",
+    "tool_eval"
+   ],
+   "day": "2026-09-26",
+   "when": "2026-09-26 00:36-01:50"
+  }
+ ],
+ "boots_text": "the Korean check, the engagement markers, RigMark, sparkDash and tool-eval-bench in one boot (2026-09-26 00:36-01:50, window 2026-09-26-ringside-redhat-rowsplit-tp4-1)",
+ "lab_receipts": [
+  "2026-09-26-ringside-redhat-rowsplit-tp4-1"
+ ],
+ "plan_sha256": "89dfef8440c6318f0d34a3d767cb2ce11a1946715085ac60cf890802b38b9b76",
+ "lab_plan": "89dfef84",
+ "context": 262144,
+ "dates": {
+  "timezone": "UTC+7",
+  "day": "2026-09-26",
+  "window": "00:36-01:50",
+  "rigmark": "00:39-01:09",
+  "spans": {
+   "switch": "00:36-00:37",
+   "rigmark": "00:39-01:09",
+   "tool_eval": "01:12-01:18",
+   "sparkdash": "01:09-01:12",
+   "korean": "01:18-01:47",
+   "markers": "01:47-01:50"
+  }
+ },
+ "benchmarks": {
+  "rigmark_runs": 2,
+  "sparkdash_rounds": 2,
+  "tool_eval_runs": 2,
+  "tool_eval_note": "round 2 is an extra round in the same boot at the owner's request, run after the Korean check",
+  "llama_benchy": false
+ },
+ "not_run": [
+  "emoji",
+  "llama_benchy"
+ ],
+ "order": [
+  "switch",
+  "trap_probe",
+  "rigmark",
+  "sparkdash",
+  "tool_eval",
+  "korean",
+  "markers"
+ ],
+ "receipts": {
+  "switch_bytes_ok": true,
+  "markers_ok": true,
+  "switch": true,
+  "window_status": "OWN_TP4_CAMPAIGN_COMPLETE",
+  "campaign_exits": {
+   "2026-09-26-ringside-redhat-rowsplit-tp4-1": {
+    "switch": 0,
+    "switch_bytes_ckpt": 0,
+    "memory_rule": 0,
+    "trap_probe": 0,
+    "rigmark_codefull": 0,
+    "rigmark_prose": 0,
+    "acceptance_sparkdash": 0,
+    "sparkdash": 0,
+    "tool_eval": 0,
+    "korean": 0,
+    "markers": 0
+   }
+  }
+ },
+ "correctness": {
+  "korean": {
+   "expected": 12,
+   "runs": 12,
+   "complete": true,
+   "breaks": [],
+   "isolated_glitches": [],
+   "completion_tokens": 170955,
+   "rule": "a break is a derailed run, a runaway, a failed request, or a garbled run with at least 5 flagged characters (U+FFFD or Cyrillic, Arabic, Thai or kana characters); fewer flagged characters are an isolated glitch"
+  },
+  "trap_probe": {
+   "cases": 7,
+   "errors": []
+  }
+ },
+ "nvidia_arm": {
+  "window": "2026-09-25-ringside-combined-tp4-1",
+  "run_folder": "runs/2026-09-25-ringside-combined-tp4-1",
+  "lab_plan": "31978478",
+  "checkpoint": {
+   "repository": "nvidia/GLM-5.3-Flash-NVFP4",
+   "revision": "423acf37583782c51c142d145aef733d72943d93"
+  },
+  "day": "2026-09-25",
+  "when": "2026-09-25 21:03-21:49",
+  "rigmark_runs": 3,
+  "rigmark": "21:04-21:49",
+  "llama_benchy_passes": [
+   "passA",
+   "passB"
+  ],
+  "llama_benchy": true,
+  "llama_benchy_when": "2026-09-25 21:49-21:58",
+  "llama_benchy_shown": true
+ },
+ "problems": [],
+ "not_established": [
+  "the speed cells are medians of one boot's runs, with no matched reference window (earlier windows are other boots and times of day)",
+  "the emoji/CJK wall stress test and llama-benchy were not run on this plan (llama-benchy ran on the same release plan with the NVIDIA checkpoint, lab plan 31978478, in window 2026-09-25-ringside-combined-tp4-1: the additional arm)"
+ ],
+ "sources": [
+  "outputs/2026-09-26-ringside-redhat-rowsplit-tp4-1/switch-bytes.json",
+  "outputs/2026-09-26-ringside-redhat-rowsplit-tp4-1/markers-combined.json",
+  "outputs/2026-09-26-ringside-redhat-rowsplit-tp4-1/korean-p1/runs.jsonl",
+  "outputs/2026-09-26-ringside-redhat-rowsplit-tp4-1/sparkdash.json",
+  "outputs/2026-09-26-ringside-redhat-rowsplit-tp4-1/native/code-full.json",
+  "outputs/2026-09-26-ringside-redhat-rowsplit-tp4-1/tool-eval/result.json",
+  "outputs/2026-09-25-ringside-combined-tp4-1/llama-benchy/summary.json"
+ ]
+}
