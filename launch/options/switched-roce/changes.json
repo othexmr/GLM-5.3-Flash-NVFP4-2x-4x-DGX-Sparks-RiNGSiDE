@@ -1,0 +1,295 @@
+{
+  "glm53_lean_allreduce/_roce_proxy.c": {
+    "base_sha256": "6bcc5b94a31f2dea684424776afe8bcaa859bc37ec45264476dec2e605970f83",
+    "sha256": "30da7018bc1acf53223096943475ea3d76d7407605e4ff43565277e452073e6e",
+    "edits": [
+      {
+        "at": 84,
+        "before": [],
+        "after": [
+          "    int sgid;  /* GID index used as source (EXPERIMENTAL auto-select when gid_index < 0) */\r\n"
+        ]
+      },
+      {
+        "at": 174,
+        "before": [],
+        "after": [
+          "static int switched_ipv4_gid(struct ibv_context *ctx, int port, int count,\r\n",
+          "                             const char *name, char *err, size_t err_len) {\r\n",
+          "    static const uint8_t prefix[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};\r\n",
+          "    int selected = -1;\r\n",
+          "    for (int i = 0; i < count; ++i) {\r\n",
+          "        struct ibv_gid_entry entry;\r\n",
+          "        int rc = ibv_query_gid_ex(ctx, (uint32_t)port, (uint32_t)i, &entry, 0);\r\n",
+          "        if (rc) {\r\n",
+          "            int error = rc > 0 ? rc : errno;\r\n",
+          "            if (error == ENOENT || error == ENODATA) continue;\r\n",
+          "            snprintf(err, err_len, \"RDMA device %s cannot inspect GID %d (error %d)\", name, i, error);\r\n",
+          "            return -1;\r\n",
+          "        }\r\n",
+          "        if (entry.gid_type != IBV_GID_TYPE_ROCE_V2 || memcmp(entry.gid.raw, prefix, 12)) continue;\r\n",
+          "        if (!(entry.gid.raw[12] | entry.gid.raw[13] | entry.gid.raw[14] | entry.gid.raw[15])) continue;\r\n",
+          "        if (selected >= 0) {\r\n",
+          "            snprintf(err, err_len, \"RDMA device %s has ambiguous RoCE v2 IPv4 GIDs (%d, %d)\", name, selected, i);\r\n",
+          "            return -1;\r\n",
+          "        }\r\n",
+          "        if (i > 255) {\r\n",
+          "            snprintf(err, err_len, \"RDMA device %s has an unrepresentable GID index %d\", name, i);\r\n",
+          "            return -1;\r\n",
+          "        }\r\n",
+          "        selected = i;\r\n",
+          "    }\r\n",
+          "    if (selected < 0) snprintf(err, err_len, \"RDMA device %s has no usable RoCE v2 IPv4 GID\", name);\r\n",
+          "    return selected;\r\n",
+          "}\r\n",
+          "\r\n"
+        ]
+      },
+      {
+        "at": 211,
+        "before": [
+          "    if (ibv_query_gid(hca->ctx, ROCE_PORT, c->gid_index, &hca->gid) != 0) {\r\n"
+        ],
+        "after": [
+          "    hca->sgid = c->gid_index;\r\n",
+          "    if (c->gid_index < 0) {\r\n",
+          "        hca->sgid = switched_ipv4_gid(hca->ctx, ROCE_PORT, port.gid_tbl_len, name, c->err, sizeof(c->err));\r\n",
+          "        if (hca->sgid < 0) return -1;\r\n",
+          "    }\r\n",
+          "    if (ibv_query_gid(hca->ctx, ROCE_PORT, hca->sgid, &hca->gid) != 0) {\r\n"
+        ]
+      },
+      {
+        "at": 531,
+        "before": [
+          "    rtr.ah_attr.grh.sgid_index = (uint8_t)c->gid_index;\r\n"
+        ],
+        "after": [
+          "    rtr.ah_attr.grh.sgid_index = (uint8_t)hca->sgid;\r\n"
+        ]
+      }
+    ]
+  },
+  "glm53_lean_allreduce/lean_tp4.py": {
+    "base_sha256": "ae34f8883e15e621f62d69443ba87f41a58426b3fbda9c36f11095d58b9fdc67",
+    "sha256": "6d9645314ba9f36b5589f5e4e34af7f60ffe1dc6e9f29dea6eee91fb83a64da9",
+    "edits": [
+      {
+        "at": 24,
+        "before": [],
+        "after": [
+          "from .protocol import SWITCHED as _SWITCHED, SWITCHED_HCA_NAMES as _SWITCHED_HCA_NAMES\n"
+        ]
+      },
+      {
+        "at": 31,
+        "before": [],
+        "after": [
+          "if _SWITCHED:  # EXPERIMENTAL, CPU-ONLY CANDIDATE: see protocol.SWITCHED; the proxy picks each function's RoCE v2 IPv4 GID\n",
+          "    HCA_NAMES = _SWITCHED_HCA_NAMES\n"
+        ]
+      },
+      {
+        "at": 109,
+        "before": [
+          "            gid = int(os.environ.get(\"NCCL_IB_GID_INDEX\", \"3\"))\n",
+          "            if gid < 0:\n"
+        ],
+        "after": [
+          "            gid = -1 if _SWITCHED else int(os.environ.get(\"NCCL_IB_GID_INDEX\", \"3\"))\n",
+          "            if gid < 0 and not _SWITCHED:\n"
+        ]
+      }
+    ]
+  },
+  "glm53_lean_allreduce/protocol.py": {
+    "base_sha256": "b6fef13014b03f95af2236bdc949eb82e401bbd3ff4c1e71fa2acae54612751a",
+    "sha256": "83c0238ee2a5d6c00870be94d1eacc3bf1fcf09d2dcf08bbc104e85dab08ba93",
+    "edits": [
+      {
+        "at": 1,
+        "before": [],
+        "after": [
+          "\n",
+          "import os\n"
+        ]
+      },
+      {
+        "at": 17,
+        "before": [],
+        "after": [
+          "# EXPERIMENTAL, CPU-ONLY CANDIDATE (switched-RoCE derivation, not part of the measured RiNGSiDE plan):\n",
+          "# GLM53_RDMA_SWITCHED=1 selects a switched fabric where only the f1 port is up and both PCIe functions of it\n",
+          "# (rocep1s0f1, roceP2p1s0f1) reach every peer through the switch. Lane i pairs local function i with the peer's i.\n",
+          "SWITCHED = os.environ.get(\"GLM53_RDMA_SWITCHED\", \"0\") == \"1\"\n",
+          "SWITCHED_HCA_NAMES = (\"rocep1s0f1\", \"roceP2p1s0f1\")\n",
+          "SWITCHED_PATHS = {edge: (0, 1) for edge in DIRECT_PATHS}\n",
+          "\n",
+          "\n"
+        ]
+      },
+      {
+        "at": 30,
+        "before": [
+          "    paths = DIRECT_PATHS[(rank, peer(rank, phase))]\n"
+        ],
+        "after": [
+          "    paths = (SWITCHED_PATHS if SWITCHED else DIRECT_PATHS)[(rank, peer(rank, phase))]\n"
+        ]
+      }
+    ]
+  },
+  "glm53_prefill_rdma/_prb.cu": {
+    "base_sha256": "7ffd99abacd3e746f5eef850361336125bc322251aad7203f05d06c7a47f3d65",
+    "sha256": "f4c896fe97ead3eb551bff9ac02b0b96e9c4faabc27d2cb73b8bfdb28cc1b415",
+    "edits": [
+      {
+        "at": 68,
+        "before": [],
+        "after": [
+          "// EXPERIMENTAL, CPU-ONLY CANDIDATE switched-fabric derivation (GLM53_RDMA_SWITCHED=1): every neighbour is reached through\n",
+          "// the switch on the f1 port; lane 0 = rocep1s0f1, lane 1 = roceP2p1s0f1; f0 functions are not opened.\n",
+          "static int switched_ipv4_gid(struct ibv_context *ctx, int port, int count,\n",
+          "                             const char *name, char *err, size_t err_len) {\n",
+          "    static const uint8_t prefix[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};\n",
+          "    int selected = -1;\n",
+          "    for (int i = 0; i < count; ++i) {\n",
+          "        struct ibv_gid_entry entry;\n",
+          "        int rc = ibv_query_gid_ex(ctx, (uint32_t)port, (uint32_t)i, &entry, 0);\n",
+          "        if (rc) {\n",
+          "            int error = rc > 0 ? rc : errno;\n",
+          "            if (error == ENOENT || error == ENODATA) continue;\n",
+          "            snprintf(err, err_len, \"RDMA device %s cannot inspect GID %d (error %d)\", name, i, error);\n",
+          "            return -1;\n",
+          "        }\n",
+          "        if (entry.gid_type != IBV_GID_TYPE_ROCE_V2 || memcmp(entry.gid.raw, prefix, 12)) continue;\n",
+          "        if (!(entry.gid.raw[12] | entry.gid.raw[13] | entry.gid.raw[14] | entry.gid.raw[15])) continue;\n",
+          "        if (selected >= 0) {\n",
+          "            snprintf(err, err_len, \"RDMA device %s has ambiguous RoCE v2 IPv4 GIDs (%d, %d)\", name, selected, i);\n",
+          "            return -1;\n",
+          "        }\n",
+          "        if (i > 255) {\n",
+          "            snprintf(err, err_len, \"RDMA device %s has an unrepresentable GID index %d\", name, i);\n",
+          "            return -1;\n",
+          "        }\n",
+          "        selected = i;\n",
+          "    }\n",
+          "    if (selected < 0) snprintf(err, err_len, \"RDMA device %s has no usable RoCE v2 IPv4 GID\", name);\n",
+          "    return selected;\n",
+          "}\n",
+          "\n",
+          "static int prb_switched(void) { const char *s = getenv(\"GLM53_RDMA_SWITCHED\"); return s && !strcmp(s, \"1\"); }\n"
+        ]
+      },
+      {
+        "at": 69,
+        "before": [],
+        "after": [
+          "    if (prb_switched()) {\n",
+          "        if (a < 0 || a >= 4 || b < 0 || b >= 4 || lane < 0 || lane > 1 ||\n",
+          "            ((a - b + 4) % 4 != 1 && (a - b + 4) % 4 != 3)) return -1;\n",
+          "        return 1 + 2 * lane;\n",
+          "    }\n"
+        ]
+      },
+      {
+        "at": 469,
+        "before": [],
+        "after": [
+          "    int sgid[PRB_NHCA];\n"
+        ]
+      },
+      {
+        "at": 639,
+        "before": [],
+        "after": [
+          "        int used = 0;\n",
+          "        for (int d = 0; d < PRB_DIRS; d++) used |= c->h_send[d] == h || c->h_recv[d] == h;\n",
+          "        if (!used && prb_switched()) continue;  // EXPERIMENTAL: only the functions the ring uses\n"
+        ]
+      },
+      {
+        "at": 644,
+        "before": [
+          "        if (!c->ctx[h] || ibv_query_port(c->ctx[h], PRB_PORT, &pa) || pa.state != IBV_PORT_ACTIVE ||\n",
+          "            ibv_query_gid(c->ctx[h], PRB_PORT, gid_index, &c->gid[h])) {\n"
+        ],
+        "after": [
+          "        c->sgid[h] = gid_index;\n",
+          "        if (c->ctx[h] && !ibv_query_port(c->ctx[h], PRB_PORT, &pa) && gid_index < 0) {\n",
+          "            c->sgid[h] = switched_ipv4_gid(c->ctx[h], PRB_PORT, pa.gid_tbl_len,\n",
+          "                                            HCA_NAMES[h], err, (size_t)err_len);\n",
+          "            if (c->sgid[h] < 0) { ibv_free_device_list(list); prb_destroy(c); return NULL; }\n",
+          "        }\n",
+          "        if (!c->ctx[h] || ibv_query_port(c->ctx[h], PRB_PORT, &pa) || pa.state != IBV_PORT_ACTIVE || c->sgid[h] < 0 ||\n",
+          "            ibv_query_gid(c->ctx[h], PRB_PORT, c->sgid[h], &c->gid[h])) {\n"
+        ]
+      },
+      {
+        "at": 673,
+        "before": [],
+        "after": [
+          "        if (!c->mr[h]) continue;  // EXPERIMENTAL switched mode: unopened function\n"
+        ]
+      },
+      {
+        "at": 692,
+        "before": [
+          "    a.ah_attr.grh.sgid_index = (uint8_t)c->gid_index; a.ah_attr.grh.hop_limit = 64;\n"
+        ],
+        "after": [
+          "    a.ah_attr.grh.sgid_index = (uint8_t)c->sgid[h]; a.ah_attr.grh.hop_limit = 64;\n"
+        ]
+      }
+    ]
+  },
+  "glm53_prefill_rdma/protocol.py": {
+    "base_sha256": "300c20acf9ebf5235f17ca15985fbdddab8d9745782883efe6fd7d56529eac88",
+    "sha256": "45881982e7c9df5f248535fd543dd35cfa5bc16abc84d48c6d70c31979ef1016",
+    "edits": [
+      {
+        "at": 39,
+        "before": [],
+        "after": [
+          "import os\n"
+        ]
+      },
+      {
+        "at": 60,
+        "before": [],
+        "after": [
+          "    if os.environ.get(\"GLM53_RDMA_SWITCHED\", \"0\") == \"1\":  # EXPERIMENTAL, CPU-ONLY CANDIDATE: mirrors _prb.cu prb_switched()\n",
+          "        if a not in range(WORLD) or b not in range(WORLD) or lane not in (0, 1) or (a - b) % WORLD not in (1, WORLD - 1):\n",
+          "            raise ValueError(f\"no ring neighbour edge between {a} and {b}\")\n",
+          "        return 1 + 2 * lane\n"
+        ]
+      }
+    ]
+  },
+  "glm53_prefill_rdma/ring.py": {
+    "base_sha256": "ef4abf208149318901581577cc037a13e0314264190c91bb046a69074fc92ceb",
+    "sha256": "608b4edd4df3749a9786ca462b67c89d43b348c5cc3af58a1bdf5d5bc9d2dc32",
+    "edits": [
+      {
+        "at": 172,
+        "before": [
+          "            for name in HCA_NAMES:\n"
+        ],
+        "after": [
+          "            required_hcas = (HCA_NAMES[1], HCA_NAMES[3]) if env.get(\"GLM53_RDMA_SWITCHED\", \"0\") == \"1\" else HCA_NAMES\n",
+          "            for name in required_hcas:\n"
+        ]
+      },
+      {
+        "at": 186,
+        "before": [
+          "            gid = int(env.get(\"NCCL_IB_GID_INDEX\", \"3\"))\n"
+        ],
+        "after": [
+          "            # EXPERIMENTAL, CPU-ONLY CANDIDATE: GLM53_RDMA_SWITCHED=1 -> -1 = per-function RoCE v2 IPv4 GID (see _prb.cu)\n",
+          "            gid = -1 if env.get(\"GLM53_RDMA_SWITCHED\", \"0\") == \"1\" else int(env.get(\"NCCL_IB_GID_INDEX\", \"3\"))\n"
+        ]
+      }
+    ]
+  }
+}

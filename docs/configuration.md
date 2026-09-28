@@ -322,3 +322,14 @@ the four variables just before the image. The TP2 profile refuses it.
 | `--security-opt seccomp=unconfined` | io_uring for the weight loader. |
 
 The mounts are listed in each profile (`mounts`) and in `sources/installed-files.json`.
+
+## Experimental switched-RoCE option (TP4, off by default)
+
+`GLM53_RDMA_SWITCHED=1` in the ignored site file opts into the separately prepared
+variant; `SWITCHLESS_SWITCHED_ROCE_DIR` names its source/native-SO directory.
+Unset or `0` leaves the canonical launch unchanged. A bare flag without that
+directory, other flag values, and TP2 activation are rejected. See
+[switched-RoCE preparation and qualification](switched-roce.md) for the exact
+two-F1-lane contract, automatic per-HCA IPv4 RoCEv2 GID selection, ambiguity
+failures, build prerequisites and CPU-only evidence limits. The option preserves
+graphs/custom collectives and does not change the physical network.

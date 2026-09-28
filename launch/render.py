@@ -18,6 +18,7 @@ is mounted at /opt/weightless/control.gguf with the four WEIGHTLESS_* variables,
 the output is the profile's.
 """
 import argparse
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -37,11 +38,19 @@ WEIGHTLESS_ENV = ('WEIGHTLESS_STEER_PATH=' + WEIGHTLESS_VECTOR_DST, 'WEIGHTLESS_
                   'WEIGHTLESS_VECTOR_SHA256=0ccce6b748f87da81505ff2bc3ca82429110940b6c0def60063d304785ccc00c')
 
 
-def with_options(profile, site):
+def with_options(profile: dict, site: dict) -> dict:
     """The profile with the optional variants the site file turns on; without them, the profile itself.
 
     SWITCHLESS_WEIGHTLESS_DIR (TP4 only): the served model.py mount takes its file from that directory (in place),
     and the vector mount and the four WEIGHTLESS_* variables come just before the image."""
+    if site.get('GLM53_RDMA_SWITCHED', '0') not in ('0', ''):
+        spec = importlib.util.spec_from_file_location(
+            'switched_roce_option', ROOT / 'launch/options/switched-roce/prepare.py')
+        if spec is None or spec.loader is None:
+            raise ValueError('cannot load the switched-RoCE option')
+        option = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(option)
+        profile = option.with_profile(profile, site)
     if not site.get(WEIGHTLESS_SITE):
         return profile
     if profile['topology'] != 'tp4':
